@@ -7,9 +7,9 @@
 set ip_name    "axi_kv_cache"
 set ip_vendor  "shepherdscientific.com"
 set ip_library "user"
-set ip_version "1.1"
+set ip_version "2.0"
 set ip_display "INT4 KV-cache QK Engine"
-set ip_desc    "Read-only AXI INT4 K cache with INT8 Q, registered group-scale QK reduction, and AXI-Lite control/logit RAM."
+set ip_desc    "Head128-default read-only row-major INT4 K cache with INT8 Q, unsigned UQ5.11 group-scale QK reduction, preflight guards, and AXI-Lite control/logit RAM."
 
 set script_dir [file dirname [file normalize [info script]]]
 set repo_root  [file normalize [file join $script_dir ..]]
@@ -19,8 +19,6 @@ create_project -force ${ip_name}_pkg ${ip_name}_pkg -part xc7a100tcsg324-1
 foreach rtl_file {
     kv_addr_gen.v
     int4_unpack.v
-    kv_dequant.v
-    qk_dot.v
     qk_group_dot.v
     kv_reader.v
     kv_cache_engine.v
@@ -48,6 +46,9 @@ set_property supported_families  {artix7 Production} $core
 # the HDL port is rejected by the newer IP-XACT API.
 ipx::associate_bus_interfaces -busif s_axi -clock clk $core
 ipx::associate_bus_interfaces -busif m_axi -clock clk $core
+set clk_if [ipx::get_bus_interfaces clk -of_objects $core]
+set freq_hz [ipx::add_bus_parameter FREQ_HZ $clk_if]
+set_property value 81250000 $freq_hz
 
 ipx::create_xgui_files $core
 ipx::update_checksums $core

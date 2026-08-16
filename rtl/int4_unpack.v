@@ -14,8 +14,12 @@ module int4_unpack #(
     generate
         for (lane = 0; lane < LANES; lane = lane + 1) begin : g_unpack
             wire [3:0] nibble = packed_in[(lane*4) +: 4];
-            assign unpacked_out[(lane*OUT_WIDTH) +: OUT_WIDTH] =
-                {{(OUT_WIDTH-4){nibble[3]}}, nibble};
+            if (OUT_WIDTH == 4) begin : g_native_width
+                assign unpacked_out[(lane*OUT_WIDTH) +: OUT_WIDTH] = nibble;
+            end else begin : g_sign_extend
+                assign unpacked_out[(lane*OUT_WIDTH) +: OUT_WIDTH] =
+                    {{(OUT_WIDTH-4){nibble[3]}}, nibble};
+            end
         end
     endgenerate
 

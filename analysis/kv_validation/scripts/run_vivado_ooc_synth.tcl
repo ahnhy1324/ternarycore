@@ -1,16 +1,21 @@
 # Vivado 2026.1 out-of-context synthesis sweep for the KV-cache wrapper.
 # Usage:
-#   vivado -mode batch -source run_vivado_ooc_synth.tcl -tclargs REPO_ROOT OUT_DIR
+#   vivado -mode batch -source run_vivado_ooc_synth.tcl \
+#     -tclargs REPO_ROOT OUT_DIR ?CONFIG_FILTERS?
+# CONFIG_FILTERS is an optional plus-separated list (safe through Windows
+# batch argument forwarding), for example hd128_axi128+hd128_axi256.
 
 if {$argc < 2 || $argc > 3} {
-    error "usage: run_vivado_ooc_synth.tcl REPO_ROOT OUT_DIR ?CONFIG_FILTER?"
+    error "usage: run_vivado_ooc_synth.tcl REPO_ROOT OUT_DIR ?CONFIG_FILTERS?"
 }
 
 set repo_root [file normalize [lindex $argv 0]]
 set out_dir [file normalize [lindex $argv 1]]
 set config_filter ""
+set config_filters {}
 if {$argc == 3} {
     set config_filter [lindex $argv 2]
+    set config_filters [split $config_filter "+"]
 }
 file mkdir $out_dir
 
@@ -35,7 +40,7 @@ puts $summary "config,head_dim,axi_data_width,part,target_clock_mhz,status"
 foreach config {{hd64_axi128 64 128} {hd64_axi256 64 256} \
                 {hd128_axi128 128 128} {hd128_axi256 128 256}} {
     lassign $config name head_dim axi_width
-    if {$config_filter ne "" && $name ne $config_filter} {
+    if {$config_filter ne "" && [lsearch -exact $config_filters $name] < 0} {
         continue
     }
     puts "SYNTH_BEGIN name=$name head_dim=$head_dim axi_width=$axi_width"

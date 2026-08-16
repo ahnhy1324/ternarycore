@@ -1,18 +1,12 @@
-// axi_kv_cache.v -- AXI4-Lite controlled INT4 KV-cache Q.K accelerator.
+// axi_kv_cache.v -- ABI-v2 AXI4-Lite wrapper for the INT4/P16 Q.K engine.
 // SPDX-License-Identifier: CERN-OHL-S-2.0
 `timescale 1ns / 1ps
 `default_nettype none
 
 module axi_kv_cache #(
-    parameter integer HEAD_DIM          = 64,
-    parameter integer KV_BITS           = 4,
-    parameter integer P                 = 16,
+    parameter integer HEAD_DIM          = 128,
     parameter integer MAX_CONTEXT       = 4096,
-    parameter integer Q_WIDTH           = 8,
-    parameter integer SCALE_WIDTH       = 16,
-    parameter integer SCALE_GROUP_SIZE  = HEAD_DIM,
     parameter integer MULT_STYLE        = 2,
-    parameter integer ACC_WIDTH         = 32,
     parameter integer C_S_AXI_DATA_WIDTH = 32,
     parameter integer C_S_AXI_ADDR_WIDTH = 16,
     parameter integer M_AXI_ADDR_WIDTH   = 32,
@@ -62,6 +56,11 @@ module axi_kv_cache #(
     input  wire                          m_axi_rvalid,
     output wire                          m_axi_rready
 );
+    localparam integer KV_BITS = 4;
+    localparam integer P = 16;
+    localparam integer Q_WIDTH = 8;
+    localparam integer SCALE_WIDTH = 16;
+    localparam integer ACC_WIDTH = 32;
     localparam [C_S_AXI_ADDR_WIDTH-1:0] REG_CTRL       = 16'h0000;
     localparam [C_S_AXI_ADDR_WIDTH-1:0] REG_STATUS     = 16'h0004;
     localparam [C_S_AXI_ADDR_WIDTH-1:0] REG_K_BASE_LO  = 16'h0008;
@@ -75,15 +74,12 @@ module axi_kv_cache #(
     localparam [C_S_AXI_ADDR_WIDTH-1:0] REG_GEOMETRY   = 16'h0034;
     localparam [C_S_AXI_ADDR_WIDTH-1:0] Q_BASE         = 16'h0100;
     localparam [C_S_AXI_ADDR_WIDTH-1:0] LOGIT_BASE     = 16'h1000;
-    localparam [31:0] CORE_ID = 32'h4b56_0001; // "KV", ABI v1
+    localparam [31:0] CORE_ID = 32'h4b56_0002; // "KV", ABI v2
     localparam [31:0] GEOMETRY =
         ((M_AXI_DATA_WIDTH & 8'hff) << 24) |
         ((HEAD_DIM         & 8'hff) << 16) |
         ((P                & 8'hff) << 8)  |
         ( KV_BITS          & 8'hff);
-    localparam integer TOKEN_WIDTH =
-        (MAX_CONTEXT <= 1) ? 1 : $clog2(MAX_CONTEXT);
-
     reg aw_hold, w_hold;
     reg [C_S_AXI_ADDR_WIDTH-1:0] awaddr_hold;
     reg [C_S_AXI_DATA_WIDTH-1:0] wdata_hold;
@@ -98,10 +94,17 @@ module axi_kv_cache #(
     reg [63:0] k_base_reg;
     reg [31:0] context_len_reg;
     reg [31:0] token_pos_reg;
-    reg signed [SCALE_WIDTH-1:0] k_scale_reg;
+    // Compatibility scalar until the independent scale-plane reader lands.
+    // The unsigned register contains a UQ5.11 K scale and is replicated to
+    // every configured group.
+    reg [SCALE_WIDTH-1:0] k_scale_reg;
     reg done_sticky, error_sticky;
     reg [7:0] error_code_reg;
     reg engine_start;
+    // ABI v2 keeps a 64-bit base register even when the physical AXI address
+    // port is narrower. Reject non-representable high bits instead of silently
+    // truncating them at the engine boundary.
+    wire k_base_out_of_range = |(k_base_reg >> M_AXI_ADDR_WIDTH);
 
     reg [Q_WIDTH-1:0] q_mem [0:HEAD_DIM-1];
     reg signed [ACC_WIDTH-1:0] logit_mem [0:MAX_CONTEXT-1];
@@ -112,30 +115,25 @@ module axi_kv_cache #(
             assign q_vector[(qg*Q_WIDTH) +: Q_WIDTH] = q_mem[qg];
         end
     endgenerate
-    wire [((HEAD_DIM/SCALE_GROUP_SIZE)*SCALE_WIDTH)-1:0] k_scales;
-    genvar sg;
-    generate
-        for (sg = 0; sg < HEAD_DIM/SCALE_GROUP_SIZE; sg = sg + 1) begin : g_scale_compat
-            assign k_scales[(sg*SCALE_WIDTH) +: SCALE_WIDTH] = k_scale_reg;
-        end
-    endgenerate
+    // One scale per vector in ABI v2. Finer groups become configurable only
+    // when the physical metadata-plane reader exists.
+    wire [SCALE_WIDTH-1:0] k_scales = k_scale_reg;
 
     wire engine_busy, engine_done, engine_error;
     wire [7:0] engine_error_code;
     wire [31:0] engine_perf_cycles;
     wire engine_logit_valid;
-    wire [TOKEN_WIDTH-1:0] engine_logit_index;
+    wire [((MAX_CONTEXT <= 1) ? 1 : $clog2(MAX_CONTEXT))-1:0]
+        engine_logit_index;
     wire signed [ACC_WIDTH-1:0] engine_logit_data;
 
     kv_cache_engine #(
-        .HEAD_DIM(HEAD_DIM), .KV_BITS(KV_BITS),
+        .HEAD_DIM(HEAD_DIM),
         .AXI_DATA_WIDTH(M_AXI_DATA_WIDTH),
         .AXI_ADDR_WIDTH(M_AXI_ADDR_WIDTH),
-        .AXI_ID_WIDTH(M_AXI_ID_WIDTH), .P(P),
-        .MAX_CONTEXT(MAX_CONTEXT), .Q_WIDTH(Q_WIDTH),
-        .SCALE_WIDTH(SCALE_WIDTH), .SCALE_GROUP_SIZE(SCALE_GROUP_SIZE),
+        .AXI_ID_WIDTH(M_AXI_ID_WIDTH),
+        .MAX_CONTEXT(MAX_CONTEXT), .SCALE_GROUP_SIZE(HEAD_DIM),
         .MULT_STYLE(MULT_STYLE),
-        .ACC_WIDTH(ACC_WIDTH),
         .TIMEOUT_CYCLES(TIMEOUT_CYCLES)
     ) u_engine (
         .clk(clk), .rst_n(rst_n), .start(engine_start),
@@ -185,7 +183,7 @@ module axi_kv_cache #(
             k_base_reg      <= 64'd0;
             context_len_reg <= 32'd0;
             token_pos_reg   <= 32'd0;
-            k_scale_reg     <= 16'sh0100; // Q8.8 value 1.0
+            k_scale_reg     <= 16'h0800; // UQ5.11 value 1.0
             done_sticky     <= 1'b0;
             error_sticky    <= 1'b0;
             error_code_reg  <= 8'd0;
@@ -231,6 +229,9 @@ module axi_kv_cache #(
                             if (engine_busy) begin
                                 error_sticky   <= 1'b1;
                                 error_code_reg <= 8'h80; // start while busy
+                            end else if (k_base_out_of_range) begin
+                                error_sticky   <= 1'b1;
+                                error_code_reg <= 8'h04;
                             end else begin
                                 done_sticky     <= 1'b0;
                                 error_sticky    <= 1'b0;
@@ -283,7 +284,7 @@ module axi_kv_cache #(
                     REG_K_BASE_HI: s_axi_rdata <= k_base_reg[63:32];
                     REG_CONTEXT:   s_axi_rdata <= context_len_reg;
                     REG_TOKEN_POS: s_axi_rdata <= token_pos_reg;
-                    REG_CFG:       s_axi_rdata <= {{(32-SCALE_WIDTH){k_scale_reg[SCALE_WIDTH-1]}}, k_scale_reg};
+                    REG_CFG:       s_axi_rdata <= {{(32-SCALE_WIDTH){1'b0}}, k_scale_reg};
                     REG_PERF:      s_axi_rdata <= engine_perf_cycles;
                     REG_ERROR:     s_axi_rdata <= {24'd0, error_code_reg};
                     REG_ID:        s_axi_rdata <= CORE_ID;
@@ -318,13 +319,9 @@ module axi_kv_cache #(
 `ifndef SYNTHESIS
     initial begin
         if (C_S_AXI_DATA_WIDTH != 32)
-            $error("axi_kv_cache v0.1 requires a 32-bit AXI-Lite data port");
-        if (Q_WIDTH != 8)
-            $error("axi_kv_cache v0.1 query window is defined for INT8 Q");
-        if (SCALE_WIDTH != 16)
-            $error("axi_kv_cache v0.1 CFG register is defined for Q8.8 scale");
-        if (ACC_WIDTH != 32)
-            $error("axi_kv_cache v0.1 logit window is defined for 32-bit results");
+            $error("axi_kv_cache ABI v2 requires a 32-bit AXI-Lite data port");
+        if (M_AXI_ADDR_WIDTH < 32 || M_AXI_ADDR_WIDTH > 64)
+            $error("axi_kv_cache ABI v2 requires a 32..64-bit AXI address port");
     end
 `endif
 endmodule

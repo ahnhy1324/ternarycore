@@ -81,7 +81,7 @@ module tb_axi_kv_cache;
         begin
             sum = 0;
             for (dim = 0; dim < HEAD_DIM; dim = dim + 1)
-                sum = sum + q_at(dim) * $signed(k_at(token, dim)) * 256;
+                sum = sum + q_at(dim) * $signed(k_at(token, dim)) * 2048;
             expected_dot = sum;
         end
     endfunction
@@ -150,7 +150,7 @@ module tb_axi_kv_cache;
         repeat (3) @(posedge clk);
 
         axi_read(16'h0030, rd);
-        if (rd != 32'h4b56_0001) begin
+        if (rd != 32'h4b56_0002) begin
             $display("FAIL core ID %08x", rd); errors = errors + 1;
         end
         axi_read(16'h0034, rd);
@@ -176,7 +176,27 @@ module tb_axi_kv_cache;
 
         axi_write_split(16'h0008, BASE, 2);
         axi_write_split(16'h001c, 7, 1);
-        axi_write_split(16'h0024, 32'h0000_0100, 2);
+        axi_read(16'h0024, rd);
+        if (rd != 32'h0000_0800) begin
+            $display("FAIL UQ5.11 reset scale %08x", rd); errors = errors + 1;
+        end
+
+        // The 64-bit ABI register must not silently truncate through the
+        // configured 32-bit M_AXI address port.
+        axi_write_split(16'h000c, 32'h0000_0001, 1);
+        axi_write_split(16'h0000, 32'h0000_0001, 1);
+        axi_read(16'h0004, rd);
+        if (!rd[2]) begin
+            $display("FAIL high K base did not set error"); errors = errors + 1;
+        end
+        axi_read(16'h002c, rd);
+        if (rd[7:0] != 8'h04) begin
+            $display("FAIL high K base code %02x", rd[7:0]); errors = errors + 1;
+        end
+        axi_write_split(16'h0000, 32'h0000_0002, 1);
+        axi_write_split(16'h000c, 32'h0000_0000, 1);
+
+        axi_write_split(16'h0024, 32'h0000_0800, 2);
         axi_write_split(16'h0000, 32'h0000_0001, 3);
 
         polls = 0; rd = 0;

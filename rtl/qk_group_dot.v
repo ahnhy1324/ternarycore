@@ -4,7 +4,6 @@
 `default_nettype none
 
 module qk_group_dot #(
-    parameter integer LANES       = 16,
     parameter integer GROUP_SIZE  = 32,
     parameter integer Q_WIDTH     = 8,
     parameter integer K_WIDTH     = 4,
@@ -18,13 +17,17 @@ module qk_group_dot #(
     input  wire in_valid,
     input  wire vector_start,
     input  wire vector_last,
-    input  wire [(LANES*Q_WIDTH)-1:0] q_lanes,
-    input  wire [(LANES*K_WIDTH)-1:0] k_lanes,
+    input  wire [(16*Q_WIDTH)-1:0] q_lanes,
+    input  wire [(16*K_WIDTH)-1:0] k_lanes,
     input  wire [SCALE_WIDTH-1:0] group_scale,
     output reg  out_valid,
     output reg  signed [ACC_WIDTH-1:0] result,
     output reg  invalid_code
 );
+    // The reduction tree is structurally fixed at 16 lanes. Keeping this out
+    // of the parameter list prevents synthesis from accepting a width that
+    // the explicit 16-leaf tree cannot implement correctly.
+    localparam integer LANES = 16;
     localparam integer PRODUCT_WIDTH = Q_WIDTH + K_WIDTH;
     localparam integer PAIR_WIDTH = PRODUCT_WIDTH + 1;
     localparam integer QUAD_WIDTH = PRODUCT_WIDTH + 2;
@@ -200,8 +203,6 @@ module qk_group_dot #(
 
 `ifndef SYNTHESIS
     initial begin
-        if (LANES != 16)
-            $error("qk_group_dot v0.2 currently requires LANES=16");
         if (K_WIDTH < 3 || K_WIDTH > 5)
             $error("qk_group_dot v0.2 supports signed 3..5-bit K codes");
         if (GROUP_SIZE % LANES != 0)

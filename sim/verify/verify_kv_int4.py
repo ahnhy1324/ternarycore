@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Executable v0.1 INT4 KV-cache numerical and packing contract."""
+"""Legacy v0.1 Q8.8 packing smoke test retained for regression coverage."""
 
 HEAD_DIM = 64
 KV_BITS = 4
@@ -41,7 +41,7 @@ def unpack_k(data: bytes) -> list[int]:
 
 
 def qk_logit(token: int, scale_q8_8: int = 0x0100) -> int:
-    # The RTL leaves the binary point in the result: integer Q times Q8.8 K.
+    # This verifies the archived Q8.8 reference, not the ABI-v2 UQ5.11 path.
     return sum(q_value(dim) * k_value(token, dim) * scale_q8_8
                for dim in range(HEAD_DIM))
 

@@ -1,5 +1,10 @@
 # BitNet real-model KV validation handoff
 
+> **Superseded handoff.** Retained for reproducibility of the original capture
+> study. The all-layer injection, UQ5.11 contract, and ABI-v2 decisions are in
+> `V0_2_AUDIT_ADDENDUM_REPORT.md`; the normative IP contract is
+> `../../../docs/KV-IP.md`.
+
 Date: 2026-08-16  
 Checkpoint revision: `04c3b9ad9361b824064a1f25ea60a8be9599b127`  
 Checkpoint model SHA-256:

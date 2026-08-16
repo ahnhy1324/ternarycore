@@ -1,5 +1,10 @@
 # TernaryCore KV-cache software-validation report
 
+> **Historical analysis baseline.** This report preserves the first real-model
+> and synthetic sweep. It is not the current RTL/firmware contract. Use
+> `../../../docs/KV-IP.md` and `V0_2_AUDIT_ADDENDUM_REPORT.md` for ABI v2,
+> UQ5.11, current resources, timing, and implementation decisions.
+
 ## A. Executive summary
 
 - `[REAL-MODEL-VALIDATED]` The local Microsoft BitNet checkpoint is complete

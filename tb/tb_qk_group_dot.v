@@ -41,7 +41,7 @@ module tb_qk_group_dot;
     always #5 clk = ~clk;
 
     qk_group_dot #(
-        .LANES(LANES), .GROUP_SIZE(GROUP_SIZE), .Q_WIDTH(8),
+        .GROUP_SIZE(GROUP_SIZE), .Q_WIDTH(8),
         .K_WIDTH(K_WIDTH), .SCALE_WIDTH(16), .ACC_WIDTH(ACC_WIDTH),
         .MULT_STYLE(MULT_STYLE)
     ) dut (

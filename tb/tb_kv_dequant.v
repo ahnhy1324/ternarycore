@@ -1,4 +1,4 @@
-// tb_kv_dequant.v -- exact signed INT4 times Q8.8 scale regression.
+// tb_kv_dequant.v -- legacy exact signed INT4 times Q8.8 unit regression.
 // SPDX-License-Identifier: CERN-OHL-S-2.0
 `timescale 1ns / 1ps
 `default_nettype none
@@ -33,7 +33,7 @@ module tb_kv_dequant;
             end
         end
         if (errors == 0) begin
-            $display("TB PASS: INT4 Q8.8 dequant");
+            $display("TB PASS: legacy INT4 Q8.8 dequant unit");
             $finish;
         end else begin
             $fatal(1, "TB FAIL: %0d dequant errors", errors);

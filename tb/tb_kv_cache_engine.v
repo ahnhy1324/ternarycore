@@ -20,7 +20,7 @@ module tb_kv_cache_engine;
     localparam VECTOR_SHIFT = $clog2(VECTOR_BYTES);
     localparam BEATS_PER_VECTOR = VECTOR_BITS / AXI_WIDTH;
     localparam BASE = 32'h8000_1000;
-    localparam SCALE = 16'sh0100;
+    localparam SCALE = 16'h0800; // UQ5.11 value 1.0
     localparam SCALE_GROUP_SIZE = 32;
     localparam SCALE_GROUPS = HEAD_DIM / SCALE_GROUP_SIZE;
     localparam TOKEN_WIDTH = $clog2(MAX_CONTEXT);
@@ -29,6 +29,7 @@ module tb_kv_cache_engine;
     reg [31:0] k_base_addr = BASE;
     reg [31:0] context_len = 0;
     reg [(HEAD_DIM*8)-1:0] q_vector;
+    reg [(SCALE_GROUPS*16)-1:0] k_scales;
     wire busy, done, error;
     wire [7:0] error_code;
     wire [31:0] perf_cycles;
@@ -50,19 +51,20 @@ module tb_kv_cache_engine;
     reg [AXI_WIDTH-1:0] rdata = 0;
     reg [1:0] rresp = 0;
     reg rlast = 0, rvalid = 0;
+    reg inject_invalid_code = 0;
     wire rready;
     always #5 clk = ~clk;
 
     kv_cache_engine #(
-        .HEAD_DIM(HEAD_DIM), .KV_BITS(4), .AXI_DATA_WIDTH(AXI_WIDTH),
-        .AXI_ADDR_WIDTH(32), .AXI_ID_WIDTH(1), .P(P),
-        .MAX_CONTEXT(MAX_CONTEXT), .Q_WIDTH(8), .SCALE_WIDTH(16),
+        .HEAD_DIM(HEAD_DIM), .AXI_DATA_WIDTH(AXI_WIDTH),
+        .AXI_ADDR_WIDTH(32), .AXI_ID_WIDTH(1),
+        .MAX_CONTEXT(MAX_CONTEXT),
         .SCALE_GROUP_SIZE(SCALE_GROUP_SIZE),
-        .ACC_WIDTH(32), .TIMEOUT_CYCLES(1000)
+        .TIMEOUT_CYCLES(1000)
     ) dut (
         .clk(clk), .rst_n(rst_n), .start(start),
         .k_base_addr(k_base_addr), .context_len(context_len),
-        .q_vector(q_vector), .k_scales({SCALE_GROUPS{SCALE}}),
+        .q_vector(q_vector), .k_scales(k_scales),
         .busy(busy), .done(done), .error(error), .error_code(error_code),
         .perf_cycles(perf_cycles), .logit_valid(logit_valid),
         .logit_index(logit_index), .logit_data(logit_data),
@@ -105,7 +107,7 @@ module tb_kv_cache_engine;
             for (dim = 0; dim < HEAD_DIM; dim = dim + 1) begin
                 k_code = (token * 3 + dim * 5) % 15;
                 k_signed = k_code - 7;
-                sum = sum + q_at(dim) * k_signed * 256;
+                sum = sum + q_at(dim) * k_signed * 2048;
             end
             expected_dot = sum;
         end
@@ -121,6 +123,8 @@ module tb_kv_cache_engine;
             for (lane = 0; lane < AXI_WIDTH/4; lane = lane + 1)
                 value[(lane*4) +: 4] =
                     k_at(token, beat*(AXI_WIDTH/4) + lane);
+            if (inject_invalid_code && token == 0 && beat == 0)
+                value[3:0] = 4'h8;
             make_beat = value;
         end
     endfunction
@@ -276,6 +280,7 @@ module tb_kv_cache_engine;
     integer d;
     initial begin
         q_vector = 0;
+        k_scales = {SCALE_GROUPS{SCALE}};
         for (d = 0; d < HEAD_DIM; d = d + 1)
             q_vector[(d*8) +: 8] = q_at(d);
         repeat (5) @(negedge clk); rst_n = 1;
@@ -316,6 +321,47 @@ module tb_kv_cache_engine;
             $display("FAIL unaligned base: error=%0d code=%02x", error, error_code);
             errors = errors + 1;
         end else $display("PASS unaligned base rejected");
+        repeat (3) @(posedge clk);
+
+        // The final vector address must remain representable on M_AXI.
+        context_len = 2;
+        k_base_addr = 32'hffff_ffff - (VECTOR_BYTES-1);
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        if (!error || error_code != 8'h04) begin
+            $display("FAIL address wrap: error=%0d code=%02x", error, error_code);
+            errors = errors + 1;
+        end else $display("PASS address wrap rejected");
+        repeat (3) @(posedge clk);
+
+        // The 32-bit compatibility result must never silently wrap. A scale
+        // above the conservative worst-vector bound is rejected before AXI.
+        context_len = 1; k_base_addr = BASE;
+        k_scales = {SCALE_GROUPS{16'hffff}};
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        if (!error || error_code != 8'h03) begin
+            $display("FAIL unsafe scale: error=%0d code=%02x", error, error_code);
+            errors = errors + 1;
+        end else $display("PASS unsafe scale rejected");
+        k_scales = {SCALE_GROUPS{SCALE}};
+        repeat (3) @(posedge clk);
+
+        // The canonical symmetric INT4 producer must never emit -8. Verify
+        // that a malformed payload is reported and no logit is accepted.
+        context_len = 1; inject_invalid_code = 1;
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        begin : invalid_code_check
+        reg saw_invalid_code;
+        wait_for_error(1500, saw_invalid_code);
+        if (!saw_invalid_code || error_code != 8'h30) begin
+            $display("FAIL reserved INT4 code error=%0d code=%02x",
+                     saw_invalid_code, error_code);
+            errors = errors + 1;
+        end else $display("PASS reserved INT4 code rejected");
+        end
+        inject_invalid_code = 0;
         repeat (3) @(posedge clk);
 
         // Both AXI channel timeout classes propagate through the engine.

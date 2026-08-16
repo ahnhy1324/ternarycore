@@ -27,7 +27,7 @@ foreach config {
     set_property top qk_group_dot [current_fileset]
     synth_design -top qk_group_dot -part $part -mode out_of_context \
         -flatten_hierarchy rebuilt -generic [list \
-        LANES=16 GROUP_SIZE=128 Q_WIDTH=8 K_WIDTH=$k_width \
+        GROUP_SIZE=128 Q_WIDTH=8 K_WIDTH=$k_width \
         SCALE_WIDTH=16 ACC_WIDTH=64 MULT_STYLE=$mult_style]
     report_utilization -file [file join $out_dir ${name}_utilization.rpt]
     report_timing_summary -delay_type max -max_paths 10 -report_unconstrained \

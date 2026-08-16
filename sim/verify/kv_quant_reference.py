@@ -87,7 +87,8 @@ def _represent_scale(scale: np.ndarray, scale_format: str) -> np.ndarray:
     elif scale_format == "FP16":
         represented = scale.astype(np.float16).astype(np.float32)
     elif scale_format == "Q8.8":
-        # The current ABI uses a signed Q8.8 register.  Scales are positive.
+        # Historical/synthetic format retained for comparison. ABI v2 uses
+        # unsigned UQ5.11 K/V scales instead.
         represented = np.clip(np.rint(scale * 256.0), 1.0, 32767.0) / 256.0
         represented = represented.astype(np.float32)
     else:
@@ -249,4 +250,3 @@ def scale_metadata_bytes_per_token(granularity: str, head_dim: int,
     else:
         raise ValueError(f"unsupported granularity: {granularity}")
     return scales_per_token * scale_bits / 8.0
-

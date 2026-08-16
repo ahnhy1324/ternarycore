@@ -1,5 +1,9 @@
 # Vivado 2026.1 KV-cache resource and timing report
 
+> **Historical pre-ABI-v2 synthesis.** Do not use these resource/timing rows for
+> the current wrapper. The refreshed post-audit results are in
+> `V0_2_AUDIT_ADDENDUM_REPORT.md` and `../hardware_estimates/vivado_wrapper_v0_2_auto/`.
+
 Date: 2026-08-16  
 Evidence: `[VIVADO-POST-SYNTH]`  
 Top: `axi_kv_cache`  

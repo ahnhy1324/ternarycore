@@ -43,6 +43,26 @@ The earlier `kv_rtl_prep.zip` also passed CRC validation; SHA-256:
 `30C37ED63C76A47A9C4066AC9BC9232C9951C96D96FC7639CD9249DCCC2AA89A`.
 Its files are preserved under `analysis/kv_validation/prep/kv_rtl_prep/`.
 
+## ABI-v2 implementation audit corrections
+
+The documentation/RTL cross-check found and corrected contract defects before
+the next architecture revision:
+
+| Audit finding | Correction | Regression evidence |
+|---|---|---|
+| `CFG` reset encoded Q8.8 1.0 (`0x0100`) although the frozen K-scale contract is UQ5.11 | Reset is `0x0800`; wrapper test reads it before writing | AXI-Lite wrapper PASS |
+| The unsigned K scale was stored signed and sign-extended on readback | Register is unsigned and zero-extended | AXI-Lite wrapper PASS |
+| The AXI reader exposed K5 and arbitrary P parameters although its physical unpacker is K4/P16 | Packaged engine fixes K4/P16; K5 remains standalone-core research only | all four geometry regressions PASS |
+| The 16-leaf QK tree exposed a misleading lane-count parameter | Lane count is structurally fixed to 16 at the module boundary | K4/K5 golden PASS |
+| A legal but excessive UQ5.11 code could truncate a scaled 32-bit logit | Conservative pre-AXI scale guard returns `0x03` | dedicated unsafe-scale test PASS |
+| A non-zero high base or final context address could truncate/wrap a 32-bit M_AXI port | Pre-AXI address-range guard returns `0x04` | wrapper high-word and engine wrap tests PASS |
+| Native-width INT4 unpack generated a zero-replication synthesis warning | Separate native-width/sign-extension generate branches | Icarus `-Wall`; Vivado warning removed |
+
+The wrapper core ID is now `0x4B56_0002`, and the packaged IP version is `2.0`.
+Reserved nibble `0x8` is also exercised through the full engine and returns
+`0x30` without accepting a logit. These are correctness/contract fixes, not a
+claim of improved model accuracy.
+
 ## Measured and simulated results
 
 ### Actual-model end-to-end injection
@@ -95,9 +115,15 @@ Raw: `real_model/kv_scale_contract_sweep/{all_results.csv,summary.csv,summary.js
 Standalone K4/K5 cores match actual-model golden vectors. The full wrapper
 passed lengths `1, 7, 63, 64, 65, 127, 128, 129, 511, 512, 513, 1023, 1024,
 1025, 4095, 4096`, randomized AR/R back-pressure, short-after-4096, unaligned
-base, invalid context, AXI errors, timeouts, and wrapper tests. Timeouts fail.
+or out-of-range base, invalid context, unsafe scale, reserved INT4 code, AXI
+errors, timeouts, and wrapper tests. Timeouts fail.
 The compatibility wrapper has no physical scale plane/FIFO yet, so scale FIFO
 underflow and true scale/data synchronization remain next-revision tests.
+
+Vivado 2026.1 IP-XACT packaging/integrity also passes for component version
+2.0. The saved package defaults to head128, declares 81.25 MHz, and no longer
+exposes K width, lane count, result width, or scale group combinations that the
+wrapper cannot implement.
 
 Golden: `real_model/qk_profile_golden_v0_2/`.
 
@@ -123,12 +149,17 @@ the small baseline. Raw reports/DCPs:
 
 | AXI | LUT | Logic LUT | LUTRAM LUT | FF | BRAM | DSP | WNS | Equivalent Fmax |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 128 | 8,713 | 5,897 | 2,816 | 1,829 | 0 | 1 | +0.120 ns | 82.05 MHz |
-| 256 | 8,608 | 5,792 | 2,816 | 2,085 | 0 | 1 | +0.097 ns | 81.89 MHz |
+| 128 | 8,783 | 5,967 | 2,816 | 1,829 | 0 | 1 | -0.175 ns | 80.11 MHz |
+| 256 | 8,601 | 5,785 | 2,816 | 2,085 | 0 | 1 | +0.105 ns | 81.95 MHz |
 
-Both meet 81.248 MHz OOC post-synthesis, barely. The 2,816 LUTRAM LUTs are
-primarily the asynchronous 4096x32 logit store. These are not routed or board
-DDR measurements. Raw: `hardware_estimates/vivado_wrapper_v0_2_auto/`.
+The 256-bit wrapper meets 81.248 MHz OOC post-synthesis. The first-class
+128-bit wrapper misses by 0.175 ns, so timing is not closed after the ABI guard
+revision. It uses 13.85% of device LUTs, 1.44% of FFs, 0% BRAM, and 0.42% of
+DSPs; the 256-bit variant uses 13.57%, 1.64%, 0%, and 0.42%. The 2,816 LUTRAM
+LUTs are primarily the asynchronous 4096x32 logit store. The next score-memory
+revision must retime the QK path and infer synchronous BRAM before claiming the
+81.25 MHz target. These are not routed or board-DDR measurements. Raw:
+`hardware_estimates/vivado_wrapper_v0_2_auto/`.
 
 ## Cycle accounting
 

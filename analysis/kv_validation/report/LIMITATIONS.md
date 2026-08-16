@@ -1,5 +1,9 @@
 # Limitations
 
+> This list belongs to the original validation pass. The authoritative current
+> limitations and unverified hypotheses are maintained in
+> `V0_2_AUDIT_ADDENDUM_REPORT.md` and `../../../docs/KV-IP.md`.
+
 1. `[REAL-MODEL-VALIDATED]` The layer-streaming reference completed the full
    30-layer checkpoint at contexts 128 and 512, capturing five layers. Contexts
    1024/2048/4096 remain `NOT_TESTED` because of CPU time; they did not fail.
