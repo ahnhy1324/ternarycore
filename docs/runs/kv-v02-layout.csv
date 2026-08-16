@@ -1,0 +1,49 @@
+context_len,axi_width,granularity,scales_per_token,layout,useful_bytes,long_burst_transferred_bytes,fully_tokenwise_transaction_bytes,scale_values_per_beat,k_address_expression,scale_address_expression,k_vectors_32byte_aligned
+128,128,token64,1,separate_planes,4352,4352,6144,8,base+(token<<5),base+(token<<1),True
+128,128,token64,1,interleaved_34byte,4352,4352,6144,0,base+token*34,embedded in record,False
+128,128,group16,4,separate_planes,5120,5120,6144,8,base+(token<<5),base+(token<<3),True
+128,128,group16,4,interleaved_40byte,5120,5120,6144,0,base+token*40,embedded in record,False
+128,256,token64,1,separate_planes,4352,4352,8192,16,base+(token<<5),base+(token<<1),True
+128,256,token64,1,interleaved_34byte,4352,4352,8192,0,base+token*34,embedded in record,False
+128,256,group16,4,separate_planes,5120,5120,8192,16,base+(token<<5),base+(token<<3),True
+128,256,group16,4,interleaved_40byte,5120,5120,8192,0,base+token*40,embedded in record,False
+256,128,token64,1,separate_planes,8704,8704,12288,8,base+(token<<5),base+(token<<1),True
+256,128,token64,1,interleaved_34byte,8704,8704,12288,0,base+token*34,embedded in record,False
+256,128,group16,4,separate_planes,10240,10240,12288,8,base+(token<<5),base+(token<<3),True
+256,128,group16,4,interleaved_40byte,10240,10240,12288,0,base+token*40,embedded in record,False
+256,256,token64,1,separate_planes,8704,8704,16384,16,base+(token<<5),base+(token<<1),True
+256,256,token64,1,interleaved_34byte,8704,8704,16384,0,base+token*34,embedded in record,False
+256,256,group16,4,separate_planes,10240,10240,16384,16,base+(token<<5),base+(token<<3),True
+256,256,group16,4,interleaved_40byte,10240,10240,16384,0,base+token*40,embedded in record,False
+512,128,token64,1,separate_planes,17408,17408,24576,8,base+(token<<5),base+(token<<1),True
+512,128,token64,1,interleaved_34byte,17408,17408,24576,0,base+token*34,embedded in record,False
+512,128,group16,4,separate_planes,20480,20480,24576,8,base+(token<<5),base+(token<<3),True
+512,128,group16,4,interleaved_40byte,20480,20480,24576,0,base+token*40,embedded in record,False
+512,256,token64,1,separate_planes,17408,17408,32768,16,base+(token<<5),base+(token<<1),True
+512,256,token64,1,interleaved_34byte,17408,17408,32768,0,base+token*34,embedded in record,False
+512,256,group16,4,separate_planes,20480,20480,32768,16,base+(token<<5),base+(token<<3),True
+512,256,group16,4,interleaved_40byte,20480,20480,32768,0,base+token*40,embedded in record,False
+1024,128,token64,1,separate_planes,34816,34816,49152,8,base+(token<<5),base+(token<<1),True
+1024,128,token64,1,interleaved_34byte,34816,34816,49152,0,base+token*34,embedded in record,False
+1024,128,group16,4,separate_planes,40960,40960,49152,8,base+(token<<5),base+(token<<3),True
+1024,128,group16,4,interleaved_40byte,40960,40960,49152,0,base+token*40,embedded in record,False
+1024,256,token64,1,separate_planes,34816,34816,65536,16,base+(token<<5),base+(token<<1),True
+1024,256,token64,1,interleaved_34byte,34816,34816,65536,0,base+token*34,embedded in record,False
+1024,256,group16,4,separate_planes,40960,40960,65536,16,base+(token<<5),base+(token<<3),True
+1024,256,group16,4,interleaved_40byte,40960,40960,65536,0,base+token*40,embedded in record,False
+2048,128,token64,1,separate_planes,69632,69632,98304,8,base+(token<<5),base+(token<<1),True
+2048,128,token64,1,interleaved_34byte,69632,69632,98304,0,base+token*34,embedded in record,False
+2048,128,group16,4,separate_planes,81920,81920,98304,8,base+(token<<5),base+(token<<3),True
+2048,128,group16,4,interleaved_40byte,81920,81920,98304,0,base+token*40,embedded in record,False
+2048,256,token64,1,separate_planes,69632,69632,131072,16,base+(token<<5),base+(token<<1),True
+2048,256,token64,1,interleaved_34byte,69632,69632,131072,0,base+token*34,embedded in record,False
+2048,256,group16,4,separate_planes,81920,81920,131072,16,base+(token<<5),base+(token<<3),True
+2048,256,group16,4,interleaved_40byte,81920,81920,131072,0,base+token*40,embedded in record,False
+4096,128,token64,1,separate_planes,139264,139264,196608,8,base+(token<<5),base+(token<<1),True
+4096,128,token64,1,interleaved_34byte,139264,139264,196608,0,base+token*34,embedded in record,False
+4096,128,group16,4,separate_planes,163840,163840,196608,8,base+(token<<5),base+(token<<3),True
+4096,128,group16,4,interleaved_40byte,163840,163840,196608,0,base+token*40,embedded in record,False
+4096,256,token64,1,separate_planes,139264,139264,262144,16,base+(token<<5),base+(token<<1),True
+4096,256,token64,1,interleaved_34byte,139264,139264,262144,0,base+token*34,embedded in record,False
+4096,256,group16,4,separate_planes,163840,163840,262144,16,base+(token<<5),base+(token<<3),True
+4096,256,group16,4,interleaved_40byte,163840,163840,262144,0,base+token*40,embedded in record,False

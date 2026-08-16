@@ -144,8 +144,35 @@ module tb_kv_cache_engine;
     end
 
     integer seen = 0, active_length = 0, errors = 0;
+    integer account_issue = 0, account_reader_launch = 0;
+    integer account_axi_ar = 0, account_axi_r_empty = 0;
+    integer account_axi_r_transfer = 0, account_beat_handoff = 0;
+    integer account_mac = 0, account_result = 0, account_other = 0;
     reg checking = 0;
     always @(posedge clk) begin
+        if (checking && busy) begin
+            case (dut.state)
+                3'd1: account_issue = account_issue + 1;
+                3'd2: begin
+                    case (dut.u_reader.state)
+                        2'd0: account_reader_launch = account_reader_launch + 1;
+                        2'd1: account_axi_ar = account_axi_ar + 1;
+                        2'd2: begin
+                            if (dut.u_reader.beat_valid)
+                                account_beat_handoff = account_beat_handoff + 1;
+                            else if (rvalid && rready)
+                                account_axi_r_transfer = account_axi_r_transfer + 1;
+                            else
+                                account_axi_r_empty = account_axi_r_empty + 1;
+                        end
+                        default: account_other = account_other + 1;
+                    endcase
+                end
+                3'd3: account_mac = account_mac + 1;
+                3'd4: account_result = account_result + 1;
+                default: account_other = account_other + 1;
+            endcase
+        end
         if (checking && logit_valid) begin
             if (logit_index !== seen[TOKEN_WIDTH-1:0]) begin
                 $display("FAIL length %0d: index got %0d want %0d",
@@ -168,8 +195,15 @@ module tb_kv_cache_engine;
         reg [7:0] saw_error_code;
         begin
             active_length = length; seen = 0; checking = 1;
+            // Each performance case starts from the same deterministic AXI
+            // back-pressure phase so cycle accounting does not depend on the
+            // set or order of preceding regression lengths.
+            account_issue = 0; account_reader_launch = 0;
+            account_axi_ar = 0; account_axi_r_empty = 0;
+            account_axi_r_transfer = 0; account_beat_handoff = 0;
+            account_mac = 0; account_result = 0; account_other = 0;
             context_len = length; k_base_addr = BASE;
-            @(negedge clk); start = 1;
+            @(negedge clk); lfsr = 16'h1ace; start = 1;
             @(negedge clk); start = 0;
             cycles = 0;
             while (!done && !error && cycles < length*40 + 2000) begin
@@ -193,7 +227,29 @@ module tb_kv_cache_engine;
             end else begin
                 $display("PASS length %0d: %0d cycles", length, perf_cycles);
             end
+            if (length == 512 || length == 4096) begin
+                $display("CYCLE_ACCOUNT width=%0d length=%0d total=%0d issue=%0d reader_launch=%0d axi_ar=%0d axi_r_empty=%0d axi_r_transfer=%0d beat_handoff=%0d mac=%0d result=%0d other=%0d",
+                         AXI_WIDTH, length, perf_cycles, account_issue,
+                         account_reader_launch, account_axi_ar,
+                         account_axi_r_empty, account_axi_r_transfer,
+                         account_beat_handoff, account_mac, account_result,
+                         account_other);
+            end
             repeat (3) @(posedge clk);
+        end
+    endtask
+
+    task wait_for_error;
+        input integer max_cycles;
+        output reg saw_error;
+        integer guard;
+        begin
+            guard = 0;
+            while (!error && guard < max_cycles) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            saw_error = error;
         end
     endtask
 
@@ -205,8 +261,17 @@ module tb_kv_cache_engine;
         repeat (5) @(negedge clk); rst_n = 1;
         repeat (3) @(posedge clk);
 
+`ifdef CYCLE_ACCOUNT_ONLY
+        run_case(512);
+        run_case(4096);
+        if (errors == 0) $display("TB PASS: KV cycle accounting");
+        else $display("TB FAIL: %0d KV cycle-accounting errors", errors);
+        $finish;
+`else
         run_case(1); run_case(7); run_case(63); run_case(64); run_case(65);
+        run_case(127); run_case(128); run_case(129);
         run_case(511); run_case(512); run_case(513);
+        run_case(1023); run_case(1024); run_case(1025);
         run_case(4095); run_case(4096);
         run_case(7); // stale-state check: short run after the maximum
 
@@ -234,22 +299,30 @@ module tb_kv_cache_engine;
         k_base_addr = BASE; context_len = 1; force_ar_stall = 1;
         @(negedge clk); start = 1;
         @(negedge clk); start = 0;
-        wait (error);
-        if (error_code != 8'h11) begin
-            $display("FAIL AR timeout propagation code=%02x", error_code);
+        begin : ar_timeout_check
+        reg saw_timeout;
+        wait_for_error(1500, saw_timeout);
+        if (!saw_timeout || error_code != 8'h11) begin
+            $display("FAIL AR timeout propagation error=%0d code=%02x",
+                     saw_timeout, error_code);
             errors = errors + 1;
         end else $display("PASS AR timeout propagated");
+        end
         force_ar_stall = 0;
         repeat (3) @(posedge clk);
 
         force_r_stall = 1;
         @(negedge clk); start = 1;
         @(negedge clk); start = 0;
-        wait (error);
-        if (error_code != 8'h12) begin
-            $display("FAIL R timeout propagation code=%02x", error_code);
+        begin : r_timeout_check
+        reg saw_timeout;
+        wait_for_error(1500, saw_timeout);
+        if (!saw_timeout || error_code != 8'h12) begin
+            $display("FAIL R timeout propagation error=%0d code=%02x",
+                     saw_timeout, error_code);
             errors = errors + 1;
         end else $display("PASS R timeout propagated");
+        end
         force_r_stall = 0;
 
         // Reset clears the deliberately abandoned timed-out read before the
@@ -263,16 +336,21 @@ module tb_kv_cache_engine;
         k_base_addr = BASE; context_len = 1; inject_rresp_error = 1;
         @(negedge clk); start = 1;
         @(negedge clk); start = 0;
-        wait (error);
-        if (error_code != 8'h13) begin
-            $display("FAIL RRESP propagation code=%02x", error_code);
+        begin : rresp_check
+        reg saw_response_error;
+        wait_for_error(1500, saw_response_error);
+        if (!saw_response_error || error_code != 8'h13) begin
+            $display("FAIL RRESP propagation error=%0d code=%02x",
+                     saw_response_error, error_code);
             errors = errors + 1;
         end else $display("PASS RRESP error propagated");
+        end
 
         errors = errors + protocol_errors;
         if (errors == 0) $display("TB PASS: KV engine regression");
         else $display("TB FAIL: %0d KV engine errors", errors);
         $finish;
+`endif
     end
 endmodule
 

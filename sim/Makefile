@@ -6,7 +6,7 @@ IVERILOG = iverilog
 VVP      = vvp
 SIMDIR   = .
 
-.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache clean verify
+.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache clean verify analyze_kv
 
 all: tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache
 
@@ -97,6 +97,15 @@ verify:
 	python3 verify/verify_dot.py
 	python3 verify/verify_gemm.py
 	python3 verify/verify_kv_int4.py
+	python3 verify/verify_kv_quant.py
+	python3 verify/verify_kv_analysis_artifacts.py
+
+# Rebuild the versioned synthetic/numerical, RTL-cycle, and analytical reports.
+# This is intentionally not part of the fast verification target.
+analyze_kv:
+	python3 verify/analyze_kv_quant.py
+	python3 verify/analyze_kv_cycles.py
+	python3 verify/analyze_kv_system.py
 
 clean:
 	rm -f $(SIMDIR)/sim_* $(SIMDIR)/*.vcd

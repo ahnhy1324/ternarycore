@@ -1,0 +1,152 @@
+{
+  "assumptions": {
+    "av_accumulation_ms": 50.85833846153846,
+    "calls_per_token": 448,
+    "qk_proposed_ms": 40.686670769230766,
+    "quantized_v_equal128_ms": 452.34000000000003,
+    "quantized_v_target64_ms": 354.228,
+    "softmax_proposed_ms": 20.0
+  },
+  "components": [
+    {
+      "component": "QK logits",
+      "current_fraction_of_token": 0.12050646732739796,
+      "current_latency_ms_per_token": 573.9,
+      "next_action": "Separate scale plane; 16-vector bursts; K/scale FIFOs; double buffering",
+      "roadmap_proposed_kind": "RTL-simulated v0.1 at HEAD_DIM=64; burst/FIFO v0.2 can improve further",
+      "roadmap_proposed_latency_ms_per_token": 40.686670769230766
+    },
+    {
+      "component": "softmax",
+      "current_fraction_of_token": 0.12964051738619184,
+      "current_latency_ms_per_token": 617.4,
+      "next_action": "Streaming max/exp/sum/normalize block after QK/AV interface freezes",
+      "roadmap_proposed_kind": "Analytical streaming estimate; 8.47 ms three-pass raw lower bound",
+      "roadmap_proposed_latency_ms_per_token": 20.0
+    },
+    {
+      "component": "attention-weighted V",
+      "current_fraction_of_token": 0.21732739795061315,
+      "current_latency_ms_per_token": 1035.0,
+      "next_action": "Next distinct RTL block: INT4 V streamer plus 16-lane AV MAC",
+      "roadmap_proposed_kind": "Analytical 16-lane streaming AV estimate with 25% margin",
+      "roadmap_proposed_latency_ms_per_token": 50.85833846153846
+    },
+    {
+      "component": "paging/cache movement",
+      "current_fraction_of_token": 0.13558289937846466,
+      "current_latency_ms_per_token": 645.7,
+      "next_action": "Persistent CDMA path; remove reset/cache-flush overhead",
+      "roadmap_proposed_kind": "Measured repository no-flush paging result",
+      "roadmap_proposed_latency_ms_per_token": 352.2
+    },
+    {
+      "component": "normalization/quantization",
+      "current_fraction_of_token": 0.10612296321182597,
+      "current_latency_ms_per_token": 505.4,
+      "next_action": "Use existing fabric normalizer in the token path",
+      "roadmap_proposed_kind": "Measured fabric NQF sum from operator budget",
+      "roadmap_proposed_latency_ms_per_token": 21.4
+    },
+    {
+      "component": "QK-norm/RoPE/quantize",
+      "current_fraction_of_token": 0.08436922560053756,
+      "current_latency_ms_per_token": 401.8,
+      "next_action": "Profile after attention path; preserve per-token scales",
+      "roadmap_proposed_kind": "No v0.2 change proposed in this analysis",
+      "roadmap_proposed_latency_ms_per_token": 401.8
+    },
+    {
+      "component": "MLP activation",
+      "current_fraction_of_token": 0.07737695279690912,
+      "current_latency_ms_per_token": 368.5,
+      "next_action": "Profile after attention and paging improvements",
+      "roadmap_proposed_kind": "No v0.2 change proposed in this analysis",
+      "roadmap_proposed_latency_ms_per_token": 368.5
+    },
+    {
+      "component": "ternary projections",
+      "current_fraction_of_token": 0.07263144632958173,
+      "current_latency_ms_per_token": 345.9,
+      "next_action": "Weight-page reuse/caching rather than more MAC lanes",
+      "roadmap_proposed_kind": "No v0.2 change proposed in this analysis",
+      "roadmap_proposed_latency_ms_per_token": 345.9
+    },
+    {
+      "component": "KV write/bit-slice",
+      "current_fraction_of_token": 0.056421132202250965,
+      "current_latency_ms_per_token": 268.7,
+      "next_action": "Replace bit-slice writer with row-major INT4 K/V producer",
+      "roadmap_proposed_kind": "Hold current budget until an INT4 write quantizer is measured",
+      "roadmap_proposed_latency_ms_per_token": 268.7
+    }
+  ],
+  "current_token_ms": 4762.4,
+  "scenarios": [
+    {
+      "estimate_note": "Measured operator-budget baseline",
+      "estimated_latency_ms_per_token": 4762.4,
+      "estimated_tokens_per_second": 0.2099781622711238,
+      "head_dimension_changed_from_current_128_to_target_64": false,
+      "replacements": "",
+      "scenario": "current",
+      "speedup_vs_current": 1.0
+    },
+    {
+      "estimate_note": "Uses measured randomized-stall v0.1 QK latency",
+      "estimated_latency_ms_per_token": 4229.186670769231,
+      "estimated_tokens_per_second": 0.23645208354402428,
+      "head_dimension_changed_from_current_128_to_target_64": true,
+      "replacements": "QK logits=40.687ms",
+      "scenario": "QK_only",
+      "speedup_vs_current": 1.1260794026700611
+    },
+    {
+      "estimate_note": "Only the measured position-dependent PV portion scales with 256B/34B traffic",
+      "estimated_latency_ms_per_token": 3548.4146707692307,
+      "estimated_tokens_per_second": 0.28181599186749456,
+      "head_dimension_changed_from_current_128_to_target_64": true,
+      "replacements": "QK logits=40.687ms; attention-weighted V=354.228ms",
+      "scenario": "QK_plus_quantized_V_storage",
+      "speedup_vs_current": 1.3421204796697561
+    },
+    {
+      "estimate_note": "Equal-dimension V sensitivity uses 256B/66B, not the target64 ratio",
+      "estimated_latency_ms_per_token": 3646.526670769231,
+      "estimated_tokens_per_second": 0.27423356258876647,
+      "head_dimension_changed_from_current_128_to_target_64": false,
+      "replacements": "QK logits=40.687ms; attention-weighted V=452.340ms",
+      "scenario": "QK_plus_quantized_V_equal128_sensitivity",
+      "speedup_vs_current": 1.3060099184727412
+    },
+    {
+      "estimate_note": "V accumulation is analytical, based on QK work plus 25% margin",
+      "estimated_latency_ms_per_token": 3245.045009230769,
+      "estimated_tokens_per_second": 0.30816213554986954,
+      "head_dimension_changed_from_current_128_to_target_64": true,
+      "replacements": "QK logits=40.687ms; attention-weighted V=50.858ms",
+      "scenario": "QK_plus_V_accumulation",
+      "speedup_vs_current": 1.4675913543426986
+    },
+    {
+      "estimate_note": "Softmax and V accumulation are analytical targets, not RTL measurements",
+      "estimated_latency_ms_per_token": 2647.645009230769,
+      "estimated_tokens_per_second": 0.3776941381920887,
+      "head_dimension_changed_from_current_128_to_target_64": true,
+      "replacements": "QK logits=40.687ms; softmax=20.000ms; attention-weighted V=50.858ms",
+      "scenario": "full_attention_path",
+      "speedup_vs_current": 1.798730563726003
+    },
+    {
+      "estimate_note": "Adds repository-measured paging/no-flush and fabric-normalizer results",
+      "estimated_latency_ms_per_token": 1870.1450092307691,
+      "estimated_tokens_per_second": 0.5347178935666179,
+      "head_dimension_changed_from_current_128_to_target_64": true,
+      "replacements": "QK logits=40.687ms; softmax=20.000ms; attention-weighted V=50.858ms; paging/cache movement=352.200ms; normalization/quantization=21.400ms",
+      "scenario": "full_attention_plus_known_system_fixes",
+      "speedup_vs_current": 2.546540496321661
+    }
+  ],
+  "schema_version": 1,
+  "warning": "Analytical system estimates are not end-to-end model measurements."
+}

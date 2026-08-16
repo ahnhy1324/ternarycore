@@ -5,7 +5,13 @@ HEAD_DIM = 64
 KV_BITS = 4
 VECTOR_BYTES = 32
 MAX_CONTEXT = 4096
-REGRESSION_LENGTHS = (1, 7, 63, 64, 65, 511, 512, 513, 4095, 4096)
+REGRESSION_LENGTHS = (
+    1, 7, 63, 64, 65,
+    127, 128, 129,
+    511, 512, 513,
+    1023, 1024, 1025,
+    4095, 4096,
+)
 
 
 def signed_int4(code: int) -> int:
