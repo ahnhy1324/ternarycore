@@ -76,3 +76,7 @@ prd.jsonarty_mb_gemm/
 ip/axi_gemm_wrapper/
 ip/weight_bram/
 arty_mb_gemm/
+
+# Version-specific local packaging output for the portable KV IP
+axi_kv_cache_pkg/
+ip/axi_kv_cache/

@@ -10,6 +10,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$HERE/../ip/weight_bram128/component.xml" ] || { echo 'package weight_bram128 first (build_tier2.sh does this)' >&2; exit 1; }
 [ -f "$HERE/../ip/axi_gemm_stream/component.xml" ] || { echo 'package axi_gemm_stream first' >&2; exit 1; }
 
+# Package in the active Vivado version. Do not check generated component.xml
+# into the functional RTL change: this keeps 2026.1 work retestable on 2025.2.
+vivado -mode batch -source "$HERE/../ip/package_axi_kv_cache.tcl"
+[ -f "$HERE/../ip/axi_kv_cache/component.xml" ] || { echo 'package axi_kv_cache failed' >&2; exit 1; }
+
 sed 's/arty_mb_gemm/arty_ddr/g' "$HERE/generate_bitstream.tcl" > "$HERE/generate_bitstream_ddr.tcl"
 
 vivado -mode batch -source "$HERE/create_bd_ddr.tcl"

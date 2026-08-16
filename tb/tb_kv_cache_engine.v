@@ -1,0 +1,279 @@
+// tb_kv_cache_engine.v -- boundary lengths, stalls, stale state and errors.
+// SPDX-License-Identifier: CERN-OHL-S-2.0
+`timescale 1ns / 1ps
+`default_nettype none
+
+module tb_kv_cache_engine;
+    localparam HEAD_DIM = 64, P = 16, MAX_CONTEXT = 4096;
+`ifdef AXI_DATA_WIDTH_VAL
+    localparam AXI_WIDTH = `AXI_DATA_WIDTH_VAL;
+`else
+    localparam AXI_WIDTH = 128;
+`endif
+    localparam BEATS_PER_VECTOR = 256 / AXI_WIDTH;
+    localparam BASE = 32'h8000_1000;
+    localparam SCALE = 16'sh0100;
+    localparam TOKEN_WIDTH = $clog2(MAX_CONTEXT);
+
+    reg clk = 0, rst_n = 0, start = 0;
+    reg [31:0] k_base_addr = BASE;
+    reg [31:0] context_len = 0;
+    reg [(HEAD_DIM*8)-1:0] q_vector;
+    wire busy, done, error;
+    wire [7:0] error_code;
+    wire [31:0] perf_cycles;
+    wire logit_valid;
+    wire [TOKEN_WIDTH-1:0] logit_index;
+    wire signed [31:0] logit_data;
+
+    wire [0:0] arid;
+    wire [31:0] araddr;
+    wire [7:0] arlen;
+    wire [2:0] arsize;
+    wire [1:0] arburst;
+    wire arlock;
+    wire [3:0] arcache, arqos;
+    wire [2:0] arprot;
+    wire arvalid;
+    reg arready = 0;
+    reg [0:0] rid = 0;
+    reg [AXI_WIDTH-1:0] rdata = 0;
+    reg [1:0] rresp = 0;
+    reg rlast = 0, rvalid = 0;
+    wire rready;
+    always #5 clk = ~clk;
+
+    kv_cache_engine #(
+        .HEAD_DIM(HEAD_DIM), .KV_BITS(4), .AXI_DATA_WIDTH(AXI_WIDTH),
+        .AXI_ADDR_WIDTH(32), .AXI_ID_WIDTH(1), .P(P),
+        .MAX_CONTEXT(MAX_CONTEXT), .Q_WIDTH(8), .SCALE_WIDTH(16),
+        .ACC_WIDTH(32), .TIMEOUT_CYCLES(1000)
+    ) dut (
+        .clk(clk), .rst_n(rst_n), .start(start),
+        .k_base_addr(k_base_addr), .context_len(context_len),
+        .q_vector(q_vector), .k_scale(SCALE),
+        .busy(busy), .done(done), .error(error), .error_code(error_code),
+        .perf_cycles(perf_cycles), .logit_valid(logit_valid),
+        .logit_index(logit_index), .logit_data(logit_data),
+        .m_axi_arid(arid), .m_axi_araddr(araddr), .m_axi_arlen(arlen),
+        .m_axi_arsize(arsize), .m_axi_arburst(arburst),
+        .m_axi_arlock(arlock), .m_axi_arcache(arcache),
+        .m_axi_arprot(arprot), .m_axi_arqos(arqos),
+        .m_axi_arvalid(arvalid), .m_axi_arready(arready),
+        .m_axi_rid(rid), .m_axi_rdata(rdata), .m_axi_rresp(rresp),
+        .m_axi_rlast(rlast), .m_axi_rvalid(rvalid), .m_axi_rready(rready)
+    );
+
+    function signed [3:0] k_at;
+        input integer token;
+        input integer dim;
+        integer code;
+        begin
+            code = (token * 3 + dim * 5 + 8) & 15;
+            k_at = code[3:0];
+        end
+    endfunction
+
+    function integer q_at;
+        input integer dim;
+        begin q_at = (dim % 9) - 4; end
+    endfunction
+
+    function signed [31:0] expected_dot;
+        input integer token;
+        integer dim;
+        reg signed [31:0] sum;
+        begin
+            sum = 0;
+            for (dim = 0; dim < HEAD_DIM; dim = dim + 1)
+                sum = sum + q_at(dim) * $signed(k_at(token, dim)) * 256;
+            expected_dot = sum;
+        end
+    endfunction
+
+    function [AXI_WIDTH-1:0] make_beat;
+        input integer token;
+        input integer beat;
+        integer lane;
+        reg [AXI_WIDTH-1:0] value;
+        begin
+            value = 0;
+            for (lane = 0; lane < AXI_WIDTH/4; lane = lane + 1)
+                value[(lane*4) +: 4] =
+                    k_at(token, beat*(AXI_WIDTH/4) + lane);
+            make_beat = value;
+        end
+    endfunction
+
+    reg pending = 0;
+    integer pending_token = 0, beat_no = 0;
+    reg [15:0] lfsr = 16'h1ace;
+    reg inject_rresp_error = 0;
+    reg force_ar_stall = 0, force_r_stall = 0;
+    integer protocol_errors = 0;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            pending <= 0; arready <= 0; rvalid <= 0; rresp <= 0;
+            lfsr <= 16'h1ace; beat_no <= 0;
+        end else begin
+            lfsr <= {lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10]};
+            arready <= !force_ar_stall && !pending && lfsr[0];
+            if (arvalid && arready) begin
+                pending       <= 1;
+                pending_token <= (araddr - BASE) >> 5;
+                beat_no       <= 0;
+                if (arlen != BEATS_PER_VECTOR-1 ||
+                    arsize != $clog2(AXI_WIDTH/8) || arburst != 2'b01) begin
+                    $display("FAIL AXI AR: len=%0d size=%0d burst=%0d", arlen, arsize, arburst);
+                    protocol_errors = protocol_errors + 1;
+                end
+            end
+            if (!rvalid && pending && !force_r_stall && lfsr[1]) begin
+                rdata  <= make_beat(pending_token, beat_no);
+                rlast  <= (beat_no == BEATS_PER_VECTOR-1);
+                rresp  <= inject_rresp_error ? 2'b10 : 2'b00;
+                rvalid <= 1;
+            end
+            if (rvalid && rready) begin
+                rvalid <= 0;
+                rresp  <= 0;
+                if (rlast) pending <= 0;
+                else beat_no <= beat_no + 1;
+            end
+        end
+    end
+
+    integer seen = 0, active_length = 0, errors = 0;
+    reg checking = 0;
+    always @(posedge clk) begin
+        if (checking && logit_valid) begin
+            if (logit_index !== seen[TOKEN_WIDTH-1:0]) begin
+                $display("FAIL length %0d: index got %0d want %0d",
+                         active_length, logit_index, seen);
+                errors = errors + 1;
+            end
+            if ($signed(logit_data) !== expected_dot(seen)) begin
+                $display("FAIL length %0d token %0d: got %0d want %0d",
+                         active_length, seen, $signed(logit_data), expected_dot(seen));
+                errors = errors + 1;
+            end
+            seen = seen + 1;
+        end
+    end
+
+    task run_case;
+        input integer length;
+        integer cycles;
+        reg saw_done, saw_error;
+        reg [7:0] saw_error_code;
+        begin
+            active_length = length; seen = 0; checking = 1;
+            context_len = length; k_base_addr = BASE;
+            @(negedge clk); start = 1;
+            @(negedge clk); start = 0;
+            cycles = 0;
+            while (!done && !error && cycles < length*40 + 2000) begin
+                @(negedge clk); cycles = cycles + 1;
+            end
+            saw_done = done;
+            saw_error = error;
+            saw_error_code = error_code;
+            // DONE and the final logit are produced together. The monitor
+            // samples registered outputs on the following rising edge.
+            @(posedge clk); #1; checking = 0;
+            if (saw_error) begin
+                $display("FAIL length %0d: engine error %02x", length, saw_error_code);
+                errors = errors + 1;
+            end else if (!saw_done) begin
+                $display("FAIL length %0d: timeout after %0d cycles", length, cycles);
+                errors = errors + 1;
+            end else if (seen != length) begin
+                $display("FAIL length %0d: saw %0d logits", length, seen);
+                errors = errors + 1;
+            end else begin
+                $display("PASS length %0d: %0d cycles", length, perf_cycles);
+            end
+            repeat (3) @(posedge clk);
+        end
+    endtask
+
+    integer d;
+    initial begin
+        q_vector = 0;
+        for (d = 0; d < HEAD_DIM; d = d + 1)
+            q_vector[(d*8) +: 8] = q_at(d);
+        repeat (5) @(negedge clk); rst_n = 1;
+        repeat (3) @(posedge clk);
+
+        run_case(1); run_case(7); run_case(63); run_case(64); run_case(65);
+        run_case(511); run_case(512); run_case(513);
+        run_case(4095); run_case(4096);
+        run_case(7); // stale-state check: short run after the maximum
+
+        // Invalid runtime length must fail without issuing a read.
+        context_len = 0;
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        if (!error || error_code != 8'h01) begin
+            $display("FAIL invalid context: error=%0d code=%02x", error, error_code);
+            errors = errors + 1;
+        end else $display("PASS invalid context rejected");
+        repeat (3) @(posedge clk);
+
+        // An unaligned vector base is rejected before AXI activity.
+        context_len = 1; k_base_addr = BASE + 4;
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        if (!error || error_code != 8'h02) begin
+            $display("FAIL unaligned base: error=%0d code=%02x", error, error_code);
+            errors = errors + 1;
+        end else $display("PASS unaligned base rejected");
+        repeat (3) @(posedge clk);
+
+        // Both AXI channel timeout classes propagate through the engine.
+        k_base_addr = BASE; context_len = 1; force_ar_stall = 1;
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        wait (error);
+        if (error_code != 8'h11) begin
+            $display("FAIL AR timeout propagation code=%02x", error_code);
+            errors = errors + 1;
+        end else $display("PASS AR timeout propagated");
+        force_ar_stall = 0;
+        repeat (3) @(posedge clk);
+
+        force_r_stall = 1;
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        wait (error);
+        if (error_code != 8'h12) begin
+            $display("FAIL R timeout propagation code=%02x", error_code);
+            errors = errors + 1;
+        end else $display("PASS R timeout propagated");
+        force_r_stall = 0;
+
+        // Reset clears the deliberately abandoned timed-out read before the
+        // independent RRESP test, and covers a reset boundary in the process.
+        @(negedge clk); rst_n = 0;
+        repeat (3) @(negedge clk); rst_n = 1;
+        repeat (3) @(posedge clk);
+
+        // Propagate memory response errors. This is last because the memory
+        // model deliberately leaves the rest of the failed burst pending.
+        k_base_addr = BASE; context_len = 1; inject_rresp_error = 1;
+        @(negedge clk); start = 1;
+        @(negedge clk); start = 0;
+        wait (error);
+        if (error_code != 8'h13) begin
+            $display("FAIL RRESP propagation code=%02x", error_code);
+            errors = errors + 1;
+        end else $display("PASS RRESP error propagated");
+
+        errors = errors + protocol_errors;
+        if (errors == 0) $display("TB PASS: KV engine regression");
+        else $display("TB FAIL: %0d KV engine errors", errors);
+        $finish;
+    end
+endmodule
+
+`default_nettype wire

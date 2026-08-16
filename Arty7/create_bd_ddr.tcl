@@ -26,6 +26,7 @@ set_property ip_repo_paths [list \
     [file join $repo_root ip weight_bram128] \
     [file join $repo_root ip axi_gemm_stream] \
     [file join $repo_root ip rmsnorm_quant] \
+    [file join $repo_root ip axi_kv_cache] \
 ] [current_project]
 update_ip_catalog
 
@@ -147,6 +148,7 @@ connect_bd_net [get_bd_pins axi_gemm_stream_0/w_word]      [get_bd_pins weight_b
 
 # ── Address map ───────────────────────────────────────────────────
 source [file join [file dirname [file normalize [info script]]] eth_dma_block.tcl]
+source [file join [file dirname [file normalize [info script]]] kv_cache_block.tcl]
 
 
 assign_bd_address
@@ -157,6 +159,8 @@ set_property range  64K        [get_bd_addr_segs {microblaze_0/Data/SEG_axi_uart
 set_property offset 0x44100000 [get_bd_addr_segs {microblaze_0/Data/SEG_weight_bram_0_reg0}]
 set_property range  256K       [get_bd_addr_segs {microblaze_0/Data/SEG_weight_bram_0_reg0}]
 set_property offset 0x44200000 [get_bd_addr_segs {microblaze_0/Data/SEG_axi_gemm_stream_0_reg0}]
+set_property offset 0x44500000 [get_bd_addr_segs {microblaze_0/Data/SEG_axi_kv_cache_0_reg0}]
+set_property range  64K        [get_bd_addr_segs {microblaze_0/Data/SEG_axi_kv_cache_0_reg0}]
 set_property offset 0x00000000 [get_bd_addr_segs {microblaze_0/Data/SEG_dlmb_cntlr_Mem}]
 set_property range  64K        [get_bd_addr_segs {microblaze_0/Data/SEG_dlmb_cntlr_Mem}]
 set_property offset 0x00000000 [get_bd_addr_segs {microblaze_0/Instruction/SEG_ilmb_cntlr_Mem}]
@@ -164,6 +168,7 @@ set_property range  64K        [get_bd_addr_segs {microblaze_0/Instruction/SEG_i
 catch {set_property offset 0x44300000 [get_bd_addr_segs {microblaze_0/Data/SEG_axi_cdma_0_Reg}]}
 catch {set_property offset 0x40E00000 [get_bd_addr_segs {microblaze_0/Data/SEG_axi_ethernetlite_0_Reg}]}
 catch {delete_bd_objs [get_bd_addr_segs {microblaze_0/Instruction/SEG_weight_bram_0_reg0}]}
+catch {delete_bd_objs [get_bd_addr_segs {microblaze_0/Instruction/SEG_axi_kv_cache_0_reg0}]}
 catch {set_property offset 0x44300000 [get_bd_addr_segs {microblaze_0/Data/SEG_axi_cdma_0_Reg}]}
 catch {set_property offset 0x40E00000 [get_bd_addr_segs {microblaze_0/Data/SEG_axi_ethernetlite_0_Reg}]}
 catch {delete_bd_objs [get_bd_addr_segs {microblaze_0/Instruction/SEG_weight_bram_0_reg0}]}
@@ -214,6 +219,20 @@ foreach {space label} {microblaze_0/Data MicroBlaze axi_cdma_0/Data CDMA} {
     set_property range  128K       [get_bd_addr_segs $hit]
 }
 puts "ADDRMAP OK: microblaze + cdma both reach rmsnorm @ 0x44400000"
+
+# The KV engine is a DDR read master. A disconnected or auto-excluded MIG
+# segment validates structurally but returns DECERR at runtime, so assert it.
+set kvspace [get_bd_addr_spaces -quiet axi_kv_cache_0/m_axi]
+if {$kvspace eq ""} { error "ADDRMAP: KV IP has no m_axi address space" }
+set kvsegs [get_bd_addr_segs -quiet -of_objects $kvspace]
+set kvddr ""
+foreach g $kvsegs { if {[string match *mig_7series_0* $g]} { set kvddr $g } }
+if {$kvddr eq ""} {
+    error "ADDRMAP: KV master cannot reach MIG (has: $kvsegs)"
+}
+set_property offset 0x80000000 [get_bd_addr_segs $kvddr]
+set_property range  256M       [get_bd_addr_segs $kvddr]
+puts "ADDRMAP OK: KV master reaches DDR @ 0x80000000"
 
 
 
