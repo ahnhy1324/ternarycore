@@ -69,7 +69,10 @@ $completedRunRecords = @()
 if (Test-Path -LiteralPath $runRoot) {
     foreach ($runFile in Get-ChildItem -LiteralPath $runRoot -Recurse -File -Filter "run.json") {
         $profileDirectory = $runFile.Directory.FullName
-        $relativeProfile = [IO.Path]::GetRelativePath($runRoot, $profileDirectory)
+        if (-not $profileDirectory.StartsWith($runRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Completed profile is outside the Gate A root: $profileDirectory"
+        }
+        $relativeProfile = $profileDirectory.Substring($runRoot.Length).TrimStart("\")
         $destination = Join-Path $completedRunsRoot $relativeProfile
         New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
         Copy-Item -LiteralPath $profileDirectory -Destination $destination -Recurse
@@ -107,7 +110,7 @@ $manifestEntries = Get-ChildItem -LiteralPath $stagingRoot -Recurse -File |
     Sort-Object FullName |
     ForEach-Object {
         [ordered]@{
-            path = [IO.Path]::GetRelativePath($stagingRoot, $_.FullName).Replace("\", "/")
+            path = $_.FullName.Substring($stagingRoot.Length).TrimStart("\").Replace("\", "/")
             bytes = $_.Length
             sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
         }
