@@ -1,0 +1,3 @@
+stream,legacy_record_bytes,legacy_payload_bytes,legacy_payload_only_crc32,closed_contract_crc32,legacy_crc_is_closed_contract,decoded_tokens,decoded_values_per_token,scale_slice_bytes
+K,3568,3554,0x1e295122,0x55250460,False,64,128,96
+V,4480,4457,0x9a401300,0x4130b598,False,64,128,96

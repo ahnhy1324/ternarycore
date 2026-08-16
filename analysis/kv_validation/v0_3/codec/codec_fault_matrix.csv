@@ -1,0 +1,10 @@
+test,status,expected_exception,observed_exception,detail
+header_first8_bit_flip,PASS,CRCError,CRCError,"page CRC mismatch: stored 0x778a091e, actual 0x2220c594"
+payload_bit_flip,PASS,CRCError,CRCError,"page CRC mismatch: stored 0x778a091e, actual 0x256d819a"
+scale_slice_bit_flip,PASS,CRCError,CRCError,"page CRC mismatch: stored 0x778a091e, actual 0xebc3673b"
+stored_crc_bit_flip,PASS,CRCError,CRCError,"page CRC mismatch: stored 0x778a091f, actual 0x778a091e"
+truncated_payload,PASS,CodecError,CodecError,"page record has 3565 bytes, header declares 3566"
+offset_table_bit_flip,PASS,CRCError,CRCError,"offset-table CRC mismatch: stored 0x2144df1c, actual 0x715d8883"
+crc_disabled_roundtrip,PASS,none,none,zero CRC field; integrity faults intentionally unprotected
+k_raw_fallback_roundtrip,PASS,none,none,signed 4-bit LSB-reservoir raw page
+v_raw_fallback_roundtrip,PASS,none,none,signed 5-bit LSB-reservoir raw page

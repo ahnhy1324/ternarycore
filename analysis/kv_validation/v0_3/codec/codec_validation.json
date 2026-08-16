@@ -1,0 +1,261 @@
+{
+  "crc": {
+    "check_123456789": "0xCBF43926",
+    "init": "0xFFFFFFFF",
+    "name": "CRC-32/ISO-HDLC",
+    "normal_polynomial": "0x04C11DB7",
+    "refin": true,
+    "reflected_polynomial": "0xEDB88320",
+    "refout": true,
+    "xorout": "0xFFFFFFFF"
+  },
+  "evidence": "SOFTWARE-BIT-EXACT/v0.3-page-codec",
+  "fault_policy_for_rtl": "sticky typed error; suppress decode/output; abort page; reload; never reinterpret a failed compressed page as raw",
+  "fault_tests": [
+    {
+      "detail": "page CRC mismatch: stored 0x778a091e, actual 0x2220c594",
+      "expected_exception": "CRCError",
+      "observed_exception": "CRCError",
+      "status": "PASS",
+      "test": "header_first8_bit_flip"
+    },
+    {
+      "detail": "page CRC mismatch: stored 0x778a091e, actual 0x256d819a",
+      "expected_exception": "CRCError",
+      "observed_exception": "CRCError",
+      "status": "PASS",
+      "test": "payload_bit_flip"
+    },
+    {
+      "detail": "page CRC mismatch: stored 0x778a091e, actual 0xebc3673b",
+      "expected_exception": "CRCError",
+      "observed_exception": "CRCError",
+      "status": "PASS",
+      "test": "scale_slice_bit_flip"
+    },
+    {
+      "detail": "page CRC mismatch: stored 0x778a091f, actual 0x778a091e",
+      "expected_exception": "CRCError",
+      "observed_exception": "CRCError",
+      "status": "PASS",
+      "test": "stored_crc_bit_flip"
+    },
+    {
+      "detail": "page record has 3565 bytes, header declares 3566",
+      "expected_exception": "CodecError",
+      "observed_exception": "CodecError",
+      "status": "PASS",
+      "test": "truncated_payload"
+    },
+    {
+      "detail": "offset-table CRC mismatch: stored 0x2144df1c, actual 0x715d8883",
+      "expected_exception": "CRCError",
+      "observed_exception": "CRCError",
+      "status": "PASS",
+      "test": "offset_table_bit_flip"
+    },
+    {
+      "detail": "zero CRC field; integrity faults intentionally unprotected",
+      "expected_exception": "none",
+      "observed_exception": "none",
+      "status": "PASS",
+      "test": "crc_disabled_roundtrip"
+    },
+    {
+      "detail": "signed 4-bit LSB-reservoir raw page",
+      "expected_exception": "none",
+      "observed_exception": "none",
+      "status": "PASS",
+      "test": "k_raw_fallback_roundtrip"
+    },
+    {
+      "detail": "signed 5-bit LSB-reservoir raw page",
+      "expected_exception": "none",
+      "observed_exception": "none",
+      "status": "PASS",
+      "test": "v_raw_fallback_roundtrip"
+    }
+  ],
+  "generated": {
+    "K_page128": {
+      "crc_contract": "CRC32/ISO-HDLC(header[0:8] || payload || scale_slice)",
+      "files": {
+        "offsets": {
+          "bytes": 4,
+          "path": "codec/sample_k_page128_closed_offsets_u32.bin",
+          "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+        },
+        "scales": {
+          "bytes": 192,
+          "path": "codec/sample_k_page128_closed_scale_uq4_8_12b.bin",
+          "sha256": "f995faaf4180db498f8bd85cc0ba2e97fde41076f344dfeaec7d7a13dcff9aaa"
+        },
+        "stream": {
+          "bytes": 7119,
+          "path": "codec/sample_k_page128_closed.bin",
+          "sha256": "c99231d379aec0891d7bfc11109aa6c10cce4d36dbc1256902c2b19ae16e6366"
+        }
+      },
+      "offset_table_crc32": "0x2144df1c",
+      "offset_table_crc_contract": "CRC32/ISO-HDLC(offset_table)",
+      "offsets": [
+        0
+      ],
+      "page_tokens": 128,
+      "statistics": {
+        "alignment_padding_bytes": 0,
+        "effective_bits_per_value": 3.58154296875,
+        "full_bytes": 7335,
+        "full_bytes_per_token": 57.3046875,
+        "offset_table_bytes": 4,
+        "offset_table_crc_bytes": 4,
+        "page_header_bytes": 12,
+        "pages": 1,
+        "payload_bytes": 7107,
+        "raw_fallback_fraction": 0.0,
+        "raw_fallback_pages": 0,
+        "raw_payload_bytes": 8192,
+        "scale_plane_bytes": 192,
+        "stream_descriptor_bytes": 16,
+        "tokens": 128
+      },
+      "stream": "K"
+    },
+    "K_page64": {
+      "crc_contract": "CRC32/ISO-HDLC(header[0:8] || payload || scale_slice)",
+      "files": {
+        "offsets": {
+          "bytes": 4,
+          "path": "codec/sample_k_page64_closed_offsets_u32.bin",
+          "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+        },
+        "scales": {
+          "bytes": 96,
+          "path": "codec/sample_k_page64_closed_scale_uq4_8_12b.bin",
+          "sha256": "e44c7d138970372190aa5c87c999329d13391de86a99ff64545cb3f223998790"
+        },
+        "stream": {
+          "bytes": 3566,
+          "path": "codec/sample_k_page64_closed.bin",
+          "sha256": "006001a674f29f247e78b68276042705b4684394486c000b34ed2ab725739783"
+        }
+      },
+      "offset_table_crc32": "0x2144df1c",
+      "offset_table_crc_contract": "CRC32/ISO-HDLC(offset_table)",
+      "offsets": [
+        0
+      ],
+      "page_tokens": 64,
+      "statistics": {
+        "alignment_padding_bytes": 0,
+        "effective_bits_per_value": 3.599609375,
+        "full_bytes": 3686,
+        "full_bytes_per_token": 57.59375,
+        "offset_table_bytes": 4,
+        "offset_table_crc_bytes": 4,
+        "page_header_bytes": 12,
+        "pages": 1,
+        "payload_bytes": 3554,
+        "raw_fallback_fraction": 0.0,
+        "raw_fallback_pages": 0,
+        "raw_payload_bytes": 4096,
+        "scale_plane_bytes": 96,
+        "stream_descriptor_bytes": 16,
+        "tokens": 64
+      },
+      "stream": "K"
+    },
+    "V_page128": {
+      "crc_contract": "CRC32/ISO-HDLC(header[0:8] || payload || scale_slice)",
+      "files": {
+        "offsets": {
+          "bytes": 4,
+          "path": "codec/sample_v_page128_closed_offsets_u32.bin",
+          "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+        },
+        "scales": {
+          "bytes": 192,
+          "path": "codec/sample_v_page128_closed_scale_uq4_8_12b.bin",
+          "sha256": "16f8065b9738fd98599a40e9801ca74d42037e3da88d88624b3e5d950f4c449e"
+        },
+        "stream": {
+          "bytes": 8925,
+          "path": "codec/sample_v_page128_closed.bin",
+          "sha256": "f24f35cfabbb66a2b404788fb5958c28893f53ba7826cbb752a6930b1b244fd9"
+        }
+      },
+      "offset_table_crc32": "0x2144df1c",
+      "offset_table_crc_contract": "CRC32/ISO-HDLC(offset_table)",
+      "offsets": [
+        0
+      ],
+      "page_tokens": 128,
+      "statistics": {
+        "alignment_padding_bytes": 0,
+        "effective_bits_per_value": 4.46337890625,
+        "full_bytes": 9141,
+        "full_bytes_per_token": 71.4140625,
+        "offset_table_bytes": 4,
+        "offset_table_crc_bytes": 4,
+        "page_header_bytes": 12,
+        "pages": 1,
+        "payload_bytes": 8913,
+        "raw_fallback_fraction": 0.0,
+        "raw_fallback_pages": 0,
+        "raw_payload_bytes": 10240,
+        "scale_plane_bytes": 192,
+        "stream_descriptor_bytes": 16,
+        "tokens": 128
+      },
+      "stream": "V"
+    },
+    "V_page64": {
+      "crc_contract": "CRC32/ISO-HDLC(header[0:8] || payload || scale_slice)",
+      "files": {
+        "offsets": {
+          "bytes": 4,
+          "path": "codec/sample_v_page64_closed_offsets_u32.bin",
+          "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+        },
+        "scales": {
+          "bytes": 96,
+          "path": "codec/sample_v_page64_closed_scale_uq4_8_12b.bin",
+          "sha256": "bedd094167dec8a16c0f1bb15c86ed69a2fd6ccf0b5b33c07308bfdd9c2f1aaa"
+        },
+        "stream": {
+          "bytes": 4469,
+          "path": "codec/sample_v_page64_closed.bin",
+          "sha256": "bc9801cfc97b253c2ba636d1d28e7ce468a6afc7daca1e9369a675f669ba37ef"
+        }
+      },
+      "offset_table_crc32": "0x2144df1c",
+      "offset_table_crc_contract": "CRC32/ISO-HDLC(offset_table)",
+      "offsets": [
+        0
+      ],
+      "page_tokens": 64,
+      "statistics": {
+        "alignment_padding_bytes": 0,
+        "effective_bits_per_value": 4.4814453125,
+        "full_bytes": 4589,
+        "full_bytes_per_token": 71.703125,
+        "offset_table_bytes": 4,
+        "offset_table_crc_bytes": 4,
+        "page_header_bytes": 12,
+        "pages": 1,
+        "payload_bytes": 4457,
+        "raw_fallback_fraction": 0.0,
+        "raw_fallback_pages": 0,
+        "raw_payload_bytes": 5120,
+        "scale_plane_bytes": 96,
+        "stream_descriptor_bytes": 16,
+        "tokens": 64
+      },
+      "stream": "V"
+    }
+  },
+  "legacy_contract_warning": "Imported page64 samples use payload-only CRC and are not valid theory-closed pages; decoded symbols/scales were used to regenerate them.",
+  "source_package": "kv-cache-v0.3-theory-closure-handoff-20260816.zip",
+  "source_package_sha256": "35fb5881b7fc5fff05ac87e9c90594c542bb2396b03de1a4140757e07ca4525e",
+  "status": "PASS"
+}

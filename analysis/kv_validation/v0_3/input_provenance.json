@@ -1,0 +1,26 @@
+{
+  "execution_request": {
+    "path": "F:/Xilinx_WorkSpace/kv-v0.3-execution-request-20260816.md",
+    "sha256": "3b435560c0ad7dba2ecc28cf28288cea750d70e5153bcd482f0deb6977a87e89"
+  },
+  "theory_package": {
+    "path": "F:/Xilinx_WorkSpace/kv-cache-v0.3-theory-closure-handoff-20260816.zip",
+    "bytes": 76510,
+    "sha256": "35fb5881b7fc5fff05ac87e9c90594c542bb2396b03de1a4140757e07ca4525e",
+    "zip_crc": "PASS",
+    "manifest_entries_verified": 60,
+    "manifest_hashes": "PASS"
+  },
+  "authoritative_read_order": [
+    "README.md",
+    "theory/00_THEORY_CLOSURE.md",
+    "handoff/DELTA_FROM_ORIGINAL_V0_3.md",
+    "handoff/V0_3_THEORY_CLOSED_HANDOFF.md"
+  ],
+  "superseded_source_detail": {
+    "path": "source_v03/codec/PACKED5_PAGE64_FORMAT.md",
+    "old_crc_scope": "payload",
+    "closed_crc_scope": "header[0:8] || payload || corresponding_scale_slice",
+    "regenerated_samples_required": true
+  }
+}
