@@ -135,7 +135,8 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zipReader = [IO.Compression.ZipFile]::OpenRead($zipPath)
 try {
     $zipEntries = $zipReader.Entries.Count
-    $manifestEntry = $zipReader.Entries | Where-Object { $_.FullName -like "*/SHA256SUMS.json" }
+    $manifestEntry = $zipReader.Entries |
+        Where-Object { $_.FullName -match '(^|[\\/])SHA256SUMS\.json$' }
     if ($null -eq $manifestEntry) {
         throw "Archive verification failed: SHA256SUMS.json is absent"
     }
