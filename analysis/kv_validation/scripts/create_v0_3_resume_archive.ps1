@@ -89,6 +89,17 @@ if (Test-Path -LiteralPath $runRoot) {
 }
 $completedRunRecords | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $metadataDirectory "completed-runs.json")
 
+$referenceBaseRoot = Join-Path $stagingRoot "reference_base_runs"
+foreach ($promptId in @("engineering", "observatory")) {
+    $referenceBase = Join-Path $repositoryRoot "analysis\kv_validation\real_model\end_to_end_injection\$promptId\BASE_FP"
+    if (-not (Test-Path -LiteralPath (Join-Path $referenceBase "run.json"))) {
+        throw "Required imported context-128 BASE_FP reference is missing: $referenceBase"
+    }
+    $referenceDestination = Join-Path $referenceBaseRoot "$promptId\BASE_FP"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $referenceDestination) -Force | Out-Null
+    Copy-Item -LiteralPath $referenceBase -Destination $referenceDestination -Recurse
+}
+
 foreach ($externalName in @(
     "kv-cache-v0.3-theory-closure-handoff-20260816.zip",
     "kv-v0.3-execution-request-20260816.md"
@@ -120,11 +131,24 @@ $manifestEntries | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 $manifes
 $zipPath = "$stagingRoot.zip"
 Compress-Archive -LiteralPath $stagingRoot -DestinationPath $zipPath -CompressionLevel Optimal
 $zipHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath).Hash.ToLowerInvariant()
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zipReader = [IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $zipEntries = $zipReader.Entries.Count
+    $manifestEntry = $zipReader.Entries | Where-Object { $_.FullName -like "*/SHA256SUMS.json" }
+    if ($null -eq $manifestEntry) {
+        throw "Archive verification failed: SHA256SUMS.json is absent"
+    }
+}
+finally {
+    $zipReader.Dispose()
+}
 
 [ordered]@{
     staging_directory = $stagingRoot
     archive = $zipPath
     archive_bytes = (Get-Item -LiteralPath $zipPath).Length
     archive_sha256 = $zipHash
+    archive_entries = $zipEntries
     completed_profiles = $completedRunRecords.Count
 } | ConvertTo-Json -Depth 4

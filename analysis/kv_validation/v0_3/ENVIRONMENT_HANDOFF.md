@@ -105,4 +105,6 @@ if the eight-prompt paired results leave the UQ4.8 decision materially unclear.
 
 Use `create_v0_3_resume_archive.ps1` to make a consistent archive. It copies only
 profile directories that already contain `run.json`; an actively written
-profile is listed in status output but is not treated as completed evidence.
+profile is listed in status output but is not treated as completed evidence. It
+also preserves the two imported context-128 `BASE_FP` reference directories
+required to reproduce the paired engineering and observatory comparisons.
