@@ -1,0 +1,38 @@
+{
+  "evidence": "SOFTWARE-SYNTHETIC/imported-prep-validation",
+  "layout": {
+    "axi_widths": [
+      128,
+      256
+    ],
+    "effective_bits_per_value": 4.125
+  },
+  "signed_digit": {
+    "cases": 3840,
+    "mismatches": 0
+  },
+  "softmax_lut": {
+    "domain_q6_10": [
+      -16384,
+      0
+    ],
+    "entries": 257,
+    "monotonic": true,
+    "range_q1_15": [
+      0,
+      32768
+    ]
+  },
+  "source_zip_sha256": "30c37ed63c76a47a9c4066ac9bc9232c9951c96d96fc7639cd9249dccc2aa89a",
+  "status": "PASS",
+  "transport_golden": {
+    "context_len": 16,
+    "head_dim": 128,
+    "k_code_max": 7,
+    "k_code_min": -7,
+    "qk_vectors_equal": true,
+    "reserved_int4_codes": 0,
+    "v_code_max": 7,
+    "v_code_min": -7
+  }
+}

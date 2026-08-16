@@ -1,0 +1,21 @@
+{
+  "schema_version": "rtl-golden-0.1",
+  "evidence": "SOFTWARE-SYNTHETIC",
+  "seed": 20260816,
+  "head_dim": 128,
+  "context_length": 16,
+  "k_bits": 4,
+  "v_bits": 4,
+  "codebook": "symmetric -7..+7; 0x8 reserved",
+  "packing": "two signed INT4 values per byte, lower-index element in low nibble",
+  "endianness": "little",
+  "scale_storage": "uint16 raw code; binary point NOT frozen",
+  "files": {
+    "q": "q_int8.bin",
+    "k": "k_int4.bin",
+    "v": "v_int4.bin",
+    "k_scale": "k_scale_u16.bin",
+    "v_scale": "v_scale_u16.bin",
+    "expected_qk": "expected_qk_i32.bin"
+  }
+}

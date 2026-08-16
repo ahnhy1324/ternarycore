@@ -23,7 +23,8 @@ function Invoke-IverilogTest {
     param(
         [string]$Name,
         [string[]]$Defines,
-        [string[]]$RelativeFiles
+        [string[]]$RelativeFiles,
+        [string[]]$RuntimeArgs = @()
     )
     $output = Join-Path $simTemp $Name
     $arguments = @("-g2012")
@@ -38,7 +39,7 @@ function Invoke-IverilogTest {
     }
     Push-Location $simTemp
     try {
-        & $vvp $output
+        & $vvp $output @RuntimeArgs
         if ($LASTEXITCODE -ne 0) {
             throw "$Name simulation failed with exit code $LASTEXITCODE"
         }
@@ -71,13 +72,24 @@ if (-not $KvOnly) {
 
 $kvRtl = @(
     "rtl/kv_addr_gen.v", "rtl/int4_unpack.v", "rtl/kv_dequant.v",
-    "rtl/qk_dot.v", "rtl/kv_reader.v", "rtl/kv_cache_engine.v")
+    "rtl/qk_dot.v", "rtl/qk_group_dot.v", "rtl/kv_reader.v",
+    "rtl/kv_cache_engine.v")
 Invoke-IverilogTest "sim_int4_unpack" @() @(
     "tb/tb_int4_unpack.v", "rtl/int4_unpack.v")
 Invoke-IverilogTest "sim_kv_dequant" @() @(
     "tb/tb_kv_dequant.v", "rtl/kv_dequant.v")
 Invoke-IverilogTest "sim_qk_dot" @() @(
     "tb/tb_qk_dot.v", "rtl/qk_dot.v")
+$goldenRoot = Join-Path $repo (
+    "analysis/kv_validation/real_model/qk_profile_golden_v0_2")
+foreach ($qkProfile in @(
+    @{Name="regular4"; Width=4}, @{Name="accurate5"; Width=5})) {
+    $profileRoot = (Join-Path $goldenRoot $qkProfile.Name).Replace("\", "/")
+    Invoke-IverilogTest "sim_qk_group_dot_$($qkProfile.Name)" @(
+        "K_WIDTH_VAL=$($qkProfile.Width)") @(
+        "tb/tb_qk_group_dot.v", "rtl/qk_group_dot.v") @(
+        "+GOLDEN_ROOT=$profileRoot")
+}
 Invoke-IverilogTest "sim_kv_cache_engine" @() @(
     @("tb/tb_kv_cache_engine.v") + $kvRtl)
 Invoke-IverilogTest "sim_kv_cache_engine_256" @(

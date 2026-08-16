@@ -63,9 +63,9 @@ tb_weight_bram_d8: ../tb/tb_weight_bram.v ../rtl/weight_bram.v
 
 # ── INT4 KV-cache IP ────────────────────────────────────────────────────────
 KV_RTL = ../rtl/kv_addr_gen.v ../rtl/int4_unpack.v ../rtl/kv_dequant.v \
-	../rtl/qk_dot.v ../rtl/kv_reader.v ../rtl/kv_cache_engine.v
+	../rtl/qk_dot.v ../rtl/qk_group_dot.v ../rtl/kv_reader.v ../rtl/kv_cache_engine.v
 
-tb_kv_cache: tb_int4_unpack tb_kv_dequant tb_qk_dot \
+tb_kv_cache: tb_int4_unpack tb_kv_dequant tb_qk_dot tb_qk_group_dot \
 	tb_kv_cache_engine tb_kv_cache_engine_256 \
 	tb_kv_cache_engine_hd128 tb_kv_cache_engine_hd128_256 \
 	tb_axi_kv_cache tb_axi_kv_cache_hd128
@@ -81,6 +81,10 @@ tb_kv_dequant: ../tb/tb_kv_dequant.v ../rtl/kv_dequant.v
 tb_qk_dot: ../tb/tb_qk_dot.v ../rtl/qk_dot.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_qk_dot $^
 	$(VVP) $(SIMDIR)/sim_qk_dot
+
+tb_qk_group_dot: ../tb/tb_qk_group_dot.v ../rtl/qk_group_dot.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_qk_group_dot $^
+	$(VVP) $(SIMDIR)/sim_qk_group_dot
 
 tb_kv_cache_engine: ../tb/tb_kv_cache_engine.v $(KV_RTL)
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_cache_engine $^

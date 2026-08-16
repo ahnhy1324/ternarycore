@@ -1,0 +1,4 @@
+profile,K,V,K_scale_group,V_scale_group,bytes_per_token_per_kv_head,effective_bits_per_value,mean_rmse,worst_rmse
+REGULAR4,INT4,INT4,128,16,146,4.5625,0.1061984,0.1442183
+PACKED5,INT4,INT5,128,128,148,4.625,0.0868344,0.1210412
+ACCURATE5,INT5,INT5,128,128,164,5.125,0.0627644,0.0961599

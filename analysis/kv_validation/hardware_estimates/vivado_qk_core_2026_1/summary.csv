@@ -1,0 +1,7 @@
+evidence,config,profile,k_bits,multiplier_style,part,target_clock_mhz,slice_luts,logic_luts,lutram_luts,slice_registers,bram_tiles,dsp48e1,target_period_ns,wns_ns,tns_ns,failing_endpoints,timing_endpoints,critical_data_path_ns,estimated_fmax_from_wns_mhz,target_timing_met
+VIVADO-POST-SYNTH/OOC,regular4_shift_add,REGULAR4/PACKED5,4,SHIFT_ADD,xc7a100tcsg324-1,81.25,1036,1036,0,176,0,1,12.308,4.82,0.0,0,424,7.513,133.54700854700855,True
+VIVADO-POST-SYNTH/OOC,regular4_dsp,REGULAR4/PACKED5,4,DSP,xc7a100tcsg324-1,81.25,240,240,0,176,0,21,12.308,4.82,0.0,0,424,7.513,133.54700854700855,True
+VIVADO-POST-SYNTH/OOC,regular4_auto,REGULAR4/PACKED5,4,AUTO,xc7a100tcsg324-1,81.25,840,840,0,176,0,1,12.308,4.82,0.0,0,424,7.513,133.54700854700855,True
+VIVADO-POST-SYNTH/OOC,accurate5_shift_add,ACCURATE5,5,SHIFT_ADD,xc7a100tcsg324-1,81.25,1317,1317,0,178,0,1,12.308,4.82,0.0,0,427,7.513,133.54700854700855,True
+VIVADO-POST-SYNTH/OOC,accurate5_dsp,ACCURATE5,5,DSP,xc7a100tcsg324-1,81.25,245,245,0,178,0,21,12.308,4.82,0.0,0,427,7.513,133.54700854700855,True
+VIVADO-POST-SYNTH/OOC,accurate5_auto,ACCURATE5,5,AUTO,xc7a100tcsg324-1,81.25,1044,1044,0,178,0,1,12.308,4.82,0.0,0,427,7.513,133.54700854700855,True

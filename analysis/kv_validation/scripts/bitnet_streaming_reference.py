@@ -37,7 +37,23 @@ class BitNetGeometry:
         return self.num_attention_heads // self.num_key_value_heads
 
 
+@dataclass(frozen=True)
+class KVQuantProfile:
+    """Write-side fake-quantization profile injected into attention."""
+
+    name: str
+    q_bits: int = 8
+    q_group_size: int = 128
+    q_scale_fraction: int = 15
+    k_bits: int | None = None
+    k_group_size: int = 128
+    v_bits: int | None = None
+    v_group_size: int = 128
+    kv_scale_fraction: int = 11
+
+
 CaptureCallback = Callable[[int, dict[str, torch.Tensor]], None]
+ScaleObserver = Callable[[str, dict[str, float | int]], None]
 
 
 def unpack_ternary(packed: torch.Tensor,
@@ -55,6 +71,46 @@ def activation_quant_int8(values: torch.Tensor) -> torch.Tensor:
     values_float = values.float()
     scale = 127.0 / values_float.abs().amax(dim=-1, keepdim=True).clamp_min_(1.0e-5)
     return ((values_float * scale).round().clamp_(-128, 127) / scale).to(source_dtype)
+
+
+def cache_fake_quant(values: torch.Tensor, bits: int, group_size: int,
+                     scale_fraction: int, audit_label: str = "",
+                     scale_observer: ScaleObserver | None = None,
+                     ) -> torch.Tensor:
+    """Quantize codes from ideal absmax, then dequantize with stored scale.
+
+    This deliberately separates the high-precision write-side reciprocal used
+    to choose codes from the rounded unsigned 16-bit scale stored in memory.
+    """
+
+    if values.shape[-1] % group_size:
+        raise ValueError("cache quantization group must divide head dimension")
+    source_dtype = values.dtype
+    qmax = (1 << (bits - 1)) - 1
+    grouped = values.float().reshape(
+        *values.shape[:-1], values.shape[-1] // group_size, group_size)
+    maximum = grouped.abs().amax(dim=-1, keepdim=True)
+    ideal_scale = maximum / qmax
+    safe_scale = torch.where(maximum == 0, torch.ones_like(ideal_scale), ideal_scale)
+    codes = (grouped / safe_scale).round().clamp_(-qmax, qmax)
+    codes = torch.where(maximum == 0, torch.zeros_like(codes), codes)
+    raw_scale_codes = (safe_scale * (1 << scale_fraction)).round()
+    if scale_observer is not None:
+        nonzero = maximum != 0
+        scale_observer(audit_label, {
+            "scale_count": int(maximum.numel()),
+            "nonzero_scale_count": int(torch.count_nonzero(nonzero)),
+            "underflow_scale_count": int(torch.count_nonzero(
+                nonzero & (raw_scale_codes < 1))),
+            "overflow_scale_count": int(torch.count_nonzero(
+                raw_scale_codes > 65535)),
+            "ideal_scale_min_nonzero": float(
+                ideal_scale[nonzero].min()) if torch.any(nonzero) else 0.0,
+            "ideal_scale_max": float(ideal_scale.max()),
+        })
+    scale_codes = raw_scale_codes.clamp_(1, 65535)
+    stored_scale = scale_codes / (1 << scale_fraction)
+    return (codes * stored_scale).reshape(values.shape).to(source_dtype)
 
 
 def rms_norm(values: torch.Tensor, weight: torch.Tensor,
@@ -129,6 +185,8 @@ class StreamingBitNet:
     def decoder_layer(self, hidden_states: torch.Tensor, layer: int,
                       cos: torch.Tensor, sin: torch.Tensor,
                       capture: bool = False,
+                      kv_profile: KVQuantProfile | None = None,
+                      scale_observer: ScaleObserver | None = None,
                       ) -> tuple[torch.Tensor, dict[str, torch.Tensor] | None]:
         geometry = self.geometry
         layer_prefix = f"model.layers.{layer}"
@@ -161,6 +219,21 @@ class StreamingBitNet:
         ).transpose(0, 1)
         query = apply_rope(query_pre, cos, sin)
         key = apply_rope(key_pre, cos, sin)
+        if kv_profile is not None:
+            query = cache_fake_quant(
+                query, kv_profile.q_bits, kv_profile.q_group_size,
+                kv_profile.q_scale_fraction, f"layer_{layer:02d}.Q",
+                scale_observer)
+            if kv_profile.k_bits is not None:
+                key = cache_fake_quant(
+                    key, kv_profile.k_bits, kv_profile.k_group_size,
+                    kv_profile.kv_scale_fraction, f"layer_{layer:02d}.K",
+                    scale_observer)
+            if kv_profile.v_bits is not None:
+                value = cache_fake_quant(
+                    value, kv_profile.v_bits, kv_profile.v_group_size,
+                    kv_profile.kv_scale_fraction, f"layer_{layer:02d}.V",
+                    scale_observer)
 
         repeated_key = key[:, None, :, :].expand(
             geometry.num_key_value_heads,
@@ -245,6 +318,8 @@ class StreamingBitNet:
     def run(self, token_ids: list[int], layer_count: int,
             capture_layers: set[int], capture_callback: CaptureCallback,
             progress_callback: Callable[[int], None] | None = None,
+            kv_profile: KVQuantProfile | None = None,
+            scale_observer: ScaleObserver | None = None,
             ) -> torch.Tensor:
         hidden_states = self.embedding_lookup(token_ids)
         cos, sin = rotary_embeddings(
@@ -253,7 +328,9 @@ class StreamingBitNet:
         )
         for layer in range(layer_count):
             hidden_states, capture = self.decoder_layer(
-                hidden_states, layer, cos, sin, layer in capture_layers
+                hidden_states, layer, cos, sin, layer in capture_layers,
+                kv_profile=kv_profile,
+                scale_observer=scale_observer,
             )
             if capture is not None:
                 capture_callback(layer, capture)
@@ -264,4 +341,3 @@ class StreamingBitNet:
             hidden_states, self.tensor("model.norm.weight"),
             self.geometry.rms_norm_eps,
         )
-

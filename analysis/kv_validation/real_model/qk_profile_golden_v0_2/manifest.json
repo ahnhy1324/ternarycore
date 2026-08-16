@@ -1,0 +1,107 @@
+{
+  "claim_scope": "real captured Q/K arithmetic; not model accuracy",
+  "code_selection_policy": "codes from high-precision absmax reciprocal; dequant uses rounded stored scale",
+  "context_length": 128,
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "head_dim": 128,
+  "k_scale_format": "unsigned UQ5.11",
+  "kv_head": 4,
+  "packing": "contiguous LSB-first two's-complement bitstream",
+  "profiles": {
+    "ACCURATE5": {
+      "files": {
+        "expected_scaled_accum_i64.hex": {
+          "bytes": 2304,
+          "sha256": "7841d2670842b2452bef59c7efa49b57cccd18757908b7993d58009d72917128"
+        },
+        "k_codes.hex": {
+          "bytes": 65536,
+          "sha256": "1f6e292d3d22a34fec0498f77b8da80049b3933bfb9fd9868d7c94bfd6323dbf"
+        },
+        "k_int5_packed_lsb.bin": {
+          "bytes": 10240,
+          "sha256": "42b2dc7809f01dc524db541b18b6d1728580dcad4d3ca155d5bf09d19a7b9308"
+        },
+        "k_scale_uq5_11_u16.hex": {
+          "bytes": 768,
+          "sha256": "277bd3359afc5f8b95f4eab325ff8bb8d1dc202226ede5dabd1f49e8615ca28a"
+        }
+      },
+      "k_bits": 5,
+      "k_group_size": 128,
+      "metadata_bytes_per_token": 2,
+      "packed_lsb_bitstream": "k_int5_packed_lsb.bin",
+      "payload_bytes_per_token": 80,
+      "reserved_min_code_count": 0,
+      "scale_max_code": 1101,
+      "scale_min_code": 314
+    },
+    "PACKED5": {
+      "files": {
+        "expected_scaled_accum_i64.hex": {
+          "bytes": 2304,
+          "sha256": "c38cf473402f87fe28888b29c835b67ad5a28dc840db3d69d3462ab9496a8f3d"
+        },
+        "k_codes.hex": {
+          "bytes": 49152,
+          "sha256": "0d4e80d44fdae00cec1d10f3dd47eb4a3c011b5e7116bd41da9162c9c9077c18"
+        },
+        "k_int4_packed_lsb.bin": {
+          "bytes": 8192,
+          "sha256": "71f22f71c94e6753145eae45f0f2782a8426eee986a1479c434f85817fae40c1"
+        },
+        "k_scale_uq5_11_u16.hex": {
+          "bytes": 768,
+          "sha256": "700fe61c0dc4871092f78bfa02c0626bdae64415a9da41daf01f0137af39e53b"
+        }
+      },
+      "k_bits": 4,
+      "k_group_size": 128,
+      "metadata_bytes_per_token": 2,
+      "packed_lsb_bitstream": "k_int4_packed_lsb.bin",
+      "payload_bytes_per_token": 64,
+      "reserved_min_code_count": 0,
+      "scale_max_code": 2359,
+      "scale_min_code": 672
+    },
+    "REGULAR4": {
+      "files": {
+        "expected_scaled_accum_i64.hex": {
+          "bytes": 2304,
+          "sha256": "c38cf473402f87fe28888b29c835b67ad5a28dc840db3d69d3462ab9496a8f3d"
+        },
+        "k_codes.hex": {
+          "bytes": 49152,
+          "sha256": "0d4e80d44fdae00cec1d10f3dd47eb4a3c011b5e7116bd41da9162c9c9077c18"
+        },
+        "k_int4_packed_lsb.bin": {
+          "bytes": 8192,
+          "sha256": "71f22f71c94e6753145eae45f0f2782a8426eee986a1479c434f85817fae40c1"
+        },
+        "k_scale_uq5_11_u16.hex": {
+          "bytes": 768,
+          "sha256": "700fe61c0dc4871092f78bfa02c0626bdae64415a9da41daf01f0137af39e53b"
+        }
+      },
+      "k_bits": 4,
+      "k_group_size": 128,
+      "metadata_bytes_per_token": 2,
+      "packed_lsb_bitstream": "k_int4_packed_lsb.bin",
+      "payload_bytes_per_token": 64,
+      "reserved_min_code_count": 0,
+      "scale_max_code": 2359,
+      "scale_min_code": 672
+    }
+  },
+  "q_file": {
+    "bytes": 512,
+    "path": "q_int8.hex",
+    "sha256": "52c95a5abe698bb89daa58f363d7592346445ca9e4181e045b684408b3a90415"
+  },
+  "q_format": "signed INT8 symmetric -127..127",
+  "q_head": 16,
+  "q_scale_format": "UQ1.15 (not applied inside qk_group_dot)",
+  "schema_version": "qk-profile-golden-0.2",
+  "source_capture": "F:\\Xilinx_WorkSpace\\ternarycore\\analysis\\kv_validation\\real_model\\runs\\20260816-streaming-full-c128\\tensors\\layer_22.pt",
+  "source_capture_sha256": "92759c6f9ffea42172dcf7558ff38f18aa8c722fba9b43347ecc2ca719e078c6"
+}

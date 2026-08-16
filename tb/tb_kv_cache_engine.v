@@ -21,6 +21,8 @@ module tb_kv_cache_engine;
     localparam BEATS_PER_VECTOR = VECTOR_BITS / AXI_WIDTH;
     localparam BASE = 32'h8000_1000;
     localparam SCALE = 16'sh0100;
+    localparam SCALE_GROUP_SIZE = 32;
+    localparam SCALE_GROUPS = HEAD_DIM / SCALE_GROUP_SIZE;
     localparam TOKEN_WIDTH = $clog2(MAX_CONTEXT);
 
     reg clk = 0, rst_n = 0, start = 0;
@@ -55,11 +57,12 @@ module tb_kv_cache_engine;
         .HEAD_DIM(HEAD_DIM), .KV_BITS(4), .AXI_DATA_WIDTH(AXI_WIDTH),
         .AXI_ADDR_WIDTH(32), .AXI_ID_WIDTH(1), .P(P),
         .MAX_CONTEXT(MAX_CONTEXT), .Q_WIDTH(8), .SCALE_WIDTH(16),
+        .SCALE_GROUP_SIZE(SCALE_GROUP_SIZE),
         .ACC_WIDTH(32), .TIMEOUT_CYCLES(1000)
     ) dut (
         .clk(clk), .rst_n(rst_n), .start(start),
         .k_base_addr(k_base_addr), .context_len(context_len),
-        .q_vector(q_vector), .k_scale(SCALE),
+        .q_vector(q_vector), .k_scales({SCALE_GROUPS{SCALE}}),
         .busy(busy), .done(done), .error(error), .error_code(error_code),
         .perf_cycles(perf_cycles), .logit_valid(logit_valid),
         .logit_index(logit_index), .logit_data(logit_data),
@@ -75,10 +78,10 @@ module tb_kv_cache_engine;
     function signed [3:0] k_at;
         input integer token;
         input integer dim;
-        integer code;
+        integer signed_value;
         begin
-            code = (token * 3 + dim * 5 + 8) & 15;
-            k_at = code[3:0];
+            signed_value = ((token * 3 + dim * 5) % 15) - 7;
+            k_at = signed_value[3:0];
         end
     endfunction
 
@@ -100,11 +103,8 @@ module tb_kv_cache_engine;
             // function return differently from Icarus, which made the old
             // checker disagree even though the DUT result was correct.
             for (dim = 0; dim < HEAD_DIM; dim = dim + 1) begin
-                k_code = (token * 3 + dim * 5 + 8) & 15;
-                if (k_code >= 8)
-                    k_signed = k_code - 16;
-                else
-                    k_signed = k_code;
+                k_code = (token * 3 + dim * 5) % 15;
+                k_signed = k_code - 7;
                 sum = sum + q_at(dim) * k_signed * 256;
             end
             expected_dot = sum;

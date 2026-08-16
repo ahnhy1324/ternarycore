@@ -1,0 +1,219 @@
+{
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "claim_scope": "hidden-state and tied-logit distortion; not perplexity or task accuracy",
+  "context_length": 128,
+  "elapsed_seconds": 362.7819586000005,
+  "evidence": "REAL-MODEL-VALIDATED/end-to-end-streaming-injection",
+  "metrics": {
+    "final_hidden_cosine": 1.0,
+    "final_hidden_relative_rmse": 0.0,
+    "js_divergence": 0.0,
+    "kl_reference_to_candidate": 0.0,
+    "last_token_hidden_cosine": 1.0,
+    "last_token_hidden_relative_rmse": 0.0,
+    "selected_layers": [],
+    "target_token_logit_delta": 0.0,
+    "top1_preserved": true,
+    "top5_exact_set_preserved": true,
+    "top5_overlap_fraction": 1.0
+  },
+  "peak_observed_working_set_bytes": 541040640,
+  "profile": "BASE_FP",
+  "profile_contract": null,
+  "prompt_id": "engineering",
+  "python": "3.10.5",
+  "scale_audit": {
+    "max_ideal_scale": 0.0,
+    "records": [],
+    "total_overflow_scale_count": 0,
+    "total_scale_count": 0,
+    "total_underflow_scale_count": 0
+  },
+  "status": "PASS",
+  "target_token_id": 311,
+  "timings": [
+    {
+      "elapsed_seconds": 12.855959299999085,
+      "layer": 0,
+      "layer_seconds": 12.855959299999085,
+      "working_set_bytes": 255688704
+    },
+    {
+      "elapsed_seconds": 24.330204999998386,
+      "layer": 1,
+      "layer_seconds": 11.474245699999301,
+      "working_set_bytes": 267489280
+    },
+    {
+      "elapsed_seconds": 35.96947670000009,
+      "layer": 2,
+      "layer_seconds": 11.6392717000017,
+      "working_set_bytes": 285048832
+    },
+    {
+      "elapsed_seconds": 47.51810629999818,
+      "layer": 3,
+      "layer_seconds": 11.548629599998094,
+      "working_set_bytes": 302456832
+    },
+    {
+      "elapsed_seconds": 58.97186529999817,
+      "layer": 4,
+      "layer_seconds": 11.453758999999991,
+      "working_set_bytes": 319787008
+    },
+    {
+      "elapsed_seconds": 71.22160280000026,
+      "layer": 5,
+      "layer_seconds": 12.249737500002084,
+      "working_set_bytes": 337170432
+    },
+    {
+      "elapsed_seconds": 82.21587010000076,
+      "layer": 6,
+      "layer_seconds": 10.994267300000502,
+      "working_set_bytes": 354541568
+    },
+    {
+      "elapsed_seconds": 96.25614389999828,
+      "layer": 7,
+      "layer_seconds": 14.040273799997522,
+      "working_set_bytes": 355508224
+    },
+    {
+      "elapsed_seconds": 107.88911509999889,
+      "layer": 8,
+      "layer_seconds": 11.632971200000611,
+      "working_set_bytes": 350924800
+    },
+    {
+      "elapsed_seconds": 119.46869940000033,
+      "layer": 9,
+      "layer_seconds": 11.579584300001443,
+      "working_set_bytes": 368320512
+    },
+    {
+      "elapsed_seconds": 131.05184530000042,
+      "layer": 10,
+      "layer_seconds": 11.58314590000009,
+      "working_set_bytes": 385863680
+    },
+    {
+      "elapsed_seconds": 142.44057839999732,
+      "layer": 11,
+      "layer_seconds": 11.388733099996898,
+      "working_set_bytes": 403263488
+    },
+    {
+      "elapsed_seconds": 153.67322739999872,
+      "layer": 12,
+      "layer_seconds": 11.232649000001402,
+      "working_set_bytes": 420659200
+    },
+    {
+      "elapsed_seconds": 165.19305249999888,
+      "layer": 13,
+      "layer_seconds": 11.519825100000162,
+      "working_set_bytes": 438059008
+    },
+    {
+      "elapsed_seconds": 176.8376415999992,
+      "layer": 14,
+      "layer_seconds": 11.644589100000303,
+      "working_set_bytes": 455458816
+    },
+    {
+      "elapsed_seconds": 188.82540410000001,
+      "layer": 15,
+      "layer_seconds": 11.987762500000827,
+      "working_set_bytes": 443596800
+    },
+    {
+      "elapsed_seconds": 201.29681279999932,
+      "layer": 16,
+      "layer_seconds": 12.471408699999301,
+      "working_set_bytes": 348790784
+    },
+    {
+      "elapsed_seconds": 212.7285645999982,
+      "layer": 17,
+      "layer_seconds": 11.431751799998892,
+      "working_set_bytes": 401637376
+    },
+    {
+      "elapsed_seconds": 224.42570029999843,
+      "layer": 18,
+      "layer_seconds": 11.697135700000217,
+      "working_set_bytes": 419041280
+    },
+    {
+      "elapsed_seconds": 236.02403549999872,
+      "layer": 19,
+      "layer_seconds": 11.598335200000292,
+      "working_set_bytes": 436441088
+    },
+    {
+      "elapsed_seconds": 247.4629802999989,
+      "layer": 20,
+      "layer_seconds": 11.438944800000172,
+      "working_set_bytes": 453840896
+    },
+    {
+      "elapsed_seconds": 259.49256930000047,
+      "layer": 21,
+      "layer_seconds": 12.029589000001579,
+      "working_set_bytes": 435793920
+    },
+    {
+      "elapsed_seconds": 270.9312675000001,
+      "layer": 22,
+      "layer_seconds": 11.438698199999635,
+      "working_set_bytes": 494252032
+    },
+    {
+      "elapsed_seconds": 282.4225798999978,
+      "layer": 23,
+      "layer_seconds": 11.491312399997696,
+      "working_set_bytes": 506068992
+    },
+    {
+      "elapsed_seconds": 293.96272920000047,
+      "layer": 24,
+      "layer_seconds": 11.540149300002668,
+      "working_set_bytes": 523481088
+    },
+    {
+      "elapsed_seconds": 305.51445160000003,
+      "layer": 25,
+      "layer_seconds": 11.551722399999562,
+      "working_set_bytes": 541040640
+    },
+    {
+      "elapsed_seconds": 317.1009957999995,
+      "layer": 26,
+      "layer_seconds": 11.58654419999948,
+      "working_set_bytes": 489447424
+    },
+    {
+      "elapsed_seconds": 329.23319309999715,
+      "layer": 27,
+      "layer_seconds": 12.132197299997642,
+      "working_set_bytes": 477687808
+    },
+    {
+      "elapsed_seconds": 340.57877929999813,
+      "layer": 28,
+      "layer_seconds": 11.34558620000098,
+      "working_set_bytes": 495087616
+    },
+    {
+      "elapsed_seconds": 352.2059072999982,
+      "layer": 29,
+      "layer_seconds": 11.627128000000084,
+      "working_set_bytes": 466149376
+    }
+  ],
+  "token_ids_sha256": "534d9bf21dbb0db889bbfb18aa061d260f4e3dc7d59f455e52ab1a794cdce9bd",
+  "torch": "2.13.0+cpu",
+  "write_side_policy": "codes from high-precision absmax/reciprocal; dequantization uses rounded stored scale"
+}

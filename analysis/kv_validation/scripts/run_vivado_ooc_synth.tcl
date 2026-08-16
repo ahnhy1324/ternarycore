@@ -2,12 +2,16 @@
 # Usage:
 #   vivado -mode batch -source run_vivado_ooc_synth.tcl -tclargs REPO_ROOT OUT_DIR
 
-if {$argc != 2} {
-    error "usage: run_vivado_ooc_synth.tcl REPO_ROOT OUT_DIR"
+if {$argc < 2 || $argc > 3} {
+    error "usage: run_vivado_ooc_synth.tcl REPO_ROOT OUT_DIR ?CONFIG_FILTER?"
 }
 
 set repo_root [file normalize [lindex $argv 0]]
 set out_dir [file normalize [lindex $argv 1]]
+set config_filter ""
+if {$argc == 3} {
+    set config_filter [lindex $argv 2]
+}
 file mkdir $out_dir
 
 set part "xc7a100tcsg324-1"
@@ -18,6 +22,7 @@ set sources [list \
     [file join $repo_root rtl kv_addr_gen.v] \
     [file join $repo_root rtl kv_reader.v] \
     [file join $repo_root rtl int4_unpack.v] \
+    [file join $repo_root rtl qk_group_dot.v] \
     [file join $repo_root rtl kv_dequant.v] \
     [file join $repo_root rtl qk_dot.v]]
 set timing_xdc [file join $repo_root analysis kv_validation scripts \
@@ -30,6 +35,9 @@ puts $summary "config,head_dim,axi_data_width,part,target_clock_mhz,status"
 foreach config {{hd64_axi128 64 128} {hd64_axi256 64 256} \
                 {hd128_axi128 128 128} {hd128_axi256 128 256}} {
     lassign $config name head_dim axi_width
+    if {$config_filter ne "" && $name ne $config_filter} {
+        continue
+    }
     puts "SYNTH_BEGIN name=$name head_dim=$head_dim axi_width=$axi_width"
     create_project -in_memory -part $part
     read_verilog $sources

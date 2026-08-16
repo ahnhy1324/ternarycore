@@ -10,6 +10,8 @@ module axi_kv_cache #(
     parameter integer MAX_CONTEXT       = 4096,
     parameter integer Q_WIDTH           = 8,
     parameter integer SCALE_WIDTH       = 16,
+    parameter integer SCALE_GROUP_SIZE  = HEAD_DIM,
+    parameter integer MULT_STYLE        = 2,
     parameter integer ACC_WIDTH         = 32,
     parameter integer C_S_AXI_DATA_WIDTH = 32,
     parameter integer C_S_AXI_ADDR_WIDTH = 16,
@@ -110,6 +112,13 @@ module axi_kv_cache #(
             assign q_vector[(qg*Q_WIDTH) +: Q_WIDTH] = q_mem[qg];
         end
     endgenerate
+    wire [((HEAD_DIM/SCALE_GROUP_SIZE)*SCALE_WIDTH)-1:0] k_scales;
+    genvar sg;
+    generate
+        for (sg = 0; sg < HEAD_DIM/SCALE_GROUP_SIZE; sg = sg + 1) begin : g_scale_compat
+            assign k_scales[(sg*SCALE_WIDTH) +: SCALE_WIDTH] = k_scale_reg;
+        end
+    endgenerate
 
     wire engine_busy, engine_done, engine_error;
     wire [7:0] engine_error_code;
@@ -124,13 +133,15 @@ module axi_kv_cache #(
         .AXI_ADDR_WIDTH(M_AXI_ADDR_WIDTH),
         .AXI_ID_WIDTH(M_AXI_ID_WIDTH), .P(P),
         .MAX_CONTEXT(MAX_CONTEXT), .Q_WIDTH(Q_WIDTH),
-        .SCALE_WIDTH(SCALE_WIDTH), .ACC_WIDTH(ACC_WIDTH),
+        .SCALE_WIDTH(SCALE_WIDTH), .SCALE_GROUP_SIZE(SCALE_GROUP_SIZE),
+        .MULT_STYLE(MULT_STYLE),
+        .ACC_WIDTH(ACC_WIDTH),
         .TIMEOUT_CYCLES(TIMEOUT_CYCLES)
     ) u_engine (
         .clk(clk), .rst_n(rst_n), .start(engine_start),
         .k_base_addr(k_base_reg[M_AXI_ADDR_WIDTH-1:0]),
         .context_len(context_len_reg), .q_vector(q_vector),
-        .k_scale(k_scale_reg), .busy(engine_busy), .done(engine_done),
+        .k_scales(k_scales), .busy(engine_busy), .done(engine_done),
         .error(engine_error), .error_code(engine_error_code),
         .perf_cycles(engine_perf_cycles),
         .logit_valid(engine_logit_valid),

@@ -1,0 +1,1076 @@
+{
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "claim_scope": "hidden-state and tied-logit distortion; not perplexity or task accuracy",
+  "context_length": 128,
+  "elapsed_seconds": 350.05306650000057,
+  "evidence": "REAL-MODEL-VALIDATED/end-to-end-streaming-injection",
+  "metrics": {
+    "final_hidden_cosine": 0.9973293644416982,
+    "final_hidden_relative_rmse": 0.07311892790285195,
+    "js_divergence": 0.0014254559621708302,
+    "kl_reference_to_candidate": 0.005346237183272257,
+    "last_token_hidden_cosine": 0.9959904897327266,
+    "last_token_hidden_relative_rmse": 0.09015189413400437,
+    "selected_layers": [
+      {
+        "block_output_cosine": 0.9924911587998132,
+        "block_output_relative_rmse": 0.14426021689585217,
+        "layer": 0,
+        "weighted_v_cosine": 0.9926168492365198,
+        "weighted_v_relative_rmse": 0.12280654221036097
+      },
+      {
+        "block_output_cosine": 0.9830981241043195,
+        "block_output_relative_rmse": 0.18366371217062655,
+        "layer": 7,
+        "weighted_v_cosine": 0.9903593037601417,
+        "weighted_v_relative_rmse": 0.13921286568591795
+      },
+      {
+        "block_output_cosine": 0.9873582396680555,
+        "block_output_relative_rmse": 0.15877989170243353,
+        "layer": 15,
+        "weighted_v_cosine": 0.992064363493389,
+        "weighted_v_relative_rmse": 0.12843621098436198
+      },
+      {
+        "block_output_cosine": 0.9934229933563926,
+        "block_output_relative_rmse": 0.11489141439349078,
+        "layer": 22,
+        "weighted_v_cosine": 0.9871021027044838,
+        "weighted_v_relative_rmse": 0.16429872477493057
+      },
+      {
+        "block_output_cosine": 0.9964012533278271,
+        "block_output_relative_rmse": 0.0854088018352822,
+        "layer": 29,
+        "weighted_v_cosine": 0.9944472296494639,
+        "weighted_v_relative_rmse": 0.10538964998584027
+      }
+    ],
+    "target_token_logit_delta": -0.31038856506347656,
+    "top1_preserved": true,
+    "top5_exact_set_preserved": true,
+    "top5_overlap_fraction": 1.0
+  },
+  "peak_observed_working_set_bytes": 644452352,
+  "profile": "REGULAR4",
+  "profile_contract": {
+    "k_bits": 4,
+    "k_group_size": 128,
+    "kv_scale_fraction": 11,
+    "name": "REGULAR4",
+    "q_bits": 8,
+    "q_group_size": 128,
+    "q_scale_fraction": 15,
+    "v_bits": 4,
+    "v_group_size": 16
+  },
+  "prompt_id": "observatory",
+  "python": "3.10.5",
+  "scale_audit": {
+    "max_ideal_scale": 10.5,
+    "records": [
+      {
+        "ideal_scale_max": 0.09940944612026215,
+        "ideal_scale_min_nonzero": 0.012364665046334267,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_00.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.6339285373687744,
+        "ideal_scale_min_nonzero": 0.6294642686843872,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_00.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.0714287757873535,
+        "ideal_scale_min_nonzero": 0.0959821417927742,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_00.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.06692913174629211,
+        "ideal_scale_min_nonzero": 0.010457676835358143,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_01.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2053571939468384,
+        "ideal_scale_min_nonzero": 0.5111607313156128,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_01.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 7.142857074737549,
+        "ideal_scale_min_nonzero": 0.0825892835855484,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_01.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.05118110403418541,
+        "ideal_scale_min_nonzero": 0.011441929265856743,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_02.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.375,
+        "ideal_scale_min_nonzero": 0.4263392984867096,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_02.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 10.5,
+        "ideal_scale_min_nonzero": 0.1506696492433548,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_02.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04773622006177902,
+        "ideal_scale_min_nonzero": 0.007074310909956694,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_03.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2232142686843872,
+        "ideal_scale_min_nonzero": 0.4196428656578064,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_03.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 8.928571701049805,
+        "ideal_scale_min_nonzero": 0.0887276753783226,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_03.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.036909449845552444,
+        "ideal_scale_min_nonzero": 0.0050750491209328175,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_04.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2946428060531616,
+        "ideal_scale_min_nonzero": 0.2734375,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_04.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 7.5714287757873535,
+        "ideal_scale_min_nonzero": 0.0387834832072258,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_04.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.05339566990733147,
+        "ideal_scale_min_nonzero": 0.003967765718698502,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_05.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.3571428060531616,
+        "ideal_scale_min_nonzero": 0.2466517835855484,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_05.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.0,
+        "ideal_scale_min_nonzero": 0.02706473134458065,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_05.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.046998031437397,
+        "ideal_scale_min_nonzero": 0.004429134074598551,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_06.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.5535714626312256,
+        "ideal_scale_min_nonzero": 0.2946428656578064,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_06.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.285714149475098,
+        "ideal_scale_min_nonzero": 0.0318080373108387,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_06.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04502952843904495,
+        "ideal_scale_min_nonzero": 0.005782480351626873,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_07.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.5089285373687744,
+        "ideal_scale_min_nonzero": 0.2845982015132904,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_07.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 2.8214285373687744,
+        "ideal_scale_min_nonzero": 0.0255301333963871,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_07.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.060777559876441956,
+        "ideal_scale_min_nonzero": 0.006336121819913387,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_08.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.4821428060531616,
+        "ideal_scale_min_nonzero": 0.296875,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_08.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.964285850524902,
+        "ideal_scale_min_nonzero": 0.033203125,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_08.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04183070734143257,
+        "ideal_scale_min_nonzero": 0.005198080558329821,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_09.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2857142686843872,
+        "ideal_scale_min_nonzero": 0.2566964328289032,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_09.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 4.232142925262451,
+        "ideal_scale_min_nonzero": 0.02706473134458065,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_09.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.0428149588406086,
+        "ideal_scale_min_nonzero": 0.005198080558329821,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_10.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.5803571939468384,
+        "ideal_scale_min_nonzero": 0.3482142984867096,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_10.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.892857074737549,
+        "ideal_scale_min_nonzero": 0.02497209794819355,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_10.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04256889596581459,
+        "ideal_scale_min_nonzero": 0.00565944891422987,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_11.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.3660714626312256,
+        "ideal_scale_min_nonzero": 0.3370535671710968,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_11.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.214285850524902,
+        "ideal_scale_min_nonzero": 0.0365513376891613,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_11.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04379921406507492,
+        "ideal_scale_min_nonzero": 0.005136564839631319,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_12.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.3482142686843872,
+        "ideal_scale_min_nonzero": 0.3683035671710968,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_12.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.8214287757873535,
+        "ideal_scale_min_nonzero": 0.02790178544819355,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_12.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.05782480165362358,
+        "ideal_scale_min_nonzero": 0.004705954808741808,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_13.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.3125,
+        "ideal_scale_min_nonzero": 0.3303571343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_13.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.285714149475098,
+        "ideal_scale_min_nonzero": 0.0401785708963871,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_13.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.052165355533361435,
+        "ideal_scale_min_nonzero": 0.0043983762152493,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_14.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.5,
+        "ideal_scale_min_nonzero": 0.4709821343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_14.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.785714149475098,
+        "ideal_scale_min_nonzero": 0.02985491044819355,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_14.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04207677021622658,
+        "ideal_scale_min_nonzero": 0.004952017683535814,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_15.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.3125,
+        "ideal_scale_min_nonzero": 0.3727678656578064,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_15.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.0714287757873535,
+        "ideal_scale_min_nonzero": 0.0379464291036129,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_15.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04404527693986893,
+        "ideal_scale_min_nonzero": 0.0054133860394358635,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_16.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.3571428060531616,
+        "ideal_scale_min_nonzero": 0.4174107015132904,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_16.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 4.892857074737549,
+        "ideal_scale_min_nonzero": 0.02804129384458065,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_16.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.045521654188632965,
+        "ideal_scale_min_nonzero": 0.00565944891422987,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_17.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2321428060531616,
+        "ideal_scale_min_nonzero": 0.484375,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_17.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.285714149475098,
+        "ideal_scale_min_nonzero": 0.0401785708963871,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_17.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03740157559514046,
+        "ideal_scale_min_nonzero": 0.005290354136377573,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_18.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.1339285373687744,
+        "ideal_scale_min_nonzero": 0.3549107015132904,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_18.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 4.9285712242126465,
+        "ideal_scale_min_nonzero": 0.02301897294819355,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_18.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.0625,
+        "ideal_scale_min_nonzero": 0.007228100206702948,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_19.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.4732142686843872,
+        "ideal_scale_min_nonzero": 0.3616071343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_19.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.392857074737549,
+        "ideal_scale_min_nonzero": 0.0284598208963871,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_19.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04576771706342697,
+        "ideal_scale_min_nonzero": 0.005628691054880619,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_20.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.4821428060531616,
+        "ideal_scale_min_nonzero": 0.3861607015132904,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_20.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 4.8214287757873535,
+        "ideal_scale_min_nonzero": 0.02664620615541935,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_20.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03715551272034645,
+        "ideal_scale_min_nonzero": 0.005228838417679071,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_21.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.4553571939468384,
+        "ideal_scale_min_nonzero": 0.3772321343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_21.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 5.8214287757873535,
+        "ideal_scale_min_nonzero": 0.0172293521463871,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_21.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03838582709431648,
+        "ideal_scale_min_nonzero": 0.005690206773579121,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_22.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2678571939468384,
+        "ideal_scale_min_nonzero": 0.2834821343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_22.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 6.464285850524902,
+        "ideal_scale_min_nonzero": 0.0347377248108387,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_22.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.0428149588406086,
+        "ideal_scale_min_nonzero": 0.005228838417679071,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_23.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2410714626312256,
+        "ideal_scale_min_nonzero": 0.3214285671710968,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_23.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 4.357142925262451,
+        "ideal_scale_min_nonzero": 0.01520647294819355,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_23.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03986220434308052,
+        "ideal_scale_min_nonzero": 0.005997785367071629,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_24.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.2142857313156128,
+        "ideal_scale_min_nonzero": 0.2991071343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_24.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 4.0535712242126465,
+        "ideal_scale_min_nonzero": 0.02022879384458065,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_24.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03641732409596443,
+        "ideal_scale_min_nonzero": 0.004982775542885065,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_25.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.0535714626312256,
+        "ideal_scale_min_nonzero": 0.2879464328289032,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_25.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 3.9642856121063232,
+        "ideal_scale_min_nonzero": 0.0446428582072258,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_25.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03444881737232208,
+        "ideal_scale_min_nonzero": 0.0036909449845552444,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_26.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.9464285969734192,
+        "ideal_scale_min_nonzero": 0.2555803656578064,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_26.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 3.0892856121063232,
+        "ideal_scale_min_nonzero": 0.0359933041036129,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_26.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.04872047156095505,
+        "ideal_scale_min_nonzero": 0.0047674705274403095,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_27.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.0669642686843872,
+        "ideal_scale_min_nonzero": 0.2622767984867096,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_27.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 2.9464285373687744,
+        "ideal_scale_min_nonzero": 0.0242745541036129,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_27.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.03838582709431648,
+        "ideal_scale_min_nonzero": 0.006090058945119381,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_28.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.9508928656578064,
+        "ideal_scale_min_nonzero": 0.3058035671710968,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_28.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 2.1160714626312256,
+        "ideal_scale_min_nonzero": 0.0594308041036129,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_28.V",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.035433072596788406,
+        "ideal_scale_min_nonzero": 0.008489172905683517,
+        "nonzero_scale_count": 2560,
+        "overflow_scale_count": 0,
+        "scale_count": 2560,
+        "tensor": "layer_29.Q",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 0.8928571343421936,
+        "ideal_scale_min_nonzero": 0.3772321343421936,
+        "nonzero_scale_count": 640,
+        "overflow_scale_count": 0,
+        "scale_count": 640,
+        "tensor": "layer_29.K",
+        "underflow_scale_count": 0
+      },
+      {
+        "ideal_scale_max": 1.0669642686843872,
+        "ideal_scale_min_nonzero": 0.0954241082072258,
+        "nonzero_scale_count": 5120,
+        "overflow_scale_count": 0,
+        "scale_count": 5120,
+        "tensor": "layer_29.V",
+        "underflow_scale_count": 0
+      }
+    ],
+    "total_overflow_scale_count": 0,
+    "total_scale_count": 249600,
+    "total_underflow_scale_count": 0
+  },
+  "status": "PASS",
+  "target_token_id": 3686,
+  "timings": [
+    {
+      "elapsed_seconds": 11.804916900000535,
+      "layer": 0,
+      "layer_seconds": 11.804916900000535,
+      "working_set_bytes": 220745728
+    },
+    {
+      "elapsed_seconds": 23.74429969999983,
+      "layer": 1,
+      "layer_seconds": 11.939382799999294,
+      "working_set_bytes": 235417600
+    },
+    {
+      "elapsed_seconds": 34.66272919999756,
+      "layer": 2,
+      "layer_seconds": 10.918429499997728,
+      "working_set_bytes": 252989440
+    },
+    {
+      "elapsed_seconds": 45.831239999999525,
+      "layer": 3,
+      "layer_seconds": 11.168510800001968,
+      "working_set_bytes": 270405632
+    },
+    {
+      "elapsed_seconds": 57.1900644999987,
+      "layer": 4,
+      "layer_seconds": 11.358824499999173,
+      "working_set_bytes": 287752192
+    },
+    {
+      "elapsed_seconds": 68.23366629999873,
+      "layer": 5,
+      "layer_seconds": 11.043601800000033,
+      "working_set_bytes": 305147904
+    },
+    {
+      "elapsed_seconds": 79.54402739999932,
+      "layer": 6,
+      "layer_seconds": 11.310361100000591,
+      "working_set_bytes": 322551808
+    },
+    {
+      "elapsed_seconds": 91.9694954000006,
+      "layer": 7,
+      "layer_seconds": 12.425468000001274,
+      "working_set_bytes": 342605824
+    },
+    {
+      "elapsed_seconds": 103.32108270000026,
+      "layer": 8,
+      "layer_seconds": 11.351587299999665,
+      "working_set_bytes": 358404096
+    },
+    {
+      "elapsed_seconds": 114.2354333000003,
+      "layer": 9,
+      "layer_seconds": 10.914350600000034,
+      "working_set_bytes": 374751232
+    },
+    {
+      "elapsed_seconds": 125.51473949999854,
+      "layer": 10,
+      "layer_seconds": 11.279306199998246,
+      "working_set_bytes": 392146944
+    },
+    {
+      "elapsed_seconds": 136.77200900000025,
+      "layer": 11,
+      "layer_seconds": 11.257269500001712,
+      "working_set_bytes": 409579520
+    },
+    {
+      "elapsed_seconds": 147.73707690000083,
+      "layer": 12,
+      "layer_seconds": 10.965067900000577,
+      "working_set_bytes": 426979328
+    },
+    {
+      "elapsed_seconds": 159.1838714000005,
+      "layer": 13,
+      "layer_seconds": 11.446794499999669,
+      "working_set_bytes": 444383232
+    },
+    {
+      "elapsed_seconds": 170.65905089999796,
+      "layer": 14,
+      "layer_seconds": 11.475179499997466,
+      "working_set_bytes": 461778944
+    },
+    {
+      "elapsed_seconds": 181.86102749999918,
+      "layer": 15,
+      "layer_seconds": 11.201976600001217,
+      "working_set_bytes": 481832960
+    },
+    {
+      "elapsed_seconds": 192.9009162000002,
+      "layer": 16,
+      "layer_seconds": 11.039888700001029,
+      "working_set_bytes": 497635328
+    },
+    {
+      "elapsed_seconds": 204.1454816000005,
+      "layer": 17,
+      "layer_seconds": 11.244565400000283,
+      "working_set_bytes": 513982464
+    },
+    {
+      "elapsed_seconds": 215.45732470000075,
+      "layer": 18,
+      "layer_seconds": 11.31184310000026,
+      "working_set_bytes": 531382272
+    },
+    {
+      "elapsed_seconds": 226.80268019999858,
+      "layer": 19,
+      "layer_seconds": 11.345355499997822,
+      "working_set_bytes": 467566592
+    },
+    {
+      "elapsed_seconds": 238.54481649999798,
+      "layer": 20,
+      "layer_seconds": 11.742136299999402,
+      "working_set_bytes": 484974592
+    },
+    {
+      "elapsed_seconds": 249.88011339999866,
+      "layer": 21,
+      "layer_seconds": 11.335296900000685,
+      "working_set_bytes": 502386688
+    },
+    {
+      "elapsed_seconds": 260.8806595999995,
+      "layer": 22,
+      "layer_seconds": 11.000546200000827,
+      "working_set_bytes": 522469376
+    },
+    {
+      "elapsed_seconds": 272.0779736000004,
+      "layer": 23,
+      "layer_seconds": 11.197314000000915,
+      "working_set_bytes": 538271744
+    },
+    {
+      "elapsed_seconds": 283.21518379999907,
+      "layer": 24,
+      "layer_seconds": 11.137210199998663,
+      "working_set_bytes": 554631168
+    },
+    {
+      "elapsed_seconds": 294.34734279999975,
+      "layer": 25,
+      "layer_seconds": 11.132159000000684,
+      "working_set_bytes": 572039168
+    },
+    {
+      "elapsed_seconds": 305.94985760000054,
+      "layer": 26,
+      "layer_seconds": 11.60251480000079,
+      "working_set_bytes": 589574144
+    },
+    {
+      "elapsed_seconds": 317.1558702000002,
+      "layer": 27,
+      "layer_seconds": 11.206012599999667,
+      "working_set_bytes": 642433024
+    },
+    {
+      "elapsed_seconds": 328.3195218000001,
+      "layer": 28,
+      "layer_seconds": 11.163651599999866,
+      "working_set_bytes": 624386048
+    },
+    {
+      "elapsed_seconds": 339.25785840000026,
+      "layer": 29,
+      "layer_seconds": 10.938336600000184,
+      "working_set_bytes": 644452352
+    }
+  ],
+  "token_ids_sha256": "546dbdfcc86a0abba470ee867fa68440a9a91be71a64dcd59855236efd6a61fb",
+  "torch": "2.13.0+cpu",
+  "write_side_policy": "codes from high-precision absmax/reciprocal; dequantization uses rounded stored scale"
+}

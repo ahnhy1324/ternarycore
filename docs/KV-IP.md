@@ -1,5 +1,69 @@
 # INT4 KV-cache IP v0.1
 
+## Authoritative v0.2 audit update (2026-08-16)
+
+The complete current decision and evidence handoff is
+`analysis/kv_validation/report/V0_2_AUDIT_ADDENDUM_REPORT.md`. The v0.1 text
+below is preserved as implementation history; later preliminary group32/Q8.8
+recommendations are superseded by this update.
+
+Current baseline: `HEAD_DIM=128`, `P=16`, INT8 Q with UQ1.15 scale, K4 with
+one UQ5.11 scale per 128 values, separate payload/scale planes, AUTO arithmetic,
+and no required Hadamard or deterministic dither. `PACKED5` (K4/V5 g128) is the
+leading full-attention software candidate, but the baseline remains K4 QK until
+packed V5 streaming/AV hardware is measured.
+
+### Measured/simulated results
+
+- Two context-128 prose prompts were streamed through all 30 layers of the
+  local BitNet checkpoint with Q/K/V injection. REGULAR4, PACKED5, and
+  ACCURATE5 mean final-hidden relative RMSE were 8.417%, 7.497%, and 6.307%.
+  These are distortion results, not model-accuracy or perplexity results.
+- Across ten real captures, UQ5.11 scale-only output error was at most 0.1172%
+  worst-case and no scale under/overflow occurred.
+- K4/K5 actual-model QK goldens and the required length/back-pressure/error
+  Icarus regressions pass.
+- Vivado 2026.1 OOC K4 AUTO uses 840 LUT, 176 FF, and one DSP with +4.820 ns
+  WNS at 81.25 MHz. Full 128/256-bit wrappers meet timing with only +0.120/
+  +0.097 ns WNS; the asynchronous score array costs 2,816 LUTRAM LUTs.
+- At context 4096, simulated 128/256-bit rates are 3.506/4.034 Mkeys/s with
+  34.52/39.72% P16 utilization. Port doubling improves rate 15.1%, so bus width
+  is not the primary bottleneck.
+
+### Analytical estimates
+
+- Equal-head128 combined K+V storage is 146 bytes for REGULAR4, 148 for
+  PACKED5, and 164 for ACCURATE5: 3.507x, 3.459x, and 3.122x smaller than
+  equal-dimension FP16 or the existing 512-byte combined bit-sliced layout.
+- The mixed-source Amdahl budget predicts 1.13x whole-token speedup from QK
+  alone, 1.47x with V accumulation, and 1.80x for the full attention path.
+- Use separate planes. K4/head128 data stride is 64 bytes (`token << 6` for one
+  KV head) and scale stride is 2 bytes; a 128/256-bit beat carries 8/16 scales.
+
+### Synthetic numerical experiments
+
+Fixed-seed synthetic sweeps cover the requested context lengths, bit widths,
+scale granularities/formats, Gaussian/Laplace/Student-t/sparse/x10-outlier
+distributions, and none/H4/H8/H16/H32/H64 transforms. Granularity dominates
+scale precision, one scale per run is unsafe, and outliers penalize coarse
+groups. Hadamard is not required because it did not provide a sufficiently
+clear hardware Pareto benefit. Dither remains an interface-only TODO.
+
+### Unverified hypotheses
+
+- The two-prompt end-to-end sample does not establish perplexity, accuracy,
+  generation quality, or long-context behavior.
+- PACKED5 improves the software Pareto frontier, but its packed V5 reader and
+  AV resources, routing, power, and throughput are not synthesized.
+- OOC timing is not routed Arty timing or physical DDR throughput.
+- Score BRAM, scale reader/FIFO, softmax, and V/AV are not yet implemented.
+
+Next implementation order: freeze score rounding and replace the 4096x32
+asynchronous LUTRAM with synchronous BRAM; add scale reader/FIFO and long
+payload bursts; then synthesize REGULAR4 versus PACKED5 V streaming/AV before
+choosing the full-attention profile. Simulation remains mandatory before every
+Vivado run.
+
 The first hardware milestone is a read-only K path:
 
 `DDR K vector -> signed INT4 unpack -> Q8.8 dequant -> INT8 Q dot -> logits`

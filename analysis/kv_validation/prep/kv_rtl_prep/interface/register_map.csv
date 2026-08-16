@@ -1,0 +1,26 @@
+offset_hex,name,access,meaning
+0x00,CTRL,RW,"bit0 START, bit1 ABORT, bit2 CLEAR_STATUS"
+0x04,STATUS,RO,"bit0 BUSY, bit1 DONE, bit2 ERROR"
+0x08,CONTEXT_LEN,RW,number of valid cached tokens
+0x0C,HEAD_DIM,RW/CONST,128 in baseline profile
+0x10,N_KV_HEADS,RW,KV head count
+0x14,Q_HEAD_INDEX,RW,query head being processed
+0x18,KV_HEAD_INDEX,RW,mapped KV head
+0x1C,FORMAT_CFG,RW,K/V bits and scale mode; exact encoding profile-dependent
+0x20,K_PAYLOAD_BASE_LO,RW,64-bit address low
+0x24,K_PAYLOAD_BASE_HI,RW,64-bit address high
+0x28,V_PAYLOAD_BASE_LO,RW,64-bit address low
+0x2C,V_PAYLOAD_BASE_HI,RW,64-bit address high
+0x30,K_SCALE_BASE_LO,RW,64-bit address low
+0x34,K_SCALE_BASE_HI,RW,64-bit address high
+0x38,V_SCALE_BASE_LO,RW,64-bit address low
+0x3C,V_SCALE_BASE_HI,RW,64-bit address high
+0x40,Q_ADDR_LO,RW,Q input address/stream descriptor low
+0x44,Q_ADDR_HI,RW,Q input address/stream descriptor high
+0x48,OUT_ADDR_LO,RW,attention output address low
+0x4C,OUT_ADDR_HI,RW,attention output address high
+0x50,IRQ_ENABLE,RW,done/error interrupt enables
+0x54,ERROR_CODE,RO,sticky implementation-defined error
+0x58,PERF_CYCLES_LO,RO,cycle counter low
+0x5C,PERF_CYCLES_HI,RO,cycle counter high
+0x60,PERF_STALL_AXI,RO,AXI stall cycles

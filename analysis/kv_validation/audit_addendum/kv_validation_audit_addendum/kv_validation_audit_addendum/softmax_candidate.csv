@@ -1,0 +1,2 @@
+score_format,clip_min,lut_entries,exp_format,normalization,mean_output_rmse,worst_output_rmse,mean_increment_after_kv_quant,worst_increment_after_kv_quant
+signed Q8.8,-12,128,UQ1.15,exact integer / restoring divider,0.004991,0.007649,0.00472,0.00749

@@ -1,0 +1,102 @@
+{
+  "claim_scope": "tensor and attention distortion only; not accuracy or perplexity",
+  "contexts": [
+    128,
+    512
+  ],
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "formats": [
+    {
+      "mean_attention_output_cosine": 0.999994758709094,
+      "mean_attention_output_relative_rmse": 0.003164398507337296,
+      "mean_q_scale_only_relative_rmse": 0.0,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "FP32",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.0045290604528992785,
+      "worst_q_scale_only_relative_rmse": 0.0
+    },
+    {
+      "mean_attention_output_cosine": 0.9999947515116888,
+      "mean_attention_output_relative_rmse": 0.0031672174225693033,
+      "mean_q_scale_only_relative_rmse": 0.00020609336089220582,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "FP16",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.0045270984149348185,
+      "worst_q_scale_only_relative_rmse": 0.00021282871323963248
+    },
+    {
+      "mean_attention_output_cosine": 0.9994090493589181,
+      "mean_attention_output_relative_rmse": 0.0324630483222655,
+      "mean_q_scale_only_relative_rmse": 0.05130283239086294,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "UQ8.8",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.042972111817343124,
+      "worst_q_scale_only_relative_rmse": 0.06046543602927817
+    },
+    {
+      "mean_attention_output_cosine": 0.9999924050884512,
+      "mean_attention_output_relative_rmse": 0.003860542238725074,
+      "mean_q_scale_only_relative_rmse": 0.0031592758283073125,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "UQ4.12",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.005055111121285591,
+      "worst_q_scale_only_relative_rmse": 0.0038295380930952433
+    },
+    {
+      "mean_attention_output_cosine": 0.9999945993856635,
+      "mean_attention_output_relative_rmse": 0.003218934650493794,
+      "mean_q_scale_only_relative_rmse": 0.0008158357763127753,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "UQ2.14",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.004561533052856946,
+      "worst_q_scale_only_relative_rmse": 0.000912661627631074
+    },
+    {
+      "mean_attention_output_cosine": 0.9999947335353646,
+      "mean_attention_output_relative_rmse": 0.003173565133347651,
+      "mean_q_scale_only_relative_rmse": 0.0004007856282196358,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "UQ1.15",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.004529657962682159,
+      "worst_q_scale_only_relative_rmse": 0.0004723669432670705
+    },
+    {
+      "mean_attention_output_cosine": 0.9999947503818868,
+      "mean_attention_output_relative_rmse": 0.003167496889346284,
+      "mean_q_scale_only_relative_rmse": 0.000199422208533292,
+      "observations": 10,
+      "saturated_scale_count": 0,
+      "scale_format": "UQ0.16",
+      "scale_max": 0.08169291168451309,
+      "scale_min": 0.004952017683535814,
+      "worst_attention_output_relative_rmse": 0.004529158347813153,
+      "worst_q_scale_only_relative_rmse": 0.00023309555219474314
+    }
+  ],
+  "layers": [
+    0,
+    7,
+    15,
+    22,
+    29
+  ],
+  "status": "PASS"
+}

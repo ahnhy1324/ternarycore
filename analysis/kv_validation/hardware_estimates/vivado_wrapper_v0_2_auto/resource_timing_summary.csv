@@ -1,0 +1,3 @@
+evidence,config,profile,head_dim,axi_data_width,multiplier_style,scale_group_size,slice_luts,logic_luts,lutram_luts,slice_registers,bram_tiles,dsp48e1,target_period_ns,target_clock_mhz,wns_ns,tns_ns,failing_endpoints,timing_endpoints,critical_data_path_ns,critical_logic_delay_ns,critical_route_delay_ns,equivalent_period_from_wns_ns,estimated_fmax_from_wns_mhz,target_timing_met
+VIVADO-POST-SYNTH/OOC,hd128_axi128,REGULAR4/PACKED5 K4 QK wrapper,128,128,AUTO,128,8713,5897,2816,1829,0,1,12.308,81.248,0.12,0.0,0,25328,12.213,7.015,5.198,12.188,82.04791598293403,True
+VIVADO-POST-SYNTH/OOC,hd128_axi256,REGULAR4/PACKED5 K4 QK wrapper,128,256,AUTO,128,8608,5792,2816,2085,0,1,12.308,81.248,0.097,0.0,0,25712,12.236,7.015,5.221,12.211,81.89337482597658,True

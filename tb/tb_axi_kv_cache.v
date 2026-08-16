@@ -66,8 +66,11 @@ module tb_axi_kv_cache;
 
     function signed [3:0] k_at;
         input integer token; input integer dim;
-        integer code;
-        begin code = (token*3 + dim*5 + 8) & 15; k_at = code[3:0]; end
+        integer signed_value;
+        begin
+            signed_value = ((token*3 + dim*5) % 15) - 7;
+            k_at = signed_value[3:0];
+        end
     endfunction
     function integer q_at;
         input integer dim; begin q_at = (dim % 9) - 4; end

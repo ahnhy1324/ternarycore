@@ -1,0 +1,309 @@
+{
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "claim_scope": "tensor and attention distortion only; not accuracy or perplexity",
+  "context_length": 128,
+  "endianness": "little",
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "exact_contract": [
+    "q/k/v packed codes",
+    "scale codes",
+    "raw group QK sums",
+    "K-scaled accumulator",
+    "logit numerator",
+    "softmax delta clamp and LUT interpolation",
+    "AV integer accumulator when probability codes match"
+  ],
+  "files": {
+    "attention_output": {
+      "bytes": 512,
+      "path": "expected_attention_output_fp32.bin",
+      "sha256": "d89245c049a305b1e32fb48dfb8bac82a07833ae066bbe16047530d0757f2cdc"
+    },
+    "av_accum": {
+      "bytes": 1024,
+      "path": "expected_av_accum_i64.bin",
+      "sha256": "4cabce429e8987174a89b97cb84363ab52b025484a25e22bbd628f29a8f8c517"
+    },
+    "exp": {
+      "bytes": 256,
+      "path": "expected_exp_q1_15_u16.bin",
+      "sha256": "319b57dfc68d84658c07489b179193fa1912b6742560dbb687be7f7093622274"
+    },
+    "k": {
+      "bytes": 8192,
+      "path": "k_int4.bin",
+      "sha256": "4adb44b3825ff2f10f10ace59d2accd6526893fb69558a736ddda0a8a5b10f1b"
+    },
+    "k_scale": {
+      "bytes": 1024,
+      "path": "k_scale_q8_8_u16.bin",
+      "sha256": "47dfd6ad91d599b5434116f3f909af1b0c38d689bff4177f64d44eb362678a2d"
+    },
+    "k_scaled_accum": {
+      "bytes": 1024,
+      "path": "expected_k_scaled_accum_i64.bin",
+      "sha256": "d532186e078bc98627667192f8a0ba3ae1b057146e33b0ed0cbdf32a1e3c0eb3"
+    },
+    "logit_numerator": {
+      "bytes": 1024,
+      "path": "expected_logit_numerator_i64.bin",
+      "sha256": "cdb0dcecfc73b833b34a19a525514d375a100da2723121269a9845129a0601e2"
+    },
+    "probability": {
+      "bytes": 256,
+      "path": "expected_softmax_q0_15_u16.bin",
+      "sha256": "1d4a3e4fce7f857b202b29ab284f31f543bb216b90bed96c52c6d36bc2fb3e1b"
+    },
+    "q": {
+      "bytes": 128,
+      "path": "q_int8.bin",
+      "sha256": "76ac362cfa41aec2ce82a588c400a7ca0491fc0e9fd63c38f92bf9298555f2db"
+    },
+    "q_scale": {
+      "bytes": 2,
+      "path": "q_scale_u16.bin",
+      "sha256": "98ef07e578873b303b94999c69910d005e9f53fe4e88558c6ae8669388bb39a3"
+    },
+    "qk_group": {
+      "bytes": 2048,
+      "path": "expected_qk_group_i32.bin",
+      "sha256": "6e05d096c5143116d80fd8ecabd90e0292d8710440759ccbd5c52a671abddd45"
+    },
+    "qk_raw": {
+      "bytes": 512,
+      "path": "expected_qk_i32.bin",
+      "sha256": "7672f2b16f6e5877a558b6cd4711264ae0270161c8edfbb92098cd7c040233bb"
+    },
+    "reference_output": {
+      "bytes": 512,
+      "path": "reference_attention_output_fp32.bin",
+      "sha256": "2070629cad50500962e9c297f48493464ce58fdbf1f381954c5d1e8098688ec1"
+    },
+    "softmax_delta": {
+      "bytes": 512,
+      "path": "expected_softmax_delta_q6_10_i32.bin",
+      "sha256": "9be2487bcd2ecfb86d047474fabb530f3fc52656ac24832e8c5e9b38704d5563"
+    },
+    "v": {
+      "bytes": 8192,
+      "path": "v_int4.bin",
+      "sha256": "440f41de59fad08d716aad8c1eb7b0c4051174d4993a92a886fc662f24e66a9c"
+    },
+    "v_scale": {
+      "bytes": 1024,
+      "path": "v_scale_q8_8_u16.bin",
+      "sha256": "de743075a5a86b32cfe0272c0db32bdddc1d446ce84007db45e43e8bd2e5c20f"
+    }
+  },
+  "group_size": 32,
+  "groups_per_vector": 4,
+  "head_candidates": [
+    {
+      "kv_head": 0,
+      "output_cosine": 0.9962483173786431,
+      "output_relative_rmse": 0.0929781720975867,
+      "q_head": 0,
+      "q_scale_code": 1024
+    },
+    {
+      "kv_head": 0,
+      "output_cosine": 0.9958719178312815,
+      "output_relative_rmse": 0.0953196196972874,
+      "q_head": 1,
+      "q_scale_code": 706
+    },
+    {
+      "kv_head": 0,
+      "output_cosine": 0.9979183430905928,
+      "output_relative_rmse": 0.06816794690507814,
+      "q_head": 2,
+      "q_scale_code": 621
+    },
+    {
+      "kv_head": 0,
+      "output_cosine": 0.993547317671839,
+      "output_relative_rmse": 0.11371935239395879,
+      "q_head": 3,
+      "q_scale_code": 968
+    },
+    {
+      "kv_head": 1,
+      "output_cosine": 0.9880546699500212,
+      "output_relative_rmse": 0.1569123321915719,
+      "q_head": 4,
+      "q_scale_code": 847
+    },
+    {
+      "kv_head": 1,
+      "output_cosine": 0.9965546394118571,
+      "output_relative_rmse": 0.09062123792695057,
+      "q_head": 5,
+      "q_scale_code": 867
+    },
+    {
+      "kv_head": 1,
+      "output_cosine": 0.9980934565233511,
+      "output_relative_rmse": 0.07031473132071571,
+      "q_head": 6,
+      "q_scale_code": 790
+    },
+    {
+      "kv_head": 1,
+      "output_cosine": 0.9957053982055216,
+      "output_relative_rmse": 0.09770502903283453,
+      "q_head": 7,
+      "q_scale_code": 931
+    },
+    {
+      "kv_head": 2,
+      "output_cosine": 0.9978834094582252,
+      "output_relative_rmse": 0.06505398470451172,
+      "q_head": 8,
+      "q_scale_code": 697
+    },
+    {
+      "kv_head": 2,
+      "output_cosine": 0.9983151212848026,
+      "output_relative_rmse": 0.058539161013874415,
+      "q_head": 9,
+      "q_scale_code": 572
+    },
+    {
+      "kv_head": 2,
+      "output_cosine": 0.9979672596496875,
+      "output_relative_rmse": 0.06380085564372907,
+      "q_head": 10,
+      "q_scale_code": 597
+    },
+    {
+      "kv_head": 2,
+      "output_cosine": 0.9963691650885568,
+      "output_relative_rmse": 0.08543065598037049,
+      "q_head": 11,
+      "q_scale_code": 653
+    },
+    {
+      "kv_head": 3,
+      "output_cosine": 0.9970512782473187,
+      "output_relative_rmse": 0.09520930581384897,
+      "q_head": 12,
+      "q_scale_code": 665
+    },
+    {
+      "kv_head": 3,
+      "output_cosine": 0.9981767978986592,
+      "output_relative_rmse": 0.06262148460046672,
+      "q_head": 13,
+      "q_scale_code": 714
+    },
+    {
+      "kv_head": 3,
+      "output_cosine": 0.9967069209983838,
+      "output_relative_rmse": 0.08535311648126988,
+      "q_head": 14,
+      "q_scale_code": 742
+    },
+    {
+      "kv_head": 3,
+      "output_cosine": 0.9982661120604117,
+      "output_relative_rmse": 0.06670718631639368,
+      "q_head": 15,
+      "q_scale_code": 746
+    },
+    {
+      "kv_head": 4,
+      "output_cosine": 0.9680019713325047,
+      "output_relative_rmse": 0.25745412737159634,
+      "q_head": 16,
+      "q_scale_code": 746
+    },
+    {
+      "kv_head": 4,
+      "output_cosine": 0.9924439042290835,
+      "output_relative_rmse": 0.1368368417214248,
+      "q_head": 17,
+      "q_scale_code": 722
+    },
+    {
+      "kv_head": 4,
+      "output_cosine": 0.9968221998231499,
+      "output_relative_rmse": 0.08391991111215046,
+      "q_head": 18,
+      "q_scale_code": 593
+    },
+    {
+      "kv_head": 4,
+      "output_cosine": 0.9976780732492136,
+      "output_relative_rmse": 0.0730748963062357,
+      "q_head": 19,
+      "q_scale_code": 544
+    }
+  ],
+  "head_dim": 128,
+  "inv_sqrt_head_dim": {
+    "code": 2896,
+    "format": "unsigned Q1.15",
+    "value": 0.08837890625
+  },
+  "kv_format": "signed INT4; symmetric -7..+7; 0x8 reserved",
+  "kv_head": 4,
+  "kv_scale_format": "unsigned Q8.8",
+  "layer": 22,
+  "metrics": {
+    "fixed_output_vs_quantized_float_relative_rmse": 7.259249839655352e-05,
+    "fixed_output_vs_reference_cosine": 0.9680007154774877,
+    "fixed_output_vs_reference_relative_rmse": 0.2574554016978099,
+    "fixed_softmax_sum": 1.000213623046875,
+    "fixed_softmax_vs_quantized_float_relative_rmse": 0.00016527145133726155,
+    "hardware_logit_vs_quantized_float_relative_rmse": 0.00010683079913804521,
+    "k_int4_tensor_relative_rmse": 0.10109355346836688,
+    "q_int8_tensor_relative_rmse": 0.006030743372754448,
+    "quantized_float_output_vs_reference_relative_rmse": 0.25745412737159634,
+    "v_int4_tensor_relative_rmse": 0.10841256365887102
+  },
+  "packing": "two INT4 values/byte; lower-index element in low nibble",
+  "q_format": "signed INT8; symmetric -127..+127",
+  "q_head": 16,
+  "q_scale_format": "unsigned UQ1.15",
+  "query_position": 127,
+  "schema_version": "rtl-golden-0.2",
+  "selection": "highest K4/V4 group32 final-query output RMSE across 20 Q heads",
+  "softmax_candidate": {
+    "delta_clamp": [
+      -16.0,
+      0.0
+    ],
+    "delta_format": "signed Q6.10 after subtract-max",
+    "exp_format": "unsigned Q1.15",
+    "normalization": "rounded exact integer division; reciprocal RTL may differ within tolerance",
+    "probability_format": "unsigned Q0.15"
+  },
+  "source_capture": "F:\\Xilinx_WorkSpace\\ternarycore\\analysis\\kv_validation\\real_model\\runs\\20260816-streaming-full-c128\\tensors\\layer_22.pt",
+  "source_capture_sha256": "92759c6f9ffea42172dcf7558ff38f18aa8c722fba9b43347ecc2ca719e078c6",
+  "testbench_hex_files": {
+    "expected_k_scaled_accum": {
+      "bytes": 2304,
+      "path": "expected_k_scaled_accum_i64.hex",
+      "sha256": "181101fe84a1e3c974a065279dd9a20ed1ac6838bbaa6ac5e41b2c00266e5968"
+    },
+    "k_codes": {
+      "bytes": 49152,
+      "path": "k_int4_codes.hex",
+      "sha256": "18f58fef6d54e18416ca794fd2102994f6674a9aa5b6e1093fa4ac5c1eef47bd"
+    },
+    "k_scale": {
+      "bytes": 3072,
+      "path": "k_scale_q8_8_u16.hex",
+      "sha256": "e3237cd5cfe3f91ba5a2eff9ae009f8d9163ec5070a2bc44828e16fdbb133cd3"
+    },
+    "q": {
+      "bytes": 512,
+      "path": "q_int8.hex",
+      "sha256": "52c95a5abe698bb89daa58f363d7592346445ca9e4181e045b684408b3a90415"
+    }
+  },
+  "tolerance_contract": {
+    "attention_output_absolute_lsb": "derived after AV output format freeze",
+    "reciprocal_probability_code_lsb": 2
+  }
+}

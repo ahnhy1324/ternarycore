@@ -7,9 +7,9 @@
 set ip_name    "axi_kv_cache"
 set ip_vendor  "shepherdscientific.com"
 set ip_library "user"
-set ip_version "1.0"
+set ip_version "1.1"
 set ip_display "INT4 KV-cache QK Engine"
-set ip_desc    "Read-only AXI INT4 K cache with INT8 Q, Q8.8 dequant scale, P-lane QK dot product, and AXI-Lite control/logit RAM."
+set ip_desc    "Read-only AXI INT4 K cache with INT8 Q, registered group-scale QK reduction, and AXI-Lite control/logit RAM."
 
 set script_dir [file dirname [file normalize [info script]]]
 set repo_root  [file normalize [file join $script_dir ..]]
@@ -21,6 +21,7 @@ foreach rtl_file {
     int4_unpack.v
     kv_dequant.v
     qk_dot.v
+    qk_group_dot.v
     kv_reader.v
     kv_cache_engine.v
     axi_kv_cache.v

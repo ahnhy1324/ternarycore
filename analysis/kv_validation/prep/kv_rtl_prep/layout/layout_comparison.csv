@@ -1,0 +1,3 @@
+axi_width_bits,beat_bytes,payload_bytes_per_vector,scale_bytes_per_vector,aos_beats_per_vector,aos_padded_bytes_per_vector,aos_padding_overhead_bytes,split_payload_beats_per_vector,split_scales_per_metadata_beat,split_metadata_beats_amortized_per_vector,split_effective_bytes_per_vector,split_effective_bits_per_value
+128,16,64,2,5,80,14,4,8,0.125,66,4.125
+256,32,64,2,3,96,30,2,16,0.0625,66,4.125

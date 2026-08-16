@@ -13,6 +13,8 @@ module kv_cache_engine #(
     parameter integer MAX_CONTEXT     = 4096,
     parameter integer Q_WIDTH         = 8,
     parameter integer SCALE_WIDTH     = 16,
+    parameter integer SCALE_GROUP_SIZE = HEAD_DIM,
+    parameter integer MULT_STYLE       = 2,
     parameter integer DEQUANT_WIDTH   = KV_BITS + SCALE_WIDTH,
     parameter integer ACC_WIDTH       = 32,
     parameter integer TIMEOUT_CYCLES  = 65536
@@ -24,7 +26,7 @@ module kv_cache_engine #(
     input  wire [AXI_ADDR_WIDTH-1:0] k_base_addr,
     input  wire [31:0] context_len,
     input  wire [(HEAD_DIM*Q_WIDTH)-1:0] q_vector,
-    input  wire signed [SCALE_WIDTH-1:0] k_scale,
+    input  wire [((HEAD_DIM/SCALE_GROUP_SIZE)*SCALE_WIDTH)-1:0] k_scales,
 
     output reg  busy,
     output reg  done,
@@ -58,6 +60,8 @@ module kv_cache_engine #(
     localparam integer VECTOR_BYTES      = VECTOR_BITS / 8;
     localparam integer VECTOR_SHIFT      = $clog2(VECTOR_BYTES);
     localparam integer TOTAL_SLICES      = HEAD_DIM / P;
+    localparam integer SCALE_GROUPS      = HEAD_DIM / SCALE_GROUP_SIZE;
+    localparam integer SLICES_PER_GROUP  = SCALE_GROUP_SIZE / P;
     localparam integer SLICES_PER_BEAT   = AXI_DATA_WIDTH / (P * KV_BITS);
     localparam integer TOKEN_WIDTH       =
         (MAX_CONTEXT <= 1) ? 1 : $clog2(MAX_CONTEXT);
@@ -128,30 +132,27 @@ module kv_cache_engine #(
         .packed_in(packed_slice), .unpacked_out(unpacked_slice)
     );
 
-    wire [(P*DEQUANT_WIDTH)-1:0] dequant_slice;
-    kv_dequant #(
-        .LANES(P), .IN_WIDTH(KV_BITS), .SCALE_WIDTH(SCALE_WIDTH),
-        .OUT_WIDTH(DEQUANT_WIDTH)
-    ) u_dequant (
-        .quant_in(unpacked_slice), .scale(k_scale),
-        .dequant_out(dequant_slice)
-    );
-
     wire [(P*Q_WIDTH)-1:0] q_slice =
         q_vector[(global_slice*(P*Q_WIDTH)) +: (P*Q_WIDTH)];
+    wire [SCALE_WIDTH-1:0] group_scale =
+        k_scales[((global_slice/SLICES_PER_GROUP)*SCALE_WIDTH) +: SCALE_WIDTH];
     wire dot_in_valid = (state == ST_PROCESS);
     wire dot_vector_start = (global_slice == 0);
     wire dot_vector_last  = (global_slice == TOTAL_SLICES-1);
     wire dot_out_valid;
     wire signed [ACC_WIDTH-1:0] dot_result;
-    qk_dot #(
-        .LANES(P), .Q_WIDTH(Q_WIDTH), .K_WIDTH(DEQUANT_WIDTH),
-        .ACC_WIDTH(ACC_WIDTH)
-    ) u_dot (
+    wire dot_invalid_code;
+    qk_group_dot #(
+        .LANES(P), .GROUP_SIZE(SCALE_GROUP_SIZE),
+        .Q_WIDTH(Q_WIDTH), .K_WIDTH(KV_BITS),
+        .SCALE_WIDTH(SCALE_WIDTH), .ACC_WIDTH(ACC_WIDTH),
+        .MULT_STYLE(MULT_STYLE)
+    ) u_group_dot (
         .clk(clk), .rst_n(rst_n), .in_valid(dot_in_valid),
         .vector_start(dot_vector_start), .vector_last(dot_vector_last),
-        .q_lanes(q_slice), .k_lanes(dequant_slice),
-        .out_valid(dot_out_valid), .result(dot_result)
+        .q_lanes(q_slice), .k_lanes(unpacked_slice),
+        .group_scale(group_scale), .out_valid(dot_out_valid),
+        .result(dot_result), .invalid_code(dot_invalid_code)
     );
 
     always @(posedge clk) begin
@@ -239,17 +240,24 @@ module kv_cache_engine #(
 
                     ST_WAIT_RESULT: begin
                         if (dot_out_valid) begin
-                            logit_valid <= 1'b1;
-                            logit_index <= token_counter;
-                            logit_data  <= dot_result;
-                            if (token_counter == context_len - 1'b1) begin
+                            if (dot_invalid_code) begin
                                 busy  <= 1'b0;
-                                done  <= 1'b1;
+                                error <= 1'b1;
+                                error_code <= 8'h30;
                                 state <= ST_IDLE;
                             end else begin
-                                token_counter <= token_counter + 1'b1;
-                                global_slice  <= {SLICE_WIDTH{1'b0}};
-                                state         <= ST_ISSUE;
+                                logit_valid <= 1'b1;
+                                logit_index <= token_counter;
+                                logit_data  <= dot_result;
+                                if (token_counter == context_len - 1'b1) begin
+                                    busy  <= 1'b0;
+                                    done  <= 1'b1;
+                                    state <= ST_IDLE;
+                                end else begin
+                                    token_counter <= token_counter + 1'b1;
+                                    global_slice  <= {SLICE_WIDTH{1'b0}};
+                                    state         <= ST_ISSUE;
+                                end
                             end
                         end
                     end
@@ -264,10 +272,14 @@ module kv_cache_engine #(
 
 `ifndef SYNTHESIS
     initial begin
-        if (KV_BITS != 4)
-            $error("kv_cache_engine v0.1 supports signed INT4 K only");
+        if (KV_BITS < 4 || KV_BITS > 5)
+            $error("kv_cache_engine v0.2 supports signed INT4/INT5 K");
         if (HEAD_DIM % P != 0)
             $error("kv_cache_engine: P must divide HEAD_DIM");
+        if (HEAD_DIM % SCALE_GROUP_SIZE != 0)
+            $error("kv_cache_engine: SCALE_GROUP_SIZE must divide HEAD_DIM");
+        if (SCALE_GROUP_SIZE % P != 0)
+            $error("kv_cache_engine: P must divide SCALE_GROUP_SIZE");
         if (VECTOR_BITS % AXI_DATA_WIDTH != 0)
             $error("kv_cache_engine: AXI_DATA_WIDTH must divide one vector");
         if (AXI_DATA_WIDTH % (P*KV_BITS) != 0)
