@@ -1,0 +1,21 @@
+evidence,layout,context_len,head_dim,axi_width_bits,int4_payload_bytes,scale_bytes,record_bytes,long_burst_transferred_bytes,tokenwise_transferred_bytes,data_address_expression,power_of_two_data_stride,independent_scale_prefetch
+THEORETICAL,separate_data_and_scale_planes,128,128,128,64,2,66,8448,8448,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,128,128,128,64,2,66,8448,10240,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,512,128,128,64,2,66,33792,33792,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,512,128,128,64,2,66,33792,40960,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,1024,128,128,64,2,66,67584,67584,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,1024,128,128,64,2,66,67584,81920,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,2048,128,128,64,2,66,135168,135168,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,2048,128,128,64,2,66,135168,163840,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,4096,128,128,64,2,66,270336,270336,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,4096,128,128,64,2,66,270336,327680,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,128,128,256,64,2,66,8448,8448,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,128,128,256,64,2,66,8448,12288,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,512,128,256,64,2,66,33792,33792,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,512,128,256,64,2,66,33792,49152,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,1024,128,256,64,2,66,67584,67584,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,1024,128,256,64,2,66,67584,98304,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,2048,128,256,64,2,66,135168,135168,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,2048,128,256,64,2,66,135168,196608,BASE + token*66,False,False
+THEORETICAL,separate_data_and_scale_planes,4096,128,256,64,2,66,270336,270336,K_DATA_BASE + token*64,True,True
+THEORETICAL,interleaved_66_byte_record,4096,128,256,64,2,66,270336,393216,BASE + token*66,False,False

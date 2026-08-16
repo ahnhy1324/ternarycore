@@ -26,9 +26,12 @@ module tb_int4_unpack;
                 errors = errors + 1;
             end
         end
-        if (errors == 0) $display("TB PASS: signed INT4 unpack");
-        else $display("TB FAIL: %0d INT4 unpack errors", errors);
-        $finish;
+        if (errors == 0) begin
+            $display("TB PASS: signed INT4 unpack");
+            $finish;
+        end else begin
+            $fatal(1, "TB FAIL: %0d INT4 unpack errors", errors);
+        end
     end
 endmodule
 

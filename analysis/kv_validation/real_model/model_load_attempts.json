@@ -1,0 +1,46 @@
+{
+  "activation_extraction_status": "PASS_CONTEXTS_128_512",
+  "attempts": [
+    {
+      "attempt": 1,
+      "checkpoint": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+      "environment": "CPU-only Windows host; pinned upstream Transformers implementation",
+      "evidence": "REAL-MODEL-VALIDATED/environment-execution-attempt",
+      "exception": "torch._inductor.exc.InductorError: InvalidCxxCompiler: Compiler: cl is not found.",
+      "mitigation_for_next_attempt": "Set TORCHDYNAMO_DISABLE=1 to execute the same model arithmetic eagerly without requiring the missing MSVC compiler.",
+      "result": "LOAD_FAILED",
+      "silent_model_change": false
+    },
+    {
+      "attempt": 2,
+      "checkpoint": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+      "environment": "CPU-only Windows host; TORCHDYNAMO_DISABLE=1; local files only; pinned upstream Transformers implementation",
+      "evidence": "REAL-MODEL-VALIDATED/environment-execution-attempt",
+      "exception": "The model process exited with code 1 after more than two minutes without a Python exception. A concurrent system allocation reported: Fatal error. Releasing the double mapped memory failed.",
+      "reason_classification": "Host virtual-memory exhaustion while the loader expanded packed U8 BitLinear projections to BF16 tensors.",
+      "result": "RESOURCE_LIMIT_LOAD_FAILED",
+      "silent_model_change": false
+    },
+    {
+      "attempt": 3,
+      "checkpoint": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+      "environment": "CPU-only Windows host; safetensors memory map; custom source-matched layer-streaming reference",
+      "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+      "reference_cross_check": "Real layer 0, seven tokens, bitwise equal to pinned Transformers BitNetDecoderLayer",
+      "result": "PASS_CONTEXTS_128_512",
+      "silent_model_change": false
+    }
+  ],
+  "contexts": [
+    {"context_len": 128, "status": "PASS"},
+    {"context_len": 512, "status": "PASS"},
+    {"context_len": 1024, "status": "NOT_TESTED"},
+    {"context_len": 2048, "status": "NOT_TESTED"},
+    {"context_len": 4096, "status": "NOT_TESTED"}
+  ],
+  "evidence_boundary": "Checkpoint identity and stored weights were inspected. Contexts 128/512 have REAL-MODEL-VALIDATED Q/K/V and attention captures from a source-matched streaming reference; contexts 1024/2048/4096 remain NOT_TESTED.",
+  "host_ram_bytes": 4160401408,
+  "model_load_required_for_activation_extraction": false,
+  "next_requirement": "Extend to independent natural prompts and contexts 1024/2048/4096 when CPU time permits; retain the official/custom layer cross-check.",
+  "selected_layers_if_retried": [0, 7, 15, 22, 29]
+}

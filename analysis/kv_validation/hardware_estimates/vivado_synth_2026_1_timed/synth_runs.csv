@@ -1,0 +1,5 @@
+config,head_dim,axi_data_width,part,target_clock_mhz,status
+hd64_axi128,64,128,xc7a100tcsg324-1,81.25,SYNTH_PASS
+hd64_axi256,64,256,xc7a100tcsg324-1,81.25,SYNTH_PASS
+hd128_axi128,128,128,xc7a100tcsg324-1,81.25,SYNTH_PASS
+hd128_axi256,128,256,xc7a100tcsg324-1,81.25,SYNTH_PASS

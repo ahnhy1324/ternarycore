@@ -1,0 +1,55 @@
+#-----------------------------------------------------------
+# xsim v2026.1 (64-bit)
+# SW Build 6511674 on Tue Jun 16 11:02:23 MDT 2026
+# IP Build 6504888 on Tue Jun 09 09:05:25 MDT 2026
+# SharedData Build 6501428 on Mon Jun 08 17:34:18 MDT 2026
+# Start of session at: Sun Aug 16 16:23:38 2026
+# Process ID         : 12252
+# Current directory  : C:/Users/¹Î¼÷Çö/AppData/Local/Temp/ternarycore-xsim-df91e10a29c941e18328f03fe0408f90
+# Command line       : xsim.exe -log F:\Xilinx_WorkSpace\ternarycore\analysis\kv_validation\hardware_estimates\vivado_2026_1_xsim_kv_default.log -mode tcl -source {xsim.dir/kv_default/xsim_script.tcl}
+# Log file           : F:/Xilinx_WorkSpace/ternarycore/analysis/kv_validation/hardware_estimates/vivado_2026_1_xsim_kv_default.log
+# Journal file       : C:/Users/¹Î¼÷Çö/AppData/Local/Temp/ternarycore-xsim-df91e10a29c941e18328f03fe0408f90\xsim.jou
+# Running On         : DESKTOP-AJB416F
+# Platform           : Windows 10
+# Operating System   : 19045
+# Processor Detail   : Intel(R) Pentium(R) Gold G5500 CPU @ 3.80GHz
+# CPU Frequency      : 3792 MHz
+# CPU Physical cores : 2
+# CPU Logical cores  : 4
+# Host memory        : 4160 MB
+# Swap memory        : 7851 MB
+# Total Virtual      : 12011 MB
+# Available Virtual  : 4656 MB
+#-----------------------------------------------------------
+source xsim.dir/kv_default/xsim_script.tcl
+# xsim {kv_default} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+PASS length 1: 12 cycles
+PASS length 7: 98 cycles
+PASS length 63: 906 cycles
+PASS length 64: 920 cycles
+PASS length 65: 933 cycles
+PASS length 127: 1825 cycles
+PASS length 128: 1838 cycles
+PASS length 129: 1850 cycles
+PASS length 511: 7360 cycles
+PASS length 512: 7379 cycles
+CYCLE_ACCOUNT width=128 length=512 total=7379 issue=512 reader_launch=1024 axi_ar=1022 axi_r_empty=1124 axi_r_transfer=625 beat_handoff=512 mac=2048 result=512 other=0
+PASS length 513: 7392 cycles
+PASS length 1023: 14742 cycles
+PASS length 1024: 14758 cycles
+PASS length 1025: 14776 cycles
+PASS length 4095: 59242 cycles
+PASS length 4096: 59256 cycles
+CYCLE_ACCOUNT width=128 length=4096 total=59256 issue=4096 reader_launch=8192 axi_ar=8203 axi_r_empty=9101 axi_r_transfer=5088 beat_handoff=4096 mac=16384 result=4096 other=0
+PASS length 7: 98 cycles
+PASS invalid context rejected
+PASS unaligned base rejected
+PASS AR timeout propagated
+PASS R timeout propagated
+PASS RRESP error propagated
+TB PASS: KV engine regression
+$finish called at time : 1955130 ns : File "F:/Xilinx_WorkSpace/ternarycore/tb/tb_kv_cache_engine.v" Line 375
+exit
+INFO: [Common 17-206] Exiting xsim at Sun Aug 16 16:24:21 2026...

@@ -1,0 +1,146 @@
+{
+  "accumulator": {
+    "case": "qk_accumulator_bound",
+    "evidence": "THEORETICAL + SOFTWARE-SYNTHETIC",
+    "exact_bound": 113792,
+    "head_dim": 128,
+    "k_code_absmax": 7,
+    "minimum_signed_accumulator_bits_including_sign": 18,
+    "q_absmax": 127,
+    "silent_wrap": false,
+    "software_int32_result": 113792,
+    "software_int64_result": 113792
+  },
+  "attention_cases": [
+    {
+      "case": "equal_attention_logits",
+      "crash": false,
+      "evidence": "SOFTWARE-SYNTHETIC",
+      "max_probability": 0.000244140625,
+      "min_probability": 0.000244140625,
+      "nan": false,
+      "nonzero_probabilities": 4096,
+      "probability_sum": 1.0
+    },
+    {
+      "case": "extremely_sharp_attention",
+      "crash": false,
+      "evidence": "SOFTWARE-SYNTHETIC",
+      "max_probability": 1.0,
+      "min_probability": 0.0,
+      "nan": false,
+      "nonzero_probabilities": 1,
+      "probability_sum": 1.0
+    },
+    {
+      "case": "extremely_diffuse_attention",
+      "crash": false,
+      "evidence": "SOFTWARE-SYNTHETIC",
+      "max_probability": 0.00024414085783064365,
+      "min_probability": 0.00024414037761744112,
+      "nan": false,
+      "nonzero_probabilities": 4096,
+      "probability_sum": 0.9999999995052349
+    }
+  ],
+  "evidence": "SOFTWARE-FIXED-POINT unless row says otherwise",
+  "quantizer_cases": [
+    {
+      "bits": 4,
+      "case": "all_zero_vector",
+      "crash": false,
+      "evidence": "SOFTWARE-FIXED-POINT",
+      "exception": "",
+      "input_absmax": 0.0,
+      "input_has_nan": false,
+      "normalized_bias": 0.0,
+      "output_absmax": 0.0,
+      "output_has_nan": false,
+      "relative_rmse": 0.0,
+      "scale_format": "Q8.8",
+      "scale_saturation_count": 0
+    },
+    {
+      "bits": 4,
+      "case": "constant_vector",
+      "crash": false,
+      "evidence": "SOFTWARE-FIXED-POINT",
+      "exception": "",
+      "input_absmax": 3.25,
+      "input_has_nan": false,
+      "normalized_bias": 0.001201923076923077,
+      "output_absmax": 3.25390625,
+      "output_has_nan": false,
+      "relative_rmse": 0.001201923076923077,
+      "scale_format": "Q8.8",
+      "scale_saturation_count": 0
+    },
+    {
+      "bits": 4,
+      "case": "threshold_plus_minus_epsilon",
+      "crash": false,
+      "evidence": "SOFTWARE-FIXED-POINT",
+      "exception": "",
+      "input_absmax": 7.0,
+      "input_has_nan": false,
+      "normalized_bias": 0.0,
+      "output_absmax": 7.0,
+      "output_has_nan": false,
+      "relative_rmse": 0.12278166047757358,
+      "scale_format": "Q8.8",
+      "scale_saturation_count": 0
+    },
+    {
+      "bits": 4,
+      "case": "maximum_input_at_q8_8_scale_limit",
+      "crash": false,
+      "evidence": "SOFTWARE-FIXED-POINT",
+      "exception": "",
+      "input_absmax": 895.97265625,
+      "input_has_nan": false,
+      "normalized_bias": 0.0,
+      "output_absmax": 895.97265625,
+      "output_has_nan": false,
+      "relative_rmse": 0.07059311991634869,
+      "scale_format": "Q8.8",
+      "scale_saturation_count": 0
+    },
+    {
+      "bits": 4,
+      "case": "q8_8_scale_saturation",
+      "crash": false,
+      "evidence": "SOFTWARE-FIXED-POINT",
+      "exception": "",
+      "input_absmax": 1000000.0,
+      "input_has_nan": false,
+      "normalized_bias": 0.0,
+      "output_absmax": 895.97265625,
+      "output_has_nan": false,
+      "relative_rmse": 0.9991053316213915,
+      "scale_format": "Q8.8",
+      "scale_saturation_count": 1
+    },
+    {
+      "bits": 4,
+      "case": "large_isolated_outlier",
+      "crash": false,
+      "evidence": "SOFTWARE-FIXED-POINT",
+      "exception": "",
+      "input_absmax": 1000.0,
+      "input_has_nan": false,
+      "normalized_bias": -0.02041882862118942,
+      "output_absmax": 895.97265625,
+      "output_has_nan": false,
+      "relative_rmse": 0.10462933594763076,
+      "scale_format": "Q8.8",
+      "scale_saturation_count": 1
+    }
+  ],
+  "quantizer_definition": "symmetric narrow-range INT4, ideal-scale code selection, Q8.8 stored dequantization scale",
+  "summary": {
+    "crashes": 0,
+    "nan_cases": 0,
+    "scale_saturation_cases": 2,
+    "silent_wrap_cases": 0
+  }
+}

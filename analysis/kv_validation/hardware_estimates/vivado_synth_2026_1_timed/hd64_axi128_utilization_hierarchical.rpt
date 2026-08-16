@@ -1,0 +1,34 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2026.1 (win64) Build 6511674 Tue Jun 16 11:02:23 MDT 2026
+| Date         : Sun Aug 16 16:47:34 2026
+| Host         : DESKTOP-AJB416F running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -hierarchical_depth 5 -file F:/Xilinx_WorkSpace/ternarycore/analysis/kv_validation/hardware_estimates/vivado_synth_2026_1_timed/hd64_axi128_utilization_hierarchical.rpt
+| Design       : axi_kv_cache
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Synthesized
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------+-----------------+------------+------------+---------+------+------+--------+--------+------------+
+|     Instance     |      Module     | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------------+-----------------+------------+------------+---------+------+------+--------+--------+------------+
+| axi_kv_cache     |           (top) |       7269 |       4453 |    2816 |    0 | 1303 |      0 |      0 |         17 |
+|   (axi_kv_cache) |           (top) |       4339 |       1523 |    2816 |    0 |  752 |      0 |      0 |          0 |
+|   u_engine       | kv_cache_engine |       2930 |       2930 |       0 |    0 |  551 |      0 |      0 |         17 |
+|     (u_engine)   | kv_cache_engine |       1420 |       1420 |       0 |    0 |  299 |      0 |      0 |          0 |
+|     u_dequant    |      kv_dequant |       1232 |       1232 |       0 |    0 |    0 |      0 |      0 |          0 |
+|     u_dot        |          qk_dot |        174 |        174 |       0 |    0 |   65 |      0 |      0 |         17 |
+|     u_reader     |       kv_reader |         92 |         92 |       0 |    0 |  187 |      0 |      0 |          0 |
++------------------+-----------------+------------+------------+---------+------+------+--------+--------+------------+
+
+

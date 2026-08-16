@@ -88,7 +88,121 @@ vivado -mode batch -source ip/package_axi_kv_cache.tcl
 
 The packaging script generates the version-specific `ip/axi_kv_cache`
 metadata locally. Keeping that generated churn out of the RTL branch allows
-the same sources to be packaged later with Vivado 2025.2.
+the same sources to be packaged with either the original Vivado 2025.2 target
+or the locally validated Vivado 2026.1 toolchain.
+
+## Software-validation gate update (2026-08-16)
+
+The complete evidence package is
+`analysis/kv_validation/report/FINAL_REPORT.md`; raw artifacts are indexed by
+`analysis/kv_validation/report/RESULT_INDEX.md`. No RTL changed during this
+gate.
+
+### Real-model-validated inspection
+
+`[REAL-MODEL-VALIDATED]` The downloaded
+`microsoft/bitnet-b1.58-2B-4T` checkpoint is revision
+`04c3b9ad9361b824064a1f25ea60a8be9599b127`. Its config is authoritative:
+30 layers, 20 Q heads, 5 KV heads, `HEAD_DIM=128`, and context limit 4096.
+Checkpoint/tokenizer/packed-weight inspection succeeded. A memory-mapped,
+layer-streaming reference then completed all 30 layers at contexts 128 and
+512 and captured layers 0/7/15/22/29. The full runner does not import
+Transformers; it expands one packed ternary projection at a time and preserves
+the checkpoint's BF16/INT8 operation order. A separate real layer-0,
+seven-token comparison against the pinned Transformers implementation is
+bitwise equal (maximum error and relative RMSE both zero). Contexts
+1024/2048/4096 remain `NOT_TESTED` due CPU time, not failure.
+
+Across the ten captured layer/context observations, INT8 Q alone contributes
+0.316% mean and 0.453% worst attention-output relative RMSE. Per-vector
+K4/V4 Q8.8 produces 16.18% mean and 35.73% worst error; group32, group16, and
+group8 reduce those to 11.37/18.55%, 9.07/13.92%, and 7.13/10.35% mean/worst.
+Scale-representation-only tensor error is about 0.15% mean and below 0.32%
+worst with no Q8.8 saturation, confirming that granularity dominates Q8.8
+representation on these captures. V granularity is more important than K.
+K4/V5 per vector is a numerical Pareto candidate at 148 bytes/token/KV-head,
+8.68% mean, and 12.10% worst output error, but its irregular five-bit hardware
+cost is not synthesized. These are tensor-distortion results, not task
+accuracy, perplexity, or an acceptance threshold.
+
+### Software-synthetic numerical experiments
+
+`[SOFTWARE-SYNTHETIC]` The corrected controlled-attention sweep uses five
+contexts, four attention regimes, five Gaussian/heavy-tail/outlier families,
+and disjoint 100-sample calibration / 200-sample evaluation populations per
+bit width. At `HEAD_DIM=128`, per-token-scale INT4/INT4 produces 23.09% mean,
+37.50% p95, and 50.62% worst attention-output relative RMSE. INT5/INT5 produces
+10.96%, 17.03%, and 31.28%. These are distortion measurements on deliberately
+broad synthetic tensors, never model accuracy or perplexity claims.
+
+The prior `HEAD_DIM=64` group-scale and Hadamard results remain separate. They
+support group16 as an optional experiment but do not override the small
+per-token baseline without real dimension-128 tensors. Hadamard remains out of
+the baseline because its numerical improvement has nonzero add/sub, routing,
+bit-growth, and inverse-transform cost.
+
+### Software fixed-point screening
+
+`[SOFTWARE-FIXED-POINT]` For controlled INT4/INT4 at dimension 128, Q8.8 scale
+representation contributes 0.65% mean output relative RMSE relative to the
+floating-scale quantized path, while low-bit quantization contributes 23.09%.
+One scale per run increases total mean error from 23.10% to 48.10% and is
+rejected. This is behavioral software, not RTL bit-exact arithmetic.
+
+### RTL-simulated results
+
+`[RTL-SIMULATED]` The unchanged dimension-64 v0.1 remains at 7,379/59,256
+cycles for 512/4096 keys on AXI128 and 6,620/53,252 cycles on AXI256 under the
+same deterministic randomized stalls. Doubling width saves only 10-11.5%, so
+utilization work remains higher priority than bus width or additional lanes.
+
+The parameterized v0.1 has now also passed the complete regression at the
+checkpoint-authoritative `HEAD_DIM=128`, including the AXI-Lite wrapper:
+
+| AXI/context | total cycles | cycles/key | MAC utilization | Mkeys/s at 81.25 MHz | K payload MB/s |
+|---|---:|---:|---:|---:|---:|
+| 128/512 | 10,847 | 21.186 | 37.76% | 3.835 | 245.45 |
+| 128/4096 | 86,690 | 21.165 | 37.80% | 3.839 | 245.69 |
+| 256/512 | 9,288 | 18.141 | 44.10% | 4.479 | 286.65 |
+| 256/4096 | 74,299 | 18.139 | 44.10% | 4.479 | 286.67 |
+
+The same dimension-64 boundary/error regression also passes Vivado XSIM
+2026.1. The checker uses explicit integer sign extension so Icarus and XSIM
+evaluate the golden result identically, and any accumulated error terminates
+with `$fatal`. Vivado 2026.1 IP packaging integrity passes under the restored
+BASIC license. On Windows, reproduce the Icarus suite with
+`sim/run_windows_regression.ps1`; the Vivado evidence and exact commands are
+indexed in the analysis handoff.
+
+### Analytical estimates
+
+`[THEORETICAL]` At equal `HEAD_DIM=128`, an INT4 vector plus one 16-bit scale
+is 66 bytes (4.125 effective bits/value): 3.879x smaller than row-major FP16 or
+the equal-dimension existing 256-byte bit-sliced record and 1.939x smaller than
+row-major INT8. With five KV heads and 30 layers, the context-4096 K/V cache is
+77.34 MiB versus 300 MiB FP16. This is never reported as an 8x equal-dimension
+ratio.
+
+Separate data and scale planes remain preferred. For the authoritative model,
+the INT4 payload stride is 64 bytes (`token << 6`); eight Q8.8 scales fit an
+AXI128 beat and sixteen fit an AXI256 beat. Interleaved 66-byte records lose
+the power-of-two data stride and inflate tokenwise transactions.
+
+### Unverified hypotheses and architecture hold
+
+- Contexts 1024/2048/4096, independent natural prompts, and task
+  accuracy/perplexity may move the observed INT4/INT5 and asymmetric K/V
+  Pareto order.
+- INT4 is the small RTL evaluation baseline, not a deployment-quality result.
+- On the context-128 to context-512 holdout, the K first-order predictor ranks
+  INT4/INT5 behavior reasonably (power correlation 0.886/0.991), while the V
+  `sigma^2/N_eff` predictor transfers poorly and must not size V precision.
+- Q8.8 showed no saturation and negligible representation error on the tested
+  real captures, but broader prompts/layers and write-side scale generation
+  remain validation gates.
+- The next QK optimization is multi-vector bursts, data/scale FIFOs, and
+  double buffering. The next distinct block should then be V streaming/AV
+  accumulation. Neither change begins until this evidence is reviewed.
 
 ## v0.2 analysis status and reproducibility
 
@@ -302,6 +416,32 @@ Cycle accounting:
 The 256-bit bus saves only 10.1-11.5% cycles. Per-token transaction/control
 bubbles, not payload width, dominate.
 
+### Vivado 2026.1 timing-driven OOC synthesis
+
+`[VIVADO-POST-SYNTH]` Part `xc7a100tcsg324-1`, `P=16`,
+`MAX_CONTEXT=4096`, 81.25 MHz target. These are synthesized resource counts and
+pre-route timing estimates, not placed/routed or board measurements.
+
+| HEAD_DIM/AXI | LUT | logic LUT | LUTRAM LUT | FF | DSP | BRAM | WNS | critical path | equivalent Fmax |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 64/128 | 7,269 | 4,453 | 2,816 | 1,303 | 17 | 0 | -26.962 ns | 39.153 ns | 25.46 MHz |
+| 64/256 | 7,080 | 4,264 | 2,816 | 1,552 | 17 | 0 | -26.760 ns | 38.951 ns | 25.60 MHz |
+| 128/128 | 9,017 | 6,201 | 2,816 | 1,822 | 17 | 0 | -26.944 ns | 39.135 ns | 25.48 MHz |
+| 128/256 | 8,845 | 6,029 | 2,816 | 2,069 | 17 | 0 | -26.760 ns | 38.951 ns | 25.60 MHz |
+
+All configurations synthesize but fail 81.25 MHz. The critical path is the
+unregistered 16-lane scaled reduction. The wrapper's 4096×32 logit memory maps
+to 704 `RAM64M` primitives, consuming 2,816 LUTs and no BRAM. In the baseline
+64/128 hierarchy, `u_dequant` consumes 1,232 LUTs and `u_dot` consumes 174
+LUTs/65 FFs/17 DSPs. AXI256 saves only 189 LUTs while adding 249 FFs and does
+not materially improve timing.
+
+This changes the immediate v0.2 order: first accumulate raw INT8×INT4 within a
+scale group, apply Q8.8 once to the group partial, and pipeline the balanced
+reduction. Make logit storage synchronous BRAM or stream it. Then add the burst
+K/scale FIFOs and double buffering already identified by cycle accounting.
+Do not increase lanes or bus width before those corrections.
+
 ## Analytical performance estimates
 
 The option estimates below are not independently additive. A deeper FIFO by
@@ -367,7 +507,7 @@ AXI K reader ----> burst K FIFO -----------\
 scale reader ---> token scale FIFO --------/      -> group-scale accumulate
 ```
 
-1. Keep `HEAD_DIM=64`, `P=16`, and first-class 128-bit AXI; retain 256-bit as a
+1. Keep the small hardware baseline at `HEAD_DIM=64`, `P=16`, and first-class 128-bit AXI; retain 256-bit as a
    parameter.
 2. Use separate data/scale planes. Parameterize group64 and group16, with
    group16 as the current synthetic Pareto knee.
@@ -387,17 +527,19 @@ timeouts, and a short transaction immediately after 4096.
 
 ## Unverified hypotheses and required real data
 
-- Group16 must be checked on captured Q/K/V tensors from the intended ternary
-  student; synthetic RMSE does not predict perplexity or task accuracy.
-- Attention masks, RoPE/QK-normalized statistics, inter-head variation, and
-  real token correlation are absent from the synthetic generator.
-- Per-layer/per-head fixed-point scale range must be profiled; Q8.8 resolution
-  is adequate for this INT4 synthetic sweep but may clip or under-resolve real
-  layers.
+- Group16 has now been checked on contexts 128/512 and five captured layers,
+  but broader prompts, all heads, contexts 1024/2048/4096, and downstream model
+  quality are still required. Tensor RMSE does not predict perplexity or task
+  accuracy.
+- The real captures include causal masks, RoPE, QK normalization, and token
+  correlation, but the context-512 sequence extends the same recorded token
+  pattern and is not a prompt-independent holdout.
+- Q8.8 did not saturate on the tested layer/head captures. Write-side scale
+  generation and a broader per-layer/per-head range profile remain untested.
 - Hadamard benefit is distribution-dependent and its LUT/FF/routing/Fmax cost
   is unsynthesized.
 - Cycle-option estimates assume burst acceptance and sufficient MIG service;
-  only v0.1 totals are RTL simulated, and no Vivado utilization/Fmax report is
-  available in the current environment.
+  v0.1 utilization and post-synthesis timing are measured separately, but
+  physical implementation and board DDR efficiency remain unmeasured.
 - V/softmax/Amdahl targets are architectural estimates, not end-to-end board
   measurements.

@@ -1,0 +1,4 @@
+evidence,projection,layers,mean_minus_one_fraction,mean_zero_fraction,mean_plus_one_fraction,max_invalid_code3_fraction,minimum_weight_scale,maximum_weight_scale
+REAL-MODEL-VALIDATED/checkpoint-weight-storage,q_proj,30,0.26627532958984373,0.4675079040527344,0.2662167663574219,0.0,0.8359375,2.03125
+REAL-MODEL-VALIDATED/checkpoint-weight-storage,k_proj,30,0.2767111612955729,0.4465383504231771,0.27675048828125,0.0,1.34375,3.0625
+REAL-MODEL-VALIDATED/checkpoint-weight-storage,v_proj,30,0.31182427978515626,0.3764076131184895,0.3117681070963542,0.0,1.7734375,4.59375

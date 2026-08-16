@@ -32,9 +32,12 @@ module tb_kv_dequant;
                 errors = errors + 1;
             end
         end
-        if (errors == 0) $display("TB PASS: INT4 Q8.8 dequant");
-        else $display("TB FAIL: %0d dequant errors", errors);
-        $finish;
+        if (errors == 0) begin
+            $display("TB PASS: INT4 Q8.8 dequant");
+            $finish;
+        end else begin
+            $fatal(1, "TB FAIL: %0d dequant errors", errors);
+        end
     end
 endmodule
 

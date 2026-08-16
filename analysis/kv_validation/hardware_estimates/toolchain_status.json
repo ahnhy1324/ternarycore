@@ -1,0 +1,29 @@
+{
+  "evidence": "ENVIRONMENT/TOOLCHAIN-STATUS",
+  "icarus": {
+    "full_regression": "PASS",
+    "path": "C:\\iverilog\\bin",
+    "raw_log": "windows_regression_vivado_2026_1.txt",
+    "version": "12.0 (devel) (s20150603-1539-g2693dd32b)"
+  },
+  "vivado": {
+    "batch_ip_packaging": "PASS",
+    "batch_ip_packaging_message": "IP packaging, integrity check, save, and close completed; generated component associates clk with m_axi:s_axi and infers rst_n ACTIVE_LOW.",
+    "build": "6511674",
+    "install_path": "E:\\xilinx\\2026.1",
+    "license": "Vivado Design Suite BASIC; active during validation; expiry 2027-08-16",
+    "license_environment_variables_present": true,
+    "license_environment_scope": "XILINXD_LICENSE_FILE supplied only to each Vivado process",
+    "license_registry_entries_present": false,
+    "ooc_part": "xc7a100tcsg324-1",
+    "ooc_synthesis": "SYNTH_PASS_TIMING_FAIL",
+    "ooc_synthesis_configurations": 4,
+    "ooc_target_clock_mhz": 81.25,
+    "ooc_timing_met_configurations": 0,
+    "version": "2026.1",
+    "xsim_execution": "PASS",
+    "xsim_message": "HEAD_DIM=64, AXI128 boundary/back-pressure/error regression passed, including contexts through 4096 and timeout propagation.",
+    "xvlog_compile": "PASS",
+    "xelab_elaboration": "PASS"
+  }
+}

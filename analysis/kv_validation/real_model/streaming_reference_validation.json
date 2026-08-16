@@ -1,0 +1,20 @@
+{
+  "bitwise_equal": true,
+  "custom_path": "bitnet_streaming_reference.StreamingBitNet.decoder_layer",
+  "dtype": "torch.bfloat16",
+  "evidence": "REAL-MODEL-VALIDATED/component-cross-check",
+  "layer": 0,
+  "limitations": "One real checkpoint decoder layer is compared; the full expanded Transformers model is still too large for this host.",
+  "max_abs_error": 0.0,
+  "official_output_rms": 231.36343383789062,
+  "official_path": "pinned Transformers BitNetDecoderLayer with official ActQuant/unpack_weights",
+  "relative_rmse": 0.0,
+  "shape": [
+    1,
+    7,
+    2560
+  ],
+  "status": "PASS",
+  "tokens": 7,
+  "transformers_version": "4.52.0.dev0"
+}

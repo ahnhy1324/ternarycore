@@ -42,9 +42,11 @@ set_property company_url         "https://github.com/Ternarycore/ternarycore" $c
 set_property supported_families  {artix7 Production} $core
 
 # Both buses are synchronous to the single MIG UI clock in the Arty design.
+# Repeated association appends both names to the clock's ASSOCIATED_BUSIF bus
+# parameter. Vivado 2026.1 infers ACTIVE_LOW from rst_n; setting POLARITY on
+# the HDL port is rejected by the newer IP-XACT API.
 ipx::associate_bus_interfaces -busif s_axi -clock clk $core
 ipx::associate_bus_interfaces -busif m_axi -clock clk $core
-set_property POLARITY ACTIVE_LOW [ipx::get_ports rst_n -of_objects $core]
 
 ipx::create_xgui_files $core
 ipx::update_checksums $core

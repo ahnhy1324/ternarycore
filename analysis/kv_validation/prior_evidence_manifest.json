@@ -1,0 +1,48 @@
+{
+  "evidence": "PROVENANCE",
+  "files": [
+    {
+      "note": "values copied without numeric transformation; labels added",
+      "rows": 4,
+      "source": "docs/runs/kv-v02-cycle.csv",
+      "source_sha256": "0b8dd2c393cc376c7eac30be9a4c62c87a32e2f28a10d6c41bdf27b2bff2e052",
+      "target": "analysis/kv_validation/hardware_estimates/qk_cycle_accounting.csv"
+    },
+    {
+      "note": "values copied without numeric transformation; labels added",
+      "rows": 16,
+      "source": "docs/runs/kv-v02-cycle-options.csv",
+      "source_sha256": "c961b641062a03f4550822075a0198102ba9388275208112659a58ae599db5b8",
+      "target": "analysis/kv_validation/hardware_estimates/qk_cycle_options.csv"
+    },
+    {
+      "note": "values copied without numeric transformation; labels added",
+      "rows": 9,
+      "source": "docs/runs/kv-v02-amdahl.csv",
+      "source_sha256": "4cdb5db07f057f49543adef4f083ba8cfb7c94be92a73086aedcb3a931a0db17",
+      "target": "analysis/kv_validation/hardware_estimates/amdahl_components.csv"
+    },
+    {
+      "note": "values copied without numeric transformation; labels added",
+      "rows": 7,
+      "source": "docs/runs/kv-v02-scenarios.csv",
+      "source_sha256": "2b6782ee72cb1b98a159cb2bd0d836eb44aff60dccd3852438ff5992da59f556",
+      "target": "analysis/kv_validation/hardware_estimates/amdahl_scenarios.csv"
+    },
+    {
+      "note": "values copied without numeric transformation; labels added",
+      "rows": 24,
+      "source": "docs/runs/kv-v02-hadamard-pareto.csv",
+      "source_sha256": "39f02e93435f3d8292f7652357bb7bfbea76e75486441166c19400d39e0a8de2",
+      "target": "analysis/kv_validation/pareto/hadamard_pareto_head64.csv"
+    },
+    {
+      "note": "values copied without numeric transformation; labels added",
+      "rows": 15,
+      "source": "docs/runs/kv-v02-int4-pareto.csv",
+      "source_sha256": "8d668f0a8a111161c18290217605bc13bfb6e00d6deb0c790ebf9cc417fee015",
+      "target": "analysis/kv_validation/pareto/scale_granularity_pareto_head64.csv"
+    }
+  ],
+  "warning": "Imported prior v0.2 evidence retains its original HEAD_DIM and measurement class; it is not real BitNet activation data."
+}

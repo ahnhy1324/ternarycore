@@ -1,0 +1,4 @@
+evidence,case,crash,nan,probability_sum,min_probability,max_probability,nonzero_probabilities
+SOFTWARE-SYNTHETIC,equal_attention_logits,False,False,1.0,0.000244140625,0.000244140625,4096
+SOFTWARE-SYNTHETIC,extremely_sharp_attention,False,False,1.0,0.0,1.0,1
+SOFTWARE-SYNTHETIC,extremely_diffuse_attention,False,False,0.9999999995052349,0.00024414037761744112,0.00024414085783064365,4096

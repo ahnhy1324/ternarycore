@@ -1,0 +1,82 @@
+INFO: [Common 17-3922] A valid Vivado Design Suite BASIC license has been detected. Your current license is active and will expire on 16-aug-2027.
+#-----------------------------------------------------------
+# Vivado v2026.1 (64-bit)
+# SW Build 6511674 on Tue Jun 16 11:02:23 MDT 2026
+# IP Build 6504888 on Tue Jun 09 09:05:25 MDT 2026
+# SharedData Build 6501428 on Mon Jun 08 17:34:18 MDT 2026
+# Start of session at: Sun Aug 16 16:14:32 2026
+# Process ID         : 8912
+# Current directory  : F:/Xilinx_WorkSpace/ternarycore
+# Command line       : vivado.exe -mode batch -nojournal -log analysis\kv_validation\hardware_estimates\vivado_2026_1_package_axi_kv_cache_final.log -source ip\package_axi_kv_cache.tcl
+# Log file           : F:/Xilinx_WorkSpace/ternarycore/analysis/kv_validation/hardware_estimates/vivado_2026_1_package_axi_kv_cache_final.log
+# Journal file       : 
+# Running On         : DESKTOP-AJB416F
+# Platform           : Windows 10
+# Operating System   : 19045
+# Processor Detail   : Intel(R) Pentium(R) Gold G5500 CPU @ 3.80GHz
+# CPU Frequency      : 3792 MHz
+# CPU Physical cores : 2
+# CPU Logical cores  : 4
+# Host memory        : 4160 MB
+# Swap memory        : 7851 MB
+# Total Virtual      : 12011 MB
+# Available Virtual  : 4594 MB
+#-----------------------------------------------------------
+source {ip\package_axi_kv_cache.tcl}
+# set ip_name    "axi_kv_cache"
+# set ip_vendor  "shepherdscientific.com"
+# set ip_library "user"
+# set ip_version "1.0"
+# set ip_display "INT4 KV-cache QK Engine"
+# set ip_desc    "Read-only AXI INT4 K cache with INT8 Q, Q8.8 dequant scale, P-lane QK dot product, and AXI-Lite control/logit RAM."
+# set script_dir [file dirname [file normalize [info script]]]
+# set repo_root  [file normalize [file join $script_dir ..]]
+# create_project -force ${ip_name}_pkg ${ip_name}_pkg -part xc7a100tcsg324-1
+create_project: Time (s): cpu = 00:00:15 ; elapsed = 00:00:31 . Memory (MB): peak = 582.406 ; gain = 267.848
+# foreach rtl_file {
+#     kv_addr_gen.v
+#     int4_unpack.v
+#     kv_dequant.v
+#     qk_dot.v
+#     kv_reader.v
+#     kv_cache_engine.v
+#     axi_kv_cache.v
+# } {
+#     add_files -norecurse [file join $repo_root rtl $rtl_file]
+# }
+# set_property top axi_kv_cache [current_fileset]
+# ipx::package_project -root_dir [file join $repo_root ip $ip_name] \
+#     -vendor $ip_vendor -library $ip_library -taxonomy /UserIP -import_files
+WARNING: [IP_Flow 19-587] [HDL Parser] HDL port or parameter 'engine_logit_index' has a dependency on the module local parameter or undefined parameter 'TOKEN_WIDTH'.
+INFO: [IP_Flow 19-234] Refreshing IP repositories
+INFO: [IP_Flow 19-1704] No user IP repositories specified
+INFO: [IP_Flow 19-2313] Loaded Vivado IP repository 'E:/xilinx/2026.1/Vivado/data/ip'.
+INFO: [IP_Flow 19-5107] Inferred bus interface 'm_axi' of definition 'xilinx.com:interface:aximm:1.0' (from Xilinx Repository).
+INFO: [IP_Flow 19-5107] Inferred bus interface 's_axi' of definition 'xilinx.com:interface:aximm:1.0' (from Xilinx Repository).
+INFO: [IP_Flow 19-5107] Inferred bus interface 'rst_n' of definition 'xilinx.com:signal:reset:1.0' (from Xilinx Repository).
+INFO: [IP_Flow 19-5107] Inferred bus interface 'clk' of definition 'xilinx.com:signal:clock:1.0' (from Xilinx Repository).
+INFO: [IP_Flow 19-4728] Bus Interface 'rst_n': Added interface parameter 'POLARITY' with value 'ACTIVE_LOW'.
+INFO: [IP_Flow 19-4728] Bus Interface 'clk': Added interface parameter 'ASSOCIATED_BUSIF' with value 'm_axi'.
+WARNING: [IP_Flow 19-11888] Component Definition 'shepherdscientific.com:user:axi_kv_cache:1.0 (axi_kv_cache_v1_0)': IP description "axi_kv_cache_v1_0" is not meaningful: same as name or display name
+WARNING: [IP_Flow 19-11770] Clock interface 'clk' has no FREQ_HZ parameter.
+INFO: [IP_Flow 19-2181] Payment is not required for this core.
+WARNING: [IP_Flow 19-2187] The Product Guide file is missing.
+ipx::package_project: Time (s): cpu = 00:00:01 ; elapsed = 00:00:27 . Memory (MB): peak = 590.418 ; gain = 8.012
+# set core [ipx::current_core]
+# set_property name                $ip_name $core
+# set_property version             $ip_version $core
+# set_property display_name        $ip_display $core
+# set_property description         $ip_desc $core
+# set_property vendor_display_name "Shepherd Scientific" $core
+# set_property company_url         "https://github.com/Ternarycore/ternarycore" $core
+# set_property supported_families  {artix7 Production} $core
+# ipx::associate_bus_interfaces -busif s_axi -clock clk $core
+# ipx::associate_bus_interfaces -busif m_axi -clock clk $core
+# ipx::create_xgui_files $core
+# ipx::update_checksums $core
+# ipx::check_integrity -quiet $core
+# ipx::save_core $core
+# close_project
+# puts "Packaged: $ip_name"
+Packaged: axi_kv_cache
+INFO: [Common 17-206] Exiting Vivado at Sun Aug 16 16:16:48 2026...

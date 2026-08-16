@@ -1,0 +1,23 @@
+{
+  "authoritative_geometry": {
+    "head_dim": 128,
+    "kv_heads": 5,
+    "layers": 30,
+    "q_heads": 20
+  },
+  "evidence": "THEORETICAL",
+  "separate_plane_recommendation": {
+    "address_expression": "K_DATA_BASE + token*64",
+    "int4_data_stride_bytes": 64,
+    "preferred": true,
+    "reason": "power-of-two payload stride, independent scale bursts, and no long-burst transfer penalty of consequence",
+    "scale_stride_bytes": 2
+  },
+  "tables": {
+    "axi_vector_layout": "axi_vector_layout.csv",
+    "gqa_cache_storage": "gqa_cache_storage.csv",
+    "int4_layout_comparison": "int4_layout_comparison.csv",
+    "int4_scale_granularity_storage": "int4_scale_granularity_storage.csv"
+  },
+  "warning": "Storage/layout arithmetic only; no FPGA throughput claim."
+}

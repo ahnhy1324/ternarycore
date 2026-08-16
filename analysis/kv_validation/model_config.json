@@ -1,0 +1,68 @@
+{
+  "derived": {
+    "checkpoint_format": "safetensors; packed U8 ternary projections plus BF16 scales/norms/embeddings",
+    "context_limit": 4096,
+    "gqa_query_heads_per_kv_head": 4,
+    "head_dim": 128,
+    "hidden_size": 2560,
+    "num_attention_heads": 20,
+    "num_hidden_layers": 30,
+    "num_key_value_heads": 5,
+    "rope_theta": 500000.0,
+    "selected_capture_layers": [
+      0,
+      7,
+      15,
+      22,
+      29
+    ],
+    "torch_dtype": "torch.bfloat16"
+  },
+  "evidence": "REAL-MODEL-VALIDATED/checkpoint-config",
+  "raw": {
+    "architectures": [
+      "BitNetForCausalLM"
+    ],
+    "auto_map": {
+      "AutoConfig": "configuration_bitnet.BitNetConfig",
+      "AutoModelForCausalLM": "modeling_bitnet.BitNetForCausalLM"
+    },
+    "bos_token_id": 128000,
+    "eos_token_id": 128001,
+    "hidden_act": "relu2",
+    "hidden_size": 2560,
+    "initializer_range": 0.02,
+    "intermediate_size": 6912,
+    "max_position_embeddings": 4096,
+    "model_type": "bitnet",
+    "num_attention_heads": 20,
+    "num_hidden_layers": 30,
+    "num_key_value_heads": 5,
+    "quantization_config": {
+      "linear_class": "autobitlinear",
+      "quant_method": "bitnet",
+      "quantization_mode": "offline"
+    },
+    "rms_norm_eps": 1e-05,
+    "rope_theta": 500000.0,
+    "tie_word_embeddings": true,
+    "torch_dtype": "bfloat16",
+    "use_cache": true,
+    "vocab_size": 128256
+  },
+  "tokenizer": {
+    "bos_token_id": 128000,
+    "checkpoint_files": [
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "special_tokens_map.json"
+    ],
+    "class": "transformers.tokenization_utils_fast.PreTrainedTokenizerFast",
+    "eos_token_id": 128009,
+    "special_tokens_map": {
+      "bos_token": "<|begin_of_text|>",
+      "eos_token": "<|eot_id|>"
+    },
+    "vocab_size": 128256
+  }
+}

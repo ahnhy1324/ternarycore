@@ -1,0 +1,225 @@
+{
+  "checkpoint": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "context_len": 128,
+  "elapsed_seconds": 401.76998809999714,
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "final_hidden": {
+    "dtype": "torch.bfloat16",
+    "max": 1.3984375,
+    "mean": -0.0001423977519152686,
+    "min": -1.0546875,
+    "rms": 0.05672018602490425,
+    "sha256_float32_bytes": "2782b55621fc23bf43efe333c08ffd236584a1daf141c248e71110e4d8fa0c87",
+    "shape": [
+      128,
+      2560
+    ]
+  },
+  "full_model_layer_count": 30,
+  "host": "Windows-10-10.0.19045-SP0",
+  "implementation": "Transformers-free, layer-streaming PyTorch reference",
+  "limitations": [
+    "The arithmetic is source-matched to the pinned Transformers implementation but uses a custom low-memory execution path.",
+    "This is not a task-accuracy or perplexity measurement.",
+    "This is not an optimized inference-performance measurement."
+  ],
+  "peak_observed_working_set_bytes": 517812224,
+  "python": "3.10.5",
+  "python_executable": "C:\\Program Files\\Python310\\python.exe",
+  "seed": 20260816,
+  "selected_capture_layers": [
+    0,
+    7,
+    15,
+    22,
+    29
+  ],
+  "status": "PASS",
+  "timings": [
+    {
+      "elapsed_seconds": 16.747177499997633,
+      "layer": 0,
+      "layer_seconds": 16.747177499997633,
+      "working_set_bytes": 217366528
+    },
+    {
+      "elapsed_seconds": 30.374836199996935,
+      "layer": 1,
+      "layer_seconds": 13.627658699999301,
+      "working_set_bytes": 265199616
+    },
+    {
+      "elapsed_seconds": 43.11581269999806,
+      "layer": 2,
+      "layer_seconds": 12.740976500001125,
+      "working_set_bytes": 282411008
+    },
+    {
+      "elapsed_seconds": 56.45664339999712,
+      "layer": 3,
+      "layer_seconds": 13.34083069999906,
+      "working_set_bytes": 299577344
+    },
+    {
+      "elapsed_seconds": 68.56280329999936,
+      "layer": 4,
+      "layer_seconds": 12.10615990000224,
+      "working_set_bytes": 316649472
+    },
+    {
+      "elapsed_seconds": 82.16067509999993,
+      "layer": 5,
+      "layer_seconds": 13.597871800000576,
+      "working_set_bytes": 333881344
+    },
+    {
+      "elapsed_seconds": 96.54547809999713,
+      "layer": 6,
+      "layer_seconds": 14.384802999997191,
+      "working_set_bytes": 315604992
+    },
+    {
+      "elapsed_seconds": 108.75656389999858,
+      "layer": 7,
+      "layer_seconds": 12.211085800001456,
+      "working_set_bytes": 338325504
+    },
+    {
+      "elapsed_seconds": 121.00425849999738,
+      "layer": 8,
+      "layer_seconds": 12.247694599998795,
+      "working_set_bytes": 384884736
+    },
+    {
+      "elapsed_seconds": 134.88451499999792,
+      "layer": 9,
+      "layer_seconds": 13.880256500000542,
+      "working_set_bytes": 402046976
+    },
+    {
+      "elapsed_seconds": 148.70087319999948,
+      "layer": 10,
+      "layer_seconds": 13.81635820000156,
+      "working_set_bytes": 419115008
+    },
+    {
+      "elapsed_seconds": 161.811267699999,
+      "layer": 11,
+      "layer_seconds": 13.11039449999953,
+      "working_set_bytes": 435900416
+    },
+    {
+      "elapsed_seconds": 173.53559729999688,
+      "layer": 12,
+      "layer_seconds": 11.724329599997873,
+      "working_set_bytes": 452702208
+    },
+    {
+      "elapsed_seconds": 187.6170538999977,
+      "layer": 13,
+      "layer_seconds": 14.08145660000082,
+      "working_set_bytes": 469676032
+    },
+    {
+      "elapsed_seconds": 200.26080819999697,
+      "layer": 14,
+      "layer_seconds": 12.643754299999273,
+      "working_set_bytes": 486334464
+    },
+    {
+      "elapsed_seconds": 213.48275899999862,
+      "layer": 15,
+      "layer_seconds": 13.22195080000165,
+      "working_set_bytes": 456962048
+    },
+    {
+      "elapsed_seconds": 226.2468521999981,
+      "layer": 16,
+      "layer_seconds": 12.764093199999479,
+      "working_set_bytes": 503283712
+    },
+    {
+      "elapsed_seconds": 238.8649160999994,
+      "layer": 17,
+      "layer_seconds": 12.618063900001289,
+      "working_set_bytes": 517812224
+    },
+    {
+      "elapsed_seconds": 251.11952649999876,
+      "layer": 18,
+      "layer_seconds": 12.254610399999365,
+      "working_set_bytes": 492482560
+    },
+    {
+      "elapsed_seconds": 264.14702909999687,
+      "layer": 19,
+      "layer_seconds": 13.027502599998115,
+      "working_set_bytes": 508956672
+    },
+    {
+      "elapsed_seconds": 276.1166689999991,
+      "layer": 20,
+      "layer_seconds": 11.969639900002221,
+      "working_set_bytes": 435322880
+    },
+    {
+      "elapsed_seconds": 288.50747539999793,
+      "layer": 21,
+      "layer_seconds": 12.390806399998837,
+      "working_set_bytes": 451928064
+    },
+    {
+      "elapsed_seconds": 301.6595180999975,
+      "layer": 22,
+      "layer_seconds": 13.152042699999583,
+      "working_set_bytes": 423038976
+    },
+    {
+      "elapsed_seconds": 313.78262769999856,
+      "layer": 23,
+      "layer_seconds": 12.123109600001044,
+      "working_set_bytes": 468975616
+    },
+    {
+      "elapsed_seconds": 327.47819159999926,
+      "layer": 24,
+      "layer_seconds": 13.695563900000707,
+      "working_set_bytes": 402472960
+    },
+    {
+      "elapsed_seconds": 339.62012949999917,
+      "layer": 25,
+      "layer_seconds": 12.141937899999903,
+      "working_set_bytes": 426881024
+    },
+    {
+      "elapsed_seconds": 351.7220124999985,
+      "layer": 26,
+      "layer_seconds": 12.101882999999361,
+      "working_set_bytes": 443604992
+    },
+    {
+      "elapsed_seconds": 363.9656666999981,
+      "layer": 27,
+      "layer_seconds": 12.243654199999582,
+      "working_set_bytes": 460238848
+    },
+    {
+      "elapsed_seconds": 375.7369413999986,
+      "layer": 28,
+      "layer_seconds": 11.771274700000504,
+      "working_set_bytes": 476942336
+    },
+    {
+      "elapsed_seconds": 388.3629583000002,
+      "layer": 29,
+      "layer_seconds": 12.62601690000156,
+      "working_set_bytes": 483926016
+    }
+  ],
+  "token_ids_sha256": "19350184f4192eb61c2bb07b226e718e07acc7c58738a832b2c68e77459283cb",
+  "torch": "2.13.0+cpu",
+  "torch_threads": 4,
+  "transformers_used_for_execution": false
+}

@@ -1,0 +1,33 @@
+{
+  "checkpoint_bytes": 1178623988,
+  "checkpoint_config_revision": "04c3b9ad9361b824064a1f25ea60a8be9599b127",
+  "checkpoint_model_etag": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "checkpoint_path": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+  "checkpoint_revision": "04c3b9ad9361b824064a1f25ea60a8be9599b127",
+  "evidence": "REAL-MODEL-VALIDATED/environment-and-checkpoint-identity",
+  "git_branch": "codex/kv-ip-vivado-2026",
+  "git_commit": "1a3af45916ed9bfaa1c3b133006ae8a542dc324d",
+  "huggingface_hub": "0.36.2",
+  "logical_processors": 4,
+  "numpy": "2.2.6",
+  "physical_cores": 2,
+  "platform": "Windows-10-10.0.19045-SP0",
+  "processor": "Intel64 Family 6 Model 158 Stepping 11, GenuineIntel",
+  "python": "3.10.5",
+  "python_executable": "C:\\Program Files\\Python310\\python.exe",
+  "ram_available_at_inspection_bytes": 624029696,
+  "ram_total_bytes": 4160401408,
+  "safetensors": "0.8.0",
+  "swap_free_at_inspection_bytes": 6032814080,
+  "swap_total_bytes": 8074723328,
+  "tensor_count": 542,
+  "tensor_dtype_counts": {
+    "BF16": 332,
+    "U8": 210
+  },
+  "torch": "2.13.0+cpu",
+  "torch_cuda_available": false,
+  "transformers": "4.52.0.dev0",
+  "transformers_required_commit": "096f25ae1f501a084d8ff2dcaf25fbc2bd60eba4"
+}

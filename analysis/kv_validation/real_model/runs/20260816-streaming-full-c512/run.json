@@ -1,0 +1,225 @@
+{
+  "checkpoint": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "context_len": 512,
+  "elapsed_seconds": 1401.1777427999987,
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "final_hidden": {
+    "dtype": "torch.bfloat16",
+    "max": 1.3984375,
+    "mean": -0.0005656345165334642,
+    "min": -1.1640625,
+    "rms": 0.06110795587301254,
+    "sha256_float32_bytes": "42fed2b86df29bd8926259d19d782e34913defea15563b0cbad7cee6080eb90f",
+    "shape": [
+      512,
+      2560
+    ]
+  },
+  "full_model_layer_count": 30,
+  "host": "Windows-10-10.0.19045-SP0",
+  "implementation": "Transformers-free, layer-streaming PyTorch reference",
+  "limitations": [
+    "The arithmetic is source-matched to the pinned Transformers implementation but uses a custom low-memory execution path.",
+    "This is not a task-accuracy or perplexity measurement.",
+    "This is not an optimized inference-performance measurement."
+  ],
+  "peak_observed_working_set_bytes": 432644096,
+  "python": "3.10.5",
+  "python_executable": "C:\\Program Files\\Python310\\python.exe",
+  "seed": 20260816,
+  "selected_capture_layers": [
+    0,
+    7,
+    15,
+    22,
+    29
+  ],
+  "status": "PASS",
+  "timings": [
+    {
+      "elapsed_seconds": 44.852882499999396,
+      "layer": 0,
+      "layer_seconds": 44.852882499999396,
+      "working_set_bytes": 126119936
+    },
+    {
+      "elapsed_seconds": 90.97253129999808,
+      "layer": 1,
+      "layer_seconds": 46.119648799998686,
+      "working_set_bytes": 165879808
+    },
+    {
+      "elapsed_seconds": 135.87651229999756,
+      "layer": 2,
+      "layer_seconds": 44.903980999999476,
+      "working_set_bytes": 156393472
+    },
+    {
+      "elapsed_seconds": 180.15887459999794,
+      "layer": 3,
+      "layer_seconds": 44.282362300000386,
+      "working_set_bytes": 133341184
+    },
+    {
+      "elapsed_seconds": 225.84594629999992,
+      "layer": 4,
+      "layer_seconds": 45.68707170000198,
+      "working_set_bytes": 210214912
+    },
+    {
+      "elapsed_seconds": 275.60654339999746,
+      "layer": 5,
+      "layer_seconds": 49.76059709999754,
+      "working_set_bytes": 186802176
+    },
+    {
+      "elapsed_seconds": 317.91881459999786,
+      "layer": 6,
+      "layer_seconds": 42.312271200000396,
+      "working_set_bytes": 227831808
+    },
+    {
+      "elapsed_seconds": 360.7525209999985,
+      "layer": 7,
+      "layer_seconds": 42.833706400000665,
+      "working_set_bytes": 202604544
+    },
+    {
+      "elapsed_seconds": 410.0208277999991,
+      "layer": 8,
+      "layer_seconds": 49.26830680000057,
+      "working_set_bytes": 219693056
+    },
+    {
+      "elapsed_seconds": 535.6976108999988,
+      "layer": 9,
+      "layer_seconds": 125.67678309999974,
+      "working_set_bytes": 160464896
+    },
+    {
+      "elapsed_seconds": 604.0372226,
+      "layer": 10,
+      "layer_seconds": 68.33961170000111,
+      "working_set_bytes": 190316544
+    },
+    {
+      "elapsed_seconds": 642.4611970999977,
+      "layer": 11,
+      "layer_seconds": 38.42397449999771,
+      "working_set_bytes": 183287808
+    },
+    {
+      "elapsed_seconds": 685.4383533,
+      "layer": 12,
+      "layer_seconds": 42.977156200002355,
+      "working_set_bytes": 224780288
+    },
+    {
+      "elapsed_seconds": 728.0071137999985,
+      "layer": 13,
+      "layer_seconds": 42.56876049999846,
+      "working_set_bytes": 218161152
+    },
+    {
+      "elapsed_seconds": 770.9465640999988,
+      "layer": 14,
+      "layer_seconds": 42.93945030000032,
+      "working_set_bytes": 237805568
+    },
+    {
+      "elapsed_seconds": 811.9087409999993,
+      "layer": 15,
+      "layer_seconds": 40.962176900000486,
+      "working_set_bytes": 212516864
+    },
+    {
+      "elapsed_seconds": 853.0393014000001,
+      "layer": 16,
+      "layer_seconds": 41.13056040000083,
+      "working_set_bytes": 272945152
+    },
+    {
+      "elapsed_seconds": 894.0485609999996,
+      "layer": 17,
+      "layer_seconds": 41.009259599999496,
+      "working_set_bytes": 249761792
+    },
+    {
+      "elapsed_seconds": 935.4081786999996,
+      "layer": 18,
+      "layer_seconds": 41.359617699999944,
+      "working_set_bytes": 291196928
+    },
+    {
+      "elapsed_seconds": 976.8382400999981,
+      "layer": 19,
+      "layer_seconds": 41.43006139999852,
+      "working_set_bytes": 284565504
+    },
+    {
+      "elapsed_seconds": 1018.8767017999999,
+      "layer": 20,
+      "layer_seconds": 42.03846170000179,
+      "working_set_bytes": 279592960
+    },
+    {
+      "elapsed_seconds": 1059.7087805999981,
+      "layer": 21,
+      "layer_seconds": 40.83207879999827,
+      "working_set_bytes": 280825856
+    },
+    {
+      "elapsed_seconds": 1100.3482732999983,
+      "layer": 22,
+      "layer_seconds": 40.63949270000012,
+      "working_set_bytes": 311435264
+    },
+    {
+      "elapsed_seconds": 1140.847665899997,
+      "layer": 23,
+      "layer_seconds": 40.49939259999883,
+      "working_set_bytes": 354942976
+    },
+    {
+      "elapsed_seconds": 1181.3919964999986,
+      "layer": 24,
+      "layer_seconds": 40.54433060000156,
+      "working_set_bytes": 396382208
+    },
+    {
+      "elapsed_seconds": 1222.7419448999972,
+      "layer": 25,
+      "layer_seconds": 41.34994839999854,
+      "working_set_bytes": 389971968
+    },
+    {
+      "elapsed_seconds": 1263.3267794999992,
+      "layer": 26,
+      "layer_seconds": 40.58483460000207,
+      "working_set_bytes": 431403008
+    },
+    {
+      "elapsed_seconds": 1304.5739035999977,
+      "layer": 27,
+      "layer_seconds": 41.24712409999847,
+      "working_set_bytes": 391221248
+    },
+    {
+      "elapsed_seconds": 1345.1929944999974,
+      "layer": 28,
+      "layer_seconds": 40.61909089999972,
+      "working_set_bytes": 432644096
+    },
+    {
+      "elapsed_seconds": 1386.648247699999,
+      "layer": 29,
+      "layer_seconds": 41.45525320000161,
+      "working_set_bytes": 393359360
+    }
+  ],
+  "token_ids_sha256": "e1c4eda13a250880d6366973af9dd9fce17585a55656c903cef0b00de377965e",
+  "torch": "2.13.0+cpu",
+  "torch_threads": 4,
+  "transformers_used_for_execution": false
+}

@@ -1,0 +1,7 @@
+evidence,case,bits,scale_format,crash,exception,input_has_nan,output_has_nan,scale_saturation_count,input_absmax,output_absmax,relative_rmse,normalized_bias
+SOFTWARE-FIXED-POINT,all_zero_vector,4,Q8.8,False,,False,False,0,0.0,0.0,0.0,0.0
+SOFTWARE-FIXED-POINT,constant_vector,4,Q8.8,False,,False,False,0,3.25,3.25390625,0.001201923076923077,0.001201923076923077
+SOFTWARE-FIXED-POINT,threshold_plus_minus_epsilon,4,Q8.8,False,,False,False,0,7.0,7.0,0.12278166047757358,0.0
+SOFTWARE-FIXED-POINT,maximum_input_at_q8_8_scale_limit,4,Q8.8,False,,False,False,0,895.97265625,895.97265625,0.07059311991634869,0.0
+SOFTWARE-FIXED-POINT,q8_8_scale_saturation,4,Q8.8,False,,False,False,1,1000000.0,895.97265625,0.9991053316213915,0.0
+SOFTWARE-FIXED-POINT,large_isolated_outlier,4,Q8.8,False,,False,False,1,1000.0,895.97265625,0.10462933594763076,-0.02041882862118942

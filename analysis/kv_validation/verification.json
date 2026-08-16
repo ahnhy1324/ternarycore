@@ -1,0 +1,100 @@
+{
+  "checks": [
+    {
+      "check": "required_artifacts",
+      "count": 32,
+      "status": "PASS"
+    },
+    {
+      "calibration_evaluation_seed_overlap": 0,
+      "check": "controlled_attention",
+      "maximum_error": 5.960464477539063e-08,
+      "rows": 300,
+      "status": "PASS"
+    },
+    {
+      "check": "raw_row_counts_and_finite_metrics",
+      "joint_kv_results.csv": 2700,
+      "k_only_results.csv": 1200,
+      "scale_representation_results.csv": 600,
+      "status": "PASS",
+      "v_only_results.csv": 1200
+    },
+    {
+      "check": "joint_design_space",
+      "configurations": 9,
+      "status": "PASS"
+    },
+    {
+      "check": "scale_hypotheses",
+      "per_run_worse_than_per_token": true,
+      "q8_8_mean_scale_only_below_one_percent": true,
+      "status": "PASS"
+    },
+    {
+      "activation_contexts": {
+        "128": "PASS",
+        "512": "PASS",
+        "1024": "NOT_TESTED",
+        "2048": "NOT_TESTED",
+        "4096": "NOT_TESTED"
+      },
+      "check": "model_geometry_and_status",
+      "status": "PASS",
+      "streaming_reference_bitwise_equal": true
+    },
+    {
+      "check": "external_checkpoint_not_tracked",
+      "status": "PASS"
+    },
+    {
+      "check": "tier1_and_adversarial",
+      "crashes": 0,
+      "nan_cases": 0,
+      "scale_saturation_cases": 2,
+      "silent_wrap_cases": 0,
+      "status": "PASS",
+      "tier1_checksum": "0xfffff600"
+    },
+    {
+      "check": "imported_source_hashes",
+      "files": 6,
+      "status": "PASS"
+    },
+    {
+      "check": "windows_rtl_regression",
+      "cycle_rows": 8,
+      "head_dimensions": [
+        64,
+        128
+      ],
+      "status": "PASS"
+    },
+    {
+      "check": "toolchain_status",
+      "status": "PASS",
+      "synthesis_configurations": 4,
+      "vivado_packaging": "PASS",
+      "vivado_xsim": "PASS"
+    },
+    {
+      "check": "baseline_rtl_and_arty_untouched",
+      "packaging_script_only": "ip/package_axi_kv_cache.tcl",
+      "status": "PASS"
+    },
+    {
+      "check": "head_dim128_verification_changes_present",
+      "files": [
+        "sim/Makefile",
+        "tb/tb_axi_kv_cache.v",
+        "tb/tb_int4_unpack.v",
+        "tb/tb_kv_cache_engine.v",
+        "tb/tb_kv_dequant.v",
+        "tb/tb_qk_dot.v"
+      ],
+      "status": "PASS"
+    }
+  ],
+  "evidence": "REPRODUCIBILITY/CONSISTENCY",
+  "status": "PASS"
+}

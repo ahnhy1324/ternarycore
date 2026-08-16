@@ -1,0 +1,47 @@
+{
+  "checkpoint": "F:\\Xilinx_WorkSpace\\bitnet-b1.58-2B-4T",
+  "checkpoint_model_sha256": "8143ae115ed6babe5e5ada8fb8c5b769d8f417802b2db042ad98b4f7ed73975b",
+  "context_len": 128,
+  "elapsed_seconds": 23.225071099997876,
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "final_hidden": {
+    "dtype": "torch.bfloat16",
+    "max": 0.7734375,
+    "mean": -0.0005373754538595676,
+    "min": -0.80078125,
+    "rms": 0.09396625310182571,
+    "sha256_float32_bytes": "bcc00faed97e32d7c596d06418ea2cc656c936126955172e8189e055450ced6a",
+    "shape": [
+      128,
+      2560
+    ]
+  },
+  "full_model_layer_count": 1,
+  "host": "Windows-10-10.0.19045-SP0",
+  "implementation": "Transformers-free, layer-streaming PyTorch reference",
+  "limitations": [
+    "The arithmetic is source-matched to the pinned Transformers implementation but uses a custom low-memory execution path.",
+    "This is not a task-accuracy or perplexity measurement.",
+    "This is not an optimized inference-performance measurement."
+  ],
+  "peak_observed_working_set_bytes": 219041792,
+  "python": "3.10.5",
+  "python_executable": "C:\\Program Files\\Python310\\python.exe",
+  "seed": 20260816,
+  "selected_capture_layers": [
+    0
+  ],
+  "status": "PASS",
+  "timings": [
+    {
+      "elapsed_seconds": 13.390257799997926,
+      "layer": 0,
+      "layer_seconds": 13.390257799997926,
+      "working_set_bytes": 219041792
+    }
+  ],
+  "token_ids_sha256": "19350184f4192eb61c2bb07b226e718e07acc7c58738a832b2c68e77459283cb",
+  "torch": "2.13.0+cpu",
+  "torch_threads": 4,
+  "transformers_used_for_execution": false
+}

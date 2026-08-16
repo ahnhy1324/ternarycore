@@ -1,0 +1,20 @@
+{
+  "activation_pattern": "deterministic repetition -3..+3",
+  "columns": 768,
+  "depth": 768,
+  "documented_checksum_match": true,
+  "evidence": "SOFTWARE-SYNTHETIC/BRING-UP",
+  "independent_checksum_hex": "0xfffff600",
+  "independent_output_first4": [
+    5,
+    0,
+    -5,
+    5
+  ],
+  "independent_output_max": 5,
+  "independent_output_min": -5,
+  "representative_llm_tensor": false,
+  "source": "firmware\\tier1_bare.c",
+  "source_sha256": "e58d39f9e84fc971bce113d95badde91c69ea765e830aa470640fa4db95d0087",
+  "weight_pattern": "deterministic repetition -1,0,+1"
+}

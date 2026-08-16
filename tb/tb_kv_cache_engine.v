@@ -4,13 +4,21 @@
 `default_nettype none
 
 module tb_kv_cache_engine;
-    localparam HEAD_DIM = 64, P = 16, MAX_CONTEXT = 4096;
+`ifdef HEAD_DIM_VAL
+    localparam HEAD_DIM = `HEAD_DIM_VAL;
+`else
+    localparam HEAD_DIM = 64;
+`endif
+    localparam P = 16, MAX_CONTEXT = 4096;
 `ifdef AXI_DATA_WIDTH_VAL
     localparam AXI_WIDTH = `AXI_DATA_WIDTH_VAL;
 `else
     localparam AXI_WIDTH = 128;
 `endif
-    localparam BEATS_PER_VECTOR = 256 / AXI_WIDTH;
+    localparam VECTOR_BITS = HEAD_DIM * 4;
+    localparam VECTOR_BYTES = VECTOR_BITS / 8;
+    localparam VECTOR_SHIFT = $clog2(VECTOR_BYTES);
+    localparam BEATS_PER_VECTOR = VECTOR_BITS / AXI_WIDTH;
     localparam BASE = 32'h8000_1000;
     localparam SCALE = 16'sh0100;
     localparam TOKEN_WIDTH = $clog2(MAX_CONTEXT);
@@ -82,11 +90,23 @@ module tb_kv_cache_engine;
     function signed [31:0] expected_dot;
         input integer token;
         integer dim;
+        integer k_code;
+        integer k_signed;
         reg signed [31:0] sum;
         begin
             sum = 0;
-            for (dim = 0; dim < HEAD_DIM; dim = dim + 1)
-                sum = sum + q_at(dim) * $signed(k_at(token, dim)) * 256;
+            // Keep the reference arithmetic at integer width. XSIM 2026.1
+            // context-sizes the multiplication through the signed 4-bit
+            // function return differently from Icarus, which made the old
+            // checker disagree even though the DUT result was correct.
+            for (dim = 0; dim < HEAD_DIM; dim = dim + 1) begin
+                k_code = (token * 3 + dim * 5 + 8) & 15;
+                if (k_code >= 8)
+                    k_signed = k_code - 16;
+                else
+                    k_signed = k_code;
+                sum = sum + q_at(dim) * k_signed * 256;
+            end
             expected_dot = sum;
         end
     endfunction
@@ -120,7 +140,7 @@ module tb_kv_cache_engine;
             arready <= !force_ar_stall && !pending && lfsr[0];
             if (arvalid && arready) begin
                 pending       <= 1;
-                pending_token <= (araddr - BASE) >> 5;
+                pending_token <= (araddr - BASE) >> VECTOR_SHIFT;
                 beat_no       <= 0;
                 if (arlen != BEATS_PER_VECTOR-1 ||
                     arsize != $clog2(AXI_WIDTH/8) || arburst != 2'b01) begin
@@ -264,9 +284,12 @@ module tb_kv_cache_engine;
 `ifdef CYCLE_ACCOUNT_ONLY
         run_case(512);
         run_case(4096);
-        if (errors == 0) $display("TB PASS: KV cycle accounting");
-        else $display("TB FAIL: %0d KV cycle-accounting errors", errors);
-        $finish;
+        if (errors == 0) begin
+            $display("TB PASS: KV cycle accounting");
+            $finish;
+        end else begin
+            $fatal(1, "TB FAIL: %0d KV cycle-accounting errors", errors);
+        end
 `else
         run_case(1); run_case(7); run_case(63); run_case(64); run_case(65);
         run_case(127); run_case(128); run_case(129);
@@ -347,9 +370,12 @@ module tb_kv_cache_engine;
         end
 
         errors = errors + protocol_errors;
-        if (errors == 0) $display("TB PASS: KV engine regression");
-        else $display("TB FAIL: %0d KV engine errors", errors);
-        $finish;
+        if (errors == 0) begin
+            $display("TB PASS: KV engine regression");
+            $finish;
+        end else begin
+            $fatal(1, "TB FAIL: %0d KV engine errors", errors);
+        end
 `endif
     end
 endmodule

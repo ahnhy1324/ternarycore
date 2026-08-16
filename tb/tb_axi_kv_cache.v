@@ -4,7 +4,21 @@
 `default_nettype none
 
 module tb_axi_kv_cache;
-    localparam HEAD_DIM = 64, MAX_CONTEXT = 4096, BASE = 32'h8000_2000;
+`ifdef HEAD_DIM_VAL
+    localparam HEAD_DIM = `HEAD_DIM_VAL;
+`else
+    localparam HEAD_DIM = 64;
+`endif
+    localparam MAX_CONTEXT = 4096, BASE = 32'h8000_2000;
+    localparam VECTOR_BITS = HEAD_DIM * 4;
+    localparam VECTOR_BYTES = VECTOR_BITS / 8;
+    localparam VECTOR_SHIFT = $clog2(VECTOR_BYTES);
+    localparam BEATS_PER_VECTOR = VECTOR_BITS / 128;
+    localparam [31:0] EXPECTED_GEOMETRY =
+        ((128      & 8'hff) << 24) |
+        ((HEAD_DIM & 8'hff) << 16) |
+        ((16       & 8'hff) <<  8) |
+        (4         & 8'hff);
     reg clk = 0, rst_n = 0;
     always #5 clk = ~clk;
 
@@ -88,11 +102,14 @@ module tb_axi_kv_cache;
             lfsr <= {lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10]};
             arready <= !pending && lfsr[0];
             if (arvalid && arready) begin
-                pending <= 1; pending_token <= (araddr - BASE) >> 5; beat_no <= 0;
+                pending <= 1;
+                pending_token <= (araddr - BASE) >> VECTOR_SHIFT;
+                beat_no <= 0;
             end
             if (!rvalid && pending && lfsr[1]) begin
                 rdata <= make_beat(pending_token, beat_no);
-                rlast <= (beat_no == 1); rresp <= 0; rvalid <= 1;
+                rlast <= (beat_no == BEATS_PER_VECTOR-1);
+                rresp <= 0; rvalid <= 1;
             end
             if (rvalid && rready) begin
                 rvalid <= 0;
@@ -134,7 +151,7 @@ module tb_axi_kv_cache;
             $display("FAIL core ID %08x", rd); errors = errors + 1;
         end
         axi_read(16'h0034, rd);
-        if (rd != 32'h8040_1004) begin
+        if (rd != EXPECTED_GEOMETRY) begin
             $display("FAIL geometry %08x", rd); errors = errors + 1;
         end
 
@@ -189,9 +206,12 @@ module tb_axi_kv_cache;
             $display("FAIL status clear: %08x", rd); errors = errors + 1;
         end
 
-        if (errors == 0) $display("TB PASS: AXI KV wrapper");
-        else $display("TB FAIL: %0d AXI KV wrapper errors", errors);
-        $finish;
+        if (errors == 0) begin
+            $display("TB PASS: AXI KV wrapper");
+            $finish;
+        end else begin
+            $fatal(1, "TB FAIL: %0d AXI KV wrapper errors", errors);
+        end
     end
 endmodule
 

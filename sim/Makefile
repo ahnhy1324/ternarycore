@@ -65,7 +65,10 @@ tb_weight_bram_d8: ../tb/tb_weight_bram.v ../rtl/weight_bram.v
 KV_RTL = ../rtl/kv_addr_gen.v ../rtl/int4_unpack.v ../rtl/kv_dequant.v \
 	../rtl/qk_dot.v ../rtl/kv_reader.v ../rtl/kv_cache_engine.v
 
-tb_kv_cache: tb_int4_unpack tb_kv_dequant tb_qk_dot tb_kv_cache_engine tb_kv_cache_engine_256 tb_axi_kv_cache
+tb_kv_cache: tb_int4_unpack tb_kv_dequant tb_qk_dot \
+	tb_kv_cache_engine tb_kv_cache_engine_256 \
+	tb_kv_cache_engine_hd128 tb_kv_cache_engine_hd128_256 \
+	tb_axi_kv_cache tb_axi_kv_cache_hd128
 
 tb_int4_unpack: ../tb/tb_int4_unpack.v ../rtl/int4_unpack.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_int4_unpack $^
@@ -87,9 +90,21 @@ tb_kv_cache_engine_256: ../tb/tb_kv_cache_engine.v $(KV_RTL)
 	$(IVERILOG) -g2012 -DAXI_DATA_WIDTH_VAL=256 -o $(SIMDIR)/sim_kv_cache_engine_256 $^
 	$(VVP) $(SIMDIR)/sim_kv_cache_engine_256
 
+tb_kv_cache_engine_hd128: ../tb/tb_kv_cache_engine.v $(KV_RTL)
+	$(IVERILOG) -g2012 -DHEAD_DIM_VAL=128 -o $(SIMDIR)/sim_kv_cache_engine_hd128 $^
+	$(VVP) $(SIMDIR)/sim_kv_cache_engine_hd128
+
+tb_kv_cache_engine_hd128_256: ../tb/tb_kv_cache_engine.v $(KV_RTL)
+	$(IVERILOG) -g2012 -DHEAD_DIM_VAL=128 -DAXI_DATA_WIDTH_VAL=256 -o $(SIMDIR)/sim_kv_cache_engine_hd128_256 $^
+	$(VVP) $(SIMDIR)/sim_kv_cache_engine_hd128_256
+
 tb_axi_kv_cache: ../tb/tb_axi_kv_cache.v ../rtl/axi_kv_cache.v $(KV_RTL)
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_axi_kv_cache $^
 	$(VVP) $(SIMDIR)/sim_axi_kv_cache
+
+tb_axi_kv_cache_hd128: ../tb/tb_axi_kv_cache.v ../rtl/axi_kv_cache.v $(KV_RTL)
+	$(IVERILOG) -g2012 -DHEAD_DIM_VAL=128 -o $(SIMDIR)/sim_axi_kv_cache_hd128 $^
+	$(VVP) $(SIMDIR)/sim_axi_kv_cache_hd128
 
 # ── Python reference verification ─────────────────────────────────────────────
 verify:

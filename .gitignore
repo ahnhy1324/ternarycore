@@ -80,3 +80,11 @@ arty_mb_gemm/
 # Version-specific local packaging output for the portable KV IP
 axi_kv_cache_pkg/
 ip/axi_kv_cache/
+
+# Actual-model captures are included in the external handoff ZIP, not Git.
+# The deterministic runner and compact CSV/JSON results remain tracked.
+analysis/kv_validation/real_model/runs/*/tensors/*.pt
+
+# Preserve raw text reports for the final timing-driven Vivado sweep.
+!analysis/kv_validation/hardware_estimates/vivado_synth_2026_1_timed/
+!analysis/kv_validation/hardware_estimates/vivado_synth_2026_1_timed/*.rpt

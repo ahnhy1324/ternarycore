@@ -1,0 +1,80 @@
+{
+  "context_len": 128,
+  "evidence": "REAL-MODEL-VALIDATED/custom-streaming-reference",
+  "joint_selected": {
+    "K3_V3_group128_FP32": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.2911004914882221,
+      "mean_layer_p95_row_relative_rmse": 0.5733899958906197,
+      "worst_layer_attention_output_relative_rmse": 0.44010675483938505,
+      "worst_layer_p95_row_relative_rmse": 0.8039693750474702
+    },
+    "K4_V4_group128_FP32": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.16728155154163526,
+      "mean_layer_p95_row_relative_rmse": 0.33432033577031334,
+      "worst_layer_attention_output_relative_rmse": 0.35680163330025155,
+      "worst_layer_p95_row_relative_rmse": 0.5150577907866033
+    },
+    "K4_V4_group128_Q8.8": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.16726892398511087,
+      "mean_layer_p95_row_relative_rmse": 0.3343210072537513,
+      "worst_layer_attention_output_relative_rmse": 0.3573336039797923,
+      "worst_layer_p95_row_relative_rmse": 0.5167134718110619
+    },
+    "K4_V4_group16_Q8.8": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.09364865812139996,
+      "mean_layer_p95_row_relative_rmse": 0.16722381894431648,
+      "worst_layer_attention_output_relative_rmse": 0.13924542872455659,
+      "worst_layer_p95_row_relative_rmse": 0.219135801330791
+    },
+    "K4_V4_group32_Q8.8": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.11774123970196333,
+      "mean_layer_p95_row_relative_rmse": 0.21579559110281066,
+      "worst_layer_attention_output_relative_rmse": 0.1855145132299199,
+      "worst_layer_p95_row_relative_rmse": 0.266677672807098
+    },
+    "K4_V4_group8_Q8.8": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.07389966310188417,
+      "mean_layer_p95_row_relative_rmse": 0.13264327200627643,
+      "worst_layer_attention_output_relative_rmse": 0.10347318691084557,
+      "worst_layer_p95_row_relative_rmse": 0.18071505248208977
+    },
+    "K5_V5_group128_FP32": {
+      "layer_count": 5,
+      "mean_attention_output_relative_rmse": 0.06575109022817635,
+      "mean_layer_p95_row_relative_rmse": 0.13345159450226207,
+      "worst_layer_attention_output_relative_rmse": 0.09662223382798707,
+      "worst_layer_p95_row_relative_rmse": 0.16911893489244637
+    }
+  },
+  "layers": [
+    0,
+    7,
+    15,
+    22,
+    29
+  ],
+  "q8_8_scale_quantization": {
+    "max_scale_only_relative_rmse": 0.03668500161376924,
+    "mean_scale_only_relative_rmse": 0.004407293179558372,
+    "total_saturated_scale_count": 0
+  },
+  "q8_only": {
+    "mean_attention_output_relative_rmse": 0.0032221854635626213,
+    "worst_attention_output_relative_rmse": 0.0045290604528992785
+  },
+  "q_path": "INT8 symmetric per-token/head absmax for quantized rows",
+  "reference": "FP32 attention recomputed from captured BF16 Q/K/V",
+  "source_run": "F:\\Xilinx_WorkSpace\\ternarycore\\analysis\\kv_validation\\real_model\\runs\\20260816-streaming-full-c128",
+  "status": "PASS",
+  "warnings": [
+    "These are tensor/attention distortion results, not accuracy or perplexity results.",
+    "Only context 128 is included in this run.",
+    "The execution path is custom but its one-layer output was bitwise checked against the pinned Transformers implementation."
+  ]
+}

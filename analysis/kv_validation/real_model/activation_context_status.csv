@@ -1,0 +1,6 @@
+evidence,context_len,status,selected_layers,execution_path,reason
+REAL-MODEL-VALIDATED/custom-streaming-reference,128,PASS,"0;7;15;22;29",Transformers-free layer-streaming PyTorch reference,Full 30-layer execution and Q/K/V attention capture completed
+REAL-MODEL-VALIDATED/custom-streaming-reference,512,PASS,"0;7;15;22;29",Transformers-free layer-streaming PyTorch reference,Full 30-layer execution and Q/K/V attention capture completed
+REAL-MODEL-VALIDATED/custom-streaming-reference,1024,NOT_TESTED,"0;7;15;22;29",Not run,CPU-time limit for this validation pass
+REAL-MODEL-VALIDATED/custom-streaming-reference,2048,NOT_TESTED,"0;7;15;22;29",Not run,CPU-time limit for this validation pass
+REAL-MODEL-VALIDATED/custom-streaming-reference,4096,NOT_TESTED,"0;7;15;22;29",Not run,CPU-time limit for this validation pass

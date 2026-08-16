@@ -48,9 +48,12 @@ module tb_qk_dot;
             $display("FAIL: dot got %0d want %0d", $signed(result), expected);
             errors = errors + 1;
         end
-        if (errors == 0) $display("TB PASS: QK dot = %0d", expected);
-        else $display("TB FAIL: qk_dot");
-        $finish;
+        if (errors == 0) begin
+            $display("TB PASS: QK dot = %0d", expected);
+            $finish;
+        end else begin
+            $fatal(1, "TB FAIL: qk_dot");
+        end
     end
 endmodule
 
