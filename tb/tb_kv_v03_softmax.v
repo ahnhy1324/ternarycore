@@ -25,7 +25,7 @@ module tb_kv_v03_softmax;
     reg [15:0] expected_exp [0:4095];
     reg [74:0] expected_meta [0:0];
     integer output_index = 0, expected_length = 0;
-    integer write_index, timeout, errors = 0;
+    integer write_index, timeout, division_probe, errors = 0;
     reg [15:0] ready_lfsr = 16'h721d;
     string golden_root;
 
@@ -101,7 +101,7 @@ module tb_kv_v03_softmax;
             @(negedge clk);
             start = 0;
             timeout = 0;
-            while (!done && !error_valid && timeout < length*8 + 200) begin
+            while (!done && !error_valid && timeout < length*12 + 200) begin
                 @(negedge clk);
                 timeout = timeout + 1;
             end
@@ -134,6 +134,15 @@ module tb_kv_v03_softmax;
     initial begin
         if (!$value$plusargs("GOLDEN_ROOT=%s", golden_root))
             golden_root = "../analysis/kv_validation/v0_3/rtl_goldens/softmax";
+        // Exhaust the bounded arithmetic identity used in the RTL instead of
+        // relying only on four score-row samples to validate it.
+        for (division_probe = 0; division_probe <= 3084;
+             division_probe = division_probe + 1)
+            if ((division_probe / 24) !=
+                ((division_probe * 2731) >> 16))
+                $fatal(1, "softmax exact /24 proof failed at %0d",
+                       division_probe);
+        $display("PASS softmax exact /24 identity for 0..3084");
         repeat (4) @(negedge clk);
         rst_n = 1;
 
@@ -142,6 +151,75 @@ module tb_kv_v03_softmax;
         run_case("single_sink_65", 65, 1);
         run_case("lut_boundary_129", 129, 2);
         run_case("real_engineering_c128_l00_h0", 128, 3);
+
+        // A start during an active read aborts with a typed error.  It must
+        // not silently restart and later time out on the old read response.
+        context_len = 4;
+        score_row = 0;
+        @(negedge clk);
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        @(negedge clk);
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        if (!error_valid || error_code != 8'h06 || busy) begin
+            $display("FAIL softmax busy start error=%0d code=%02x busy=%0d",
+                     error_valid, error_code, busy);
+            errors = errors + 1;
+        end else begin
+            $display("PASS softmax busy start aborts explicitly");
+        end
+        repeat (2) @(negedge clk);
+
+        // Abort during reciprocal, then prove an immediate restart is held
+        // off until the non-cancellable reciprocal engine becomes idle.
+        expected_length = 1;
+        expected_exp[0] = 16'h8000;
+        output_index = 0;
+        context_len = 1;
+        score_row = 0;
+        @(negedge clk);
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        timeout = 0;
+        while (!dut.u_softmax.reciprocal_busy && timeout < 20) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (!dut.u_softmax.reciprocal_busy) begin
+            $display("FAIL softmax reciprocal did not start");
+            errors = errors + 1;
+        end
+        @(negedge clk);
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        if (!error_valid || error_code != 8'h06 || busy) begin
+            $display("FAIL softmax reciprocal abort error=%0d code=%02x",
+                     error_valid, error_code);
+            errors = errors + 1;
+        end
+        @(negedge clk);
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        if (!error_valid || error_code != 8'h06 || busy) begin
+            $display("FAIL softmax orphan reciprocal restart accepted");
+            errors = errors + 1;
+        end else begin
+            $display("PASS softmax orphan reciprocal blocks restart");
+        end
+        timeout = 0;
+        while (dut.u_softmax.reciprocal_busy && timeout < 100) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (dut.u_softmax.reciprocal_busy)
+            $fatal(1, "softmax orphan reciprocal timeout");
+        repeat (2) @(negedge clk);
 
         context_len = 0;
         @(negedge clk);

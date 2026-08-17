@@ -1,0 +1,546 @@
+VCD info: dumpfile tb_ternary_mac.vcd opened for output.
+--- TernaryCore MAC Testbench ---
+PASS: act=10 w=1 acc_in=0 => acc_out=10
+PASS: act=25 w=1 acc_in=10 => acc_out=35
+PASS: act=10 w=10 acc_in=35 => acc_out=25
+PASS: act=25 w=10 acc_in=25 => acc_out=0
+PASS: act=99 w=0 acc_in=42 => acc_out=42
+PASS: act=127 w=0 acc_in=0 => acc_out=0
+PASS: act=-5 w=1 acc_in=0 => acc_out=4294967291
+PASS: act=-5 w=10 acc_in=0 => acc_out=5
+--- 0 error(s) ---
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_ternary_mac.v:98: $finish called at 186000 (1ps)
+SIM_PASS sim_mac
+VCD info: dumpfile tb_ternary_dot.vcd opened for output.
+--- TernaryCore Dot Product Testbench (VLEN=8) ---
+PASS: dot product = 36
+PASS: dot product = -36
+PASS: dot product = 0
+PASS: dot product = 0
+PASS: dot product = -40
+PASS: dot product = 40
+PASS: dot product = 1016
+--- 0 error(s) ---
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_ternary_dot.v:127: $finish called at 656000 (1ps)
+SIM_PASS sim_dot
+VCD info: dumpfile tb_ternary_gemm.vcd opened for output.
+--- TernaryCore GEMM Testbench (COLS=4 DEPTH=4) ---
+PASS row 0: [27, -14, -13, 27]
+PASS row 1: [34, -21, -13, 34]
+PASS row 2: [41, -28, -13, 41]
+PASS row 3: [48, -35, -13, 48]
+--- 0 error(s) ---
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_ternary_gemm.v:161: $finish called at 276000 (1ps)
+SIM_PASS sim_gemm_d4
+VCD info: dumpfile tb_axi_gemm_wrapper.vcd opened for output.
+=== AXI4-Lite GEMM Wrapper Testbench (COLS=4 DEPTH=4) ===
+--- Row 0 ---
+PASS row=0 col=0: 27
+PASS row=0 col=1: -14
+PASS row=0 col=2: -13
+PASS row=0 col=3: 27
+--- Row 1 ---
+PASS row=1 col=0: 34
+PASS row=1 col=1: -21
+PASS row=1 col=2: -13
+PASS row=1 col=3: 34
+--- Row 2 ---
+PASS row=2 col=0: 41
+PASS row=2 col=1: -28
+PASS row=2 col=2: -13
+PASS row=2 col=3: 41
+--- Row 3 ---
+PASS row=3 col=0: 48
+PASS row=3 col=1: -35
+PASS row=3 col=2: -13
+PASS row=3 col=3: 48
+--- CTRL register readback ---
+PASS CTRL start bit = 1
+PASS CTRL rst_sw bit = 1
+PASS CTRL cleared
+--- WEIGHT_ENC register readback ---
+PASS WEIGHT_ENC_LO readback = DEADBEEF
+PASS WEIGHT_ENC_HI readback = CAFEBABE
+=== 0 error(s) ===
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_axi_gemm_wrapper.v:300: $finish called at 3535000 (1ps)
+SIM_PASS sim_axi_gemm_d4
+VCD info: dumpfile tb_ternary_gemm.vcd opened for output.
+--- TernaryCore GEMM Testbench (COLS=4 DEPTH=16) ---
+PASS row 0: [131, -66, -65, 131]
+PASS row 1: [138, -73, -65, 138]
+PASS row 2: [17, 48, -65, 17]
+PASS row 3: [24, 41, -65, 24]
+--- 0 error(s) ---
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_ternary_gemm.v:161: $finish called at 756000 (1ps)
+SIM_PASS sim_gemm_d16
+VCD info: dumpfile tb_axi_gemm_wrapper.vcd opened for output.
+=== AXI4-Lite GEMM Wrapper Testbench (COLS=4 DEPTH=16) ===
+--- Row 0 ---
+PASS row=0 col=0: 131
+PASS row=0 col=1: -66
+PASS row=0 col=2: -65
+PASS row=0 col=3: 131
+--- Row 1 ---
+PASS row=1 col=0: 138
+PASS row=1 col=1: -73
+PASS row=1 col=2: -65
+PASS row=1 col=3: 138
+--- Row 2 ---
+PASS row=2 col=0: 17
+PASS row=2 col=1: 48
+PASS row=2 col=2: -65
+PASS row=2 col=3: 17
+--- Row 3 ---
+PASS row=3 col=0: 24
+PASS row=3 col=1: 41
+PASS row=3 col=2: -65
+PASS row=3 col=3: 24
+--- CTRL register readback ---
+PASS CTRL start bit = 1
+PASS CTRL rst_sw bit = 1
+PASS CTRL cleared
+--- WEIGHT_ENC register readback ---
+PASS WEIGHT_ENC_LO readback = DEADBEEF
+PASS WEIGHT_ENC_HI readback = CAFEBABE
+=== 0 error(s) ===
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_axi_gemm_wrapper.v:300: $finish called at 8335000 (1ps)
+SIM_PASS sim_axi_gemm_d16
+VCD info: dumpfile tb_ternary_gemm.vcd opened for output.
+--- TernaryCore GEMM Testbench (COLS=4 DEPTH=64) ---
+PASS row 0: [35, -146, 111, 35]
+PASS row 1: [42, -153, 111, 42]
+PASS row 2: [177, -32, -145, 177]
+PASS row 3: [56, 89, -145, 56]
+--- 0 error(s) ---
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_ternary_gemm.v:161: $finish called at 2676000 (1ps)
+SIM_PASS sim_gemm_d64
+VCD info: dumpfile tb_axi_gemm_wrapper.vcd opened for output.
+=== AXI4-Lite GEMM Wrapper Testbench (COLS=4 DEPTH=64) ===
+--- Row 0 ---
+PASS row=0 col=0: 35
+PASS row=0 col=1: -146
+PASS row=0 col=2: 111
+PASS row=0 col=3: 35
+--- Row 1 ---
+PASS row=1 col=0: 42
+PASS row=1 col=1: -153
+PASS row=1 col=2: 111
+PASS row=1 col=3: 42
+--- Row 2 ---
+PASS row=2 col=0: 177
+PASS row=2 col=1: -32
+PASS row=2 col=2: -145
+PASS row=2 col=3: 177
+--- Row 3 ---
+PASS row=3 col=0: 56
+PASS row=3 col=1: 89
+PASS row=3 col=2: -145
+PASS row=3 col=3: 56
+--- CTRL register readback ---
+PASS CTRL start bit = 1
+PASS CTRL rst_sw bit = 1
+PASS CTRL cleared
+--- WEIGHT_ENC register readback ---
+PASS WEIGHT_ENC_LO readback = DEADBEEF
+PASS WEIGHT_ENC_HI readback = CAFEBABE
+=== 0 error(s) ===
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_axi_gemm_wrapper.v:300: $finish called at 27535000 (1ps)
+SIM_PASS sim_axi_gemm_d64
+VCD info: dumpfile tb_weight_bram.vcd opened for output.
+=== Weight BRAM Testbench (ADDR_WIDTH=4) ===
+--- Test 1: AXI Write 16 packed weights ---
+--- Test 2: Weight port readback ---
+PASS weight port addr=0: 49
+PASS weight port addr=1: 92
+PASS weight port addr=2: 14
+PASS weight port addr=3: 29
+--- Test 3: AXI readback ---
+PASS AXI readback: 29149249
+--- Test 4: Write with byte strobes ---
+PASS strb test addr=0: 55
+PASS strb test addr=1: 92
+PASS strb test addr=2: aa
+PASS strb test addr=3: 29
+--- Test 5: Write at non-zero address ---
+PASS offset write addr=8: aa
+PASS offset write addr=9: bb
+PASS offset write addr=10: cc
+PASS offset write addr=11: dd
+--- Test 6: Original location not corrupted ---
+PASS corruption check addr=0: 55
+PASS corruption check addr=1: 92
+PASS corruption check addr=2: aa
+PASS corruption check addr=3: 29
+--- Test 7: Combinational weight port read ---
+PASS comb read: 55
+PASS comb read: 92
+=== 0 error(s) ===
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_weight_bram.v:319: $finish called at 398000 (1ps)
+SIM_PASS sim_weight_bram_d4
+VCD info: dumpfile tb_weight_bram.vcd opened for output.
+=== Weight BRAM Testbench (ADDR_WIDTH=8) ===
+--- Test 1: AXI Write 16 packed weights ---
+--- Test 2: Weight port readback ---
+PASS weight port addr=0: 49
+PASS weight port addr=1: 92
+PASS weight port addr=2: 14
+PASS weight port addr=3: 29
+--- Test 3: AXI readback ---
+PASS AXI readback: 29149249
+--- Test 4: Write with byte strobes ---
+PASS strb test addr=0: 55
+PASS strb test addr=1: 92
+PASS strb test addr=2: aa
+PASS strb test addr=3: 29
+--- Test 5: Write at non-zero address ---
+PASS offset write addr=8: aa
+PASS offset write addr=9: bb
+PASS offset write addr=10: cc
+PASS offset write addr=11: dd
+--- Test 6: Original location not corrupted ---
+PASS corruption check addr=0: 55
+PASS corruption check addr=1: 92
+PASS corruption check addr=2: aa
+PASS corruption check addr=3: 29
+--- Test 7: Combinational weight port read ---
+PASS comb read: 55
+PASS comb read: 92
+=== 0 error(s) ===
+ALL TESTS PASSED
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_weight_bram.v:319: $finish called at 398000 (1ps)
+SIM_PASS sim_weight_bram_d8
+TB PASS: signed INT4 unpack
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_int4_unpack.v:31: $finish called at 1000 (1ps)
+SIM_PASS sim_int4_unpack
+TB PASS: v0.3 CRC32 check/restart/protocol
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_crc32.v:134: $finish called at 260000 (1ps)
+SIM_PASS sim_kv_v03_crc32
+TB PASS: v0.3 page header validation/CRC gating
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_page_header.v:160: $finish called at 530000 (1ps)
+SIM_PASS sim_kv_v03_page_header
+PASS scale12 length 1
+PASS scale12 length 7
+PASS scale12 length 63
+PASS scale12 length 64
+PASS scale12 length 65
+PASS scale12 length 127
+PASS scale12 length 128
+PASS scale12 length 1
+TB PASS: v0.3 scale12 boundaries/backpressure/faults
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_scale12_reader.v:255: $finish called at 5690000 (1ps)
+SIM_PASS sim_kv_v03_scale12_reader
+PASS K decoder k_compressed_page64_payload_bytes.hex
+PASS K decoder k_compressed_page128_payload_bytes.hex
+PASS K decoder k_raw_page64_payload_bytes.hex
+PASS V decoder v_compressed_page64_payload_bytes.hex
+PASS V decoder v_compressed_page128_payload_bytes.hex
+PASS V decoder v_raw_page64_payload_bytes.hex
+TB PASS: v0.3 K4/V5 page decoders and faults
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_decoders.v:417: $finish called at 375380000 (1ps)
+SIM_PASS sim_kv_v03_decoders
+PASS cluster concurrent compressed K/V page64
+PASS cluster runtime-swapped raw V/K page64
+PASS cluster independent integrity fault isolation
+TB PASS: v0.3 decoder cluster 2x2
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_decoder_cluster_2x2.v:295: $finish called at 94360000 (1ps)
+SIM_PASS sim_kv_v03_decoder_cluster_2x2
+PASS cluster4 concurrent compressed/raw K/V pages
+PASS cluster4 independent integrity isolation
+TB PASS: v0.3 decoder cluster 4x1
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_decoder_cluster_4x1.v:271: $finish called at 94950000 (1ps)
+SIM_PASS sim_kv_v03_decoder_cluster_4x1
+TB PASS: v0.3 reciprocal 87 bit-exact cases
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_reciprocal.v:72: $finish called at 37460000 (1ps)
+SIM_PASS sim_kv_v03_reciprocal
+TB PASS: v0.3 four-row synchronous score store
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_score_store.v:83: $finish called at 346000 (1ps)
+SIM_PASS sim_kv_v03_score_store
+PASS softmax exact /24 identity for 0..3084
+PASS softmax uniform_4096 length=4096 cycles=37889
+PASS softmax single_sink_65 length=65 cycles=638
+PASS softmax lut_boundary_129 length=129 cycles=1240
+PASS softmax real_engineering_c128_l00_h0 length=128 cycles=1229
+PASS softmax busy start aborts explicitly
+PASS softmax orphan reciprocal blocks restart
+PASS softmax invalid context rejected
+PASS softmax read timeout is fatal
+TB PASS: v0.3 softmax adversarial/real bit-exact
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_softmax.v:261: $finish called at 455160000 (1ps)
+SIM_PASS sim_kv_v03_softmax
+TB PASS: v0.3 V5 multiply 279 legal/boundary cases
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_v5_weight_mul.v:52: $finish called at 279000 (1ps)
+SIM_PASS sim_kv_v03_v5_weight_mul
+PASS AV real_c128_l00_kvh0 style0 context=128
+PASS AV adversarial_c7 style0 context=7
+PASS AV busy-start abort clears live pipeline
+PASS AV adversarial_c7 style0 context=7
+TB PASS: v0.3 AV P16 banked accumulator style0
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_av_accumulator.v:271: $finish called at 96590000 (1ps)
+SIM_PASS sim_kv_v03_av_style0
+PASS AV real_c128_l00_kvh0 style1 context=128
+PASS AV adversarial_c7 style1 context=7
+PASS AV busy-start abort clears live pipeline
+PASS AV adversarial_c7 style1 context=7
+TB PASS: v0.3 AV P16 banked accumulator style1
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_av_accumulator.v:271: $finish called at 96590000 (1ps)
+SIM_PASS sim_kv_v03_av_style1
+PASS AV real_c128_l00_kvh0 style2 context=128
+PASS AV adversarial_c7 style2 context=7
+PASS AV busy-start abort clears live pipeline
+PASS AV adversarial_c7 style2 context=7
+TB PASS: v0.3 AV P16 banked accumulator style2
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_v03_av_accumulator.v:271: $finish called at 96590000 (1ps)
+SIM_PASS sim_kv_v03_av_style2
+TB PASS: legacy INT4 Q8.8 dequant unit
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_dequant.v:37: $finish called at 1000 (1ps)
+SIM_PASS sim_kv_dequant
+TB PASS: QK dot = -2048
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_qk_dot.v:53: $finish called at 80000 (1ps)
+SIM_PASS sim_qk_dot
+TB PASS: qk_group_dot K4 style0 real-model golden (128 tokens)
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_qk_group_dot.v:145: $finish called at 22690000 (1ps)
+SIM_PASS sim_qk_group_dot_regular4_style0
+TB PASS: qk_group_dot K4 style2 real-model golden (128 tokens)
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_qk_group_dot.v:145: $finish called at 22690000 (1ps)
+SIM_PASS sim_qk_group_dot_regular4_style2
+TB PASS: qk_group_dot K5 style0 real-model golden (128 tokens)
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_qk_group_dot.v:145: $finish called at 22690000 (1ps)
+SIM_PASS sim_qk_group_dot_accurate5_style0
+TB PASS: qk_group_dot K5 style2 real-model golden (128 tokens)
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_qk_group_dot.v:145: $finish called at 22690000 (1ps)
+SIM_PASS sim_qk_group_dot_accurate5_style2
+PASS length 1: 19 cycles
+PASS length 7: 99 cycles
+PASS length 63: 831 cycles
+PASS length 64: 844 cycles
+PASS length 65: 856 cycles
+PASS length 127: 1706 cycles
+PASS length 128: 1718 cycles
+PASS length 129: 1731 cycles
+PASS length 511: 6851 cycles
+PASS length 512: 6863 cycles
+CYCLE_ACCOUNT width=128 length=512 total=6863 issue=512 reader_launch=1024 axi_ar=998 axi_r_empty=1128 axi_r_transfer=633 beat_handoff=512 mac=2048 result=8 other=0
+PASS length 513: 6878 cycles
+PASS length 1023: 13862 cycles
+PASS length 1024: 13875 cycles
+PASS length 1025: 13886 cycles
+PASS length 4095: 55238 cycles
+PASS length 4096: 55249 cycles
+CYCLE_ACCOUNT width=128 length=4096 total=55249 issue=4096 reader_launch=8192 axi_ar=8161 axi_r_empty=9183 axi_r_transfer=5129 beat_handoff=4096 mac=16384 result=8 other=0
+PASS length 7: 99 cycles
+PASS invalid context rejected
+PASS unaligned base rejected
+PASS address wrap rejected
+PASS unsafe scale rejected
+PASS reserved INT4 code rejected
+PASS restart rejected during AXI drain
+PASS length 1: 19 cycles
+PASS AR timeout propagated
+PASS R timeout propagated
+PASS RRESP error propagated
+TB PASS: KV engine regression
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_cache_engine.v:451: $finish called at 1827900000 (1ps)
+SIM_PASS sim_kv_cache_engine
+PASS length 1: 18 cycles
+PASS length 7: 80 cycles
+PASS length 63: 744 cycles
+PASS length 64: 754 cycles
+PASS length 65: 765 cycles
+PASS length 127: 1497 cycles
+PASS length 128: 1508 cycles
+PASS length 129: 1521 cycles
+PASS length 511: 6119 cycles
+PASS length 512: 6131 cycles
+CYCLE_ACCOUNT width=256 length=512 total=6131 issue=512 reader_launch=1024 axi_ar=1005 axi_r_empty=1022 axi_r_transfer=512 beat_handoff=0 mac=2048 result=8 other=0
+PASS length 513: 6147 cycles
+PASS length 1023: 12258 cycles
+PASS length 1024: 12268 cycles
+PASS length 1025: 12278 cycles
+PASS length 4095: 49220 cycles
+PASS length 4096: 49231 cycles
+CYCLE_ACCOUNT width=256 length=4096 total=49231 issue=4096 reader_launch=8192 axi_ar=8094 axi_r_empty=8361 axi_r_transfer=4096 beat_handoff=0 mac=16384 result=8 other=0
+PASS length 7: 80 cycles
+PASS invalid context rejected
+PASS unaligned base rejected
+PASS address wrap rejected
+PASS unsafe scale rejected
+PASS reserved INT4 code rejected
+PASS prefetch completed before abort; QK flush exercised
+PASS length 1: 18 cycles
+PASS AR timeout propagated
+PASS R timeout propagated
+PASS RRESP error propagated
+TB PASS: KV engine regression
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_cache_engine.v:451: $finish called at 1628010000 (1ps)
+SIM_PASS sim_kv_cache_engine_256
+PASS length 1: 25 cycles
+PASS length 7: 139 cycles
+PASS length 63: 1260 cycles
+PASS length 64: 1278 cycles
+PASS length 65: 1298 cycles
+PASS length 127: 2545 cycles
+PASS length 128: 2567 cycles
+PASS length 129: 2593 cycles
+PASS length 511: 10287 cycles
+PASS length 512: 10306 cycles
+CYCLE_ACCOUNT width=128 length=512 total=10306 issue=512 reader_launch=1024 axi_ar=1003 axi_r_empty=1313 axi_r_transfer=814 beat_handoff=1536 mac=4096 result=8 other=0
+PASS length 513: 10323 cycles
+PASS length 1023: 20556 cycles
+PASS length 1024: 20573 cycles
+PASS length 1025: 20594 cycles
+PASS length 4095: 82466 cycles
+PASS length 4096: 82483 cycles
+CYCLE_ACCOUNT width=128 length=4096 total=82483 issue=4096 reader_launch=8192 axi_ar=8075 axi_r_empty=10513 axi_r_transfer=6543 beat_handoff=12288 mac=32768 result=8 other=0
+PASS length 7: 139 cycles
+PASS invalid context rejected
+PASS unaligned base rejected
+PASS address wrap rejected
+PASS unsafe scale rejected
+PASS reserved INT4 code rejected
+PASS restart rejected during AXI drain
+PASS length 1: 25 cycles
+PASS AR timeout propagated
+PASS R timeout propagated
+PASS RRESP error propagated
+TB PASS: KV engine regression
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_cache_engine.v:451: $finish called at 2716330000 (1ps)
+SIM_PASS sim_kv_cache_engine_hd128
+PASS length 1: 23 cycles
+PASS length 7: 122 cycles
+PASS length 63: 1075 cycles
+PASS length 64: 1093 cycles
+PASS length 65: 1110 cycles
+PASS length 127: 2172 cycles
+PASS length 128: 2187 cycles
+PASS length 129: 2205 cycles
+PASS length 511: 8686 cycles
+PASS length 512: 8702 cycles
+CYCLE_ACCOUNT width=256 length=512 total=8702 issue=512 reader_launch=1024 axi_ar=975 axi_r_empty=1032 axi_r_transfer=543 beat_handoff=512 mac=4096 result=8 other=0
+PASS length 513: 8721 cycles
+PASS length 1023: 17441 cycles
+PASS length 1024: 17456 cycles
+PASS length 1025: 17478 cycles
+PASS length 4095: 70086 cycles
+PASS length 4096: 70102 cycles
+CYCLE_ACCOUNT width=256 length=4096 total=70102 issue=4096 reader_launch=8192 axi_ar=8053 axi_r_empty=8551 axi_r_transfer=4338 beat_handoff=4096 mac=32768 result=8 other=0
+PASS length 7: 122 cycles
+PASS invalid context rejected
+PASS unaligned base rejected
+PASS address wrap rejected
+PASS unsafe scale rejected
+PASS reserved INT4 code rejected
+PASS prefetch completed before abort; QK flush exercised
+PASS length 1: 23 cycles
+PASS AR timeout propagated
+PASS R timeout propagated
+PASS RRESP error propagated
+TB PASS: KV engine regression
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_kv_cache_engine.v:451: $finish called at 2309710000 (1ps)
+SIM_PASS sim_kv_cache_engine_hd128_256
+TB PASS: AXI KV wrapper
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_axi_kv_cache.v:234: $finish called at 3130000 (1ps)
+SIM_PASS sim_axi_kv_cache
+TB PASS: AXI KV wrapper
+F:\Xilinx_WorkSpace\ternarycore\tb\tb_axi_kv_cache.v:234: $finish called at 4720000 (1ps)
+SIM_PASS sim_axi_kv_cache_hd128
+--- TernaryCore MAC Python Reference ---
+PASS: act=  10  w=01  acc_in=   0  => 10  (expected 10)
+PASS: act=  25  w=01  acc_in=  10  => 35  (expected 35)
+PASS: act=  10  w=10  acc_in=  35  => 25  (expected 25)
+PASS: act=  25  w=10  acc_in=  25  => 0  (expected 0)
+PASS: act=  99  w=00  acc_in=  42  => 42  (expected 42)
+PASS: act= 127  w=00  acc_in=   0  => 0  (expected 0)
+PASS: act=  -5  w=01  acc_in=   0  => -5  (expected -5)
+PASS: act=  -5  w=10  acc_in=   0  => 5  (expected 5)
+
+--- 0 error(s) ---
+ALL TESTS PASSED
+PY_VERIFY_PASS verify/verify_mac.py
+--- Fixed test vectors (VLEN=8, matching Verilog testbench) ---
+  PASS: all +1, acts 1–8 => 36 (expected 36)
+  PASS: all -1, acts 1–8 => -36 (expected -36)
+  PASS: all 0 weights => 0 (expected 0)
+  PASS: mixed ±1, act=5 each => 0 (expected 0)
+  PASS: signed act=-5, w=+1 ×8 => -40 (expected -40)
+  PASS: signed act=-5, w=-1 ×8 => 40 (expected 40)
+  PASS: act=127, w=+1 ×8 => 1016 (expected 1016)
+
+--- Random 64-element vectors ---
+  Trial  0: dot product =     35
+  Trial  1: dot product =    239
+  Trial  2: dot product =   -805
+  Trial  3: dot product =    386
+  Trial  4: dot product =    -21
+  Trial  5: dot product =    182
+  Trial  6: dot product =   -953
+  Trial  7: dot product =    453
+  Trial  8: dot product =     17
+  Trial  9: dot product =    -48
+
+--- 0 fixed-vector error(s) ---
+ALL TESTS PASSED
+PY_VERIFY_PASS verify/verify_dot.py
+--- Fixed 4×4 test (matching Verilog testbench) ---
+  PASS: C[0][0] =    2  (expected    2)
+  PASS: C[0][1] =   -3  (expected   -3)
+  PASS: C[0][2] =    2  (expected    2)
+  PASS: C[0][3] =    3  (expected    3)
+  PASS: C[1][0] =    6  (expected    6)
+  PASS: C[1][1] =   -7  (expected   -7)
+  PASS: C[1][2] =    6  (expected    6)
+  PASS: C[1][3] =    7  (expected    7)
+  PASS: C[2][0] =   -2  (expected   -2)
+  PASS: C[2][1] =    3  (expected    3)
+  PASS: C[2][2] =   -2  (expected   -2)
+  PASS: C[2][3] =   -3  (expected   -3)
+  PASS: C[3][0] =    2  (expected    2)
+  PASS: C[3][1] =   -7  (expected   -7)
+  PASS: C[3][2] =   15  (expected   15)
+  PASS: C[3][3] =   -8  (expected   -8)
+
+  Computed matrix C:
+[[ 2 -3  2  3]
+ [ 6 -7  6  7]
+ [-2  3 -2 -3]
+ [ 2 -7 15 -8]]
+
+  Expected matrix C:
+[[ 2 -3  2  3]
+ [ 6 -7  6  7]
+ [-2  3 -2 -3]
+ [ 2 -7 15 -8]]
+
+  Match: True
+
+--- Random 4×4 GEMMs (10 trials, seed=42) ---
+  Trial  0: C row sums = [-328, 151, 697, -177]
+  Trial  1: C row sums = [240, 342, 80, -266]
+  Trial  2: C row sums = [537, 74, 423, 306]
+  Trial  3: C row sums = [-203, 137, 512, 473]
+  Trial  4: C row sums = [-32, -119, -16, -11]
+  Trial  5: C row sums = [314, -211, -107, -63]
+  Trial  6: C row sums = [-205, 34, -112, -168]
+  Trial  7: C row sums = [-162, -47, 383, -437]
+  Trial  8: C row sums = [7, 173, 45, -344]
+  Trial  9: C row sums = [215, 327, -296, -174]
+
+--- 0 fixed-test error(s) ---
+ALL TESTS PASSED
+PY_VERIFY_PASS verify/verify_gemm.py
+KV INT4 reference PASS: 1,7,63,64,65,127,128,129,511,512,513,1023,1024,1025,4095,4096
+PY_VERIFY_PASS verify/verify_kv_int4.py
+KV quantization reference PASS
+PY_VERIFY_PASS verify/verify_kv_quant.py
+KV v0.2 analysis artifacts PASS
+PY_VERIFY_PASS verify/verify_kv_analysis_artifacts.py
+REGRESSION_TEMP C:\Users\민숙현\AppData\Local\Temp\ternarycore-iverilog-8285bdaf2b704bb7885cf7121311b59e
+FULL_WINDOWS_REGRESSION_PASS

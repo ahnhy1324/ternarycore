@@ -112,7 +112,7 @@ module tb_kv_v03_decoder_cluster_2x2;
 
     task drive0;
         input integer byte_length;
-        integer offset, byte_no, word_bytes;
+        integer offset, byte_no, word_bytes, ready_timeout;
         begin
             offset = 0;
             while (offset < byte_length) begin
@@ -127,8 +127,13 @@ module tb_kv_v03_decoder_cluster_2x2;
                 in_last0 = (offset + word_bytes == byte_length);
                 in_valid0 = 1;
                 @(posedge clk);
-                while (!in_ready[0])
+                ready_timeout = 0;
+                while (!in_ready[0] && ready_timeout < 30000) begin
                     @(posedge clk);
+                    ready_timeout = ready_timeout + 1;
+                end
+                if (!in_ready[0])
+                    $fatal(1, "cluster2 lane 0 input-ready timeout");
                 @(negedge clk);
                 in_valid0 = 0;
                 in_last0 = 0;
@@ -140,7 +145,7 @@ module tb_kv_v03_decoder_cluster_2x2;
 
     task drive1;
         input integer byte_length;
-        integer offset, byte_no, word_bytes;
+        integer offset, byte_no, word_bytes, ready_timeout;
         begin
             offset = 0;
             while (offset < byte_length) begin
@@ -155,8 +160,13 @@ module tb_kv_v03_decoder_cluster_2x2;
                 in_last1 = (offset + word_bytes == byte_length);
                 in_valid1 = 1;
                 @(posedge clk);
-                while (!in_ready[1])
+                ready_timeout = 0;
+                while (!in_ready[1] && ready_timeout < 30000) begin
                     @(posedge clk);
+                    ready_timeout = ready_timeout + 1;
+                end
+                if (!in_ready[1])
+                    $fatal(1, "cluster2 lane 1 input-ready timeout");
                 @(negedge clk);
                 in_valid1 = 0;
                 in_last1 = 0;

@@ -12,8 +12,8 @@ not evidence that a block exists or passes.
   whole-page raw fallback, 32-bit offset tables, 16-byte page alignment.
 - Page CRC covers `header[0:8] || payload || scale slice`; K/V offset tables
   have independent descriptor CRC fields.
-- AXI-128 is first class. Page128 + 2×2 is the provisional balanced point;
-  page64 and 1×4/4×1 remain measured comparisons.
+- AXI-128 is first class. Page128 + 4×1 is the selected isolated baseline;
+  2×2 remains a functional but timing-rejected comparison.
 - Four synchronous 4096×16 signed Q8.8 score rows, 128-entry UQ1.15 exp LUT,
   unsigned 28-bit denominator, normalized reciprocal F=12.
 - V5 AV uses one `exp × V_scale` operation per token, P16, signed 48-bit banked
@@ -67,14 +67,15 @@ For every RTL edit, the complete relevant Icarus suite runs before Vivado.
 ## Execution status — 2026-08-17
 
 Evidence labels below distinguish Icarus RTL simulation from software and from
-Vivado results. No Vivado timing or resource claim is made in this section.
+Vivado routed OOC results. They do not imply a complete Arty implementation.
 
 - Steps 1-5 pass unit and full KV regression: CRC32, typed page header,
   contiguous UQ4.8 scale reader, and bit-exact K4/V5 compressed/raw decoders.
-- The balanced 2x2 decoder cluster runs two complete independent page tasks,
-  supports runtime K4/V5 selection, and has concurrent compressed/raw and
-  per-lane fault-isolation coverage. The 1x4 and 4x1 organizations remain
-  analytical alternatives rather than baseline RTL.
+- The 2x2 decoder cluster remains bit-exact, but routed WNS is -9.138 ns at
+  81.25 MHz. The selected 4x1 cluster runs four complete independent page
+  tasks at one symbol/cycle each, supports runtime K4/V5 selection, passes
+  concurrent compressed/raw and per-lane fault isolation, and closes routed
+  OOC timing with +0.570 ns WNS.
 - Step 6 arithmetic is implemented ahead of the decoder cluster: registered
   Q/K inputs, registered product/reduction levels, group128 accumulation, and
   identical K4/K5 AUTO versus SHIFT_ADD real-model golden results.
@@ -85,13 +86,17 @@ Vivado results. No Vivado timing or resource claim is made in this section.
   the frozen 128-entry UQ1.15 LUT, strictly-below -12 underflow, 28-bit
   denominator, and an iterative F12 normalized reciprocal. It is bit-exact on
   adversarial boundaries and one real Gate A score row. The current two-pass
-  controller is a correctness baseline, not a final utilization result.
+  controller is a correctness baseline, not a final utilization result. The
+  memory maps to eight RAMB36 blocks and the exact reciprocal-multiply `/24`
+  address path closes routed OOC timing with +1.609 ns WNS.
 - Step 8 now has a bit-exact integer-numerator baseline: P16, four heads,
-  sixteen signed 48-bit banks, and AUTO/CSD-equivalent V5 products. It passes
+  sixteen signed 48-bit distributed-RAM banks, and AUTO/CSD/forced-DSP
+  equivalent V5 products. It passes
   one context-128 real capture and a short adversarial case. The final
   numerator-times-reciprocal output rounding/format remains deliberately open
   because the handoff freezes a signed 64-bit intermediate but not an output
-  code format.
+  code format. The legal magnitude is below 2^44, so the 48-bit banks do not
+  require a runtime overflow detector.
 - Step 9 remains pending. The decoder `done` pulse is the page
   commit point; integration must keep streamed symbols in scratch state until
   format completion succeeds.
@@ -115,7 +120,8 @@ typed identities must remain distinct:
 - scale/data synchronization or scale FIFO underflow;
 - compressed prefix invalid/truncated/trailing data;
 - reserved raw K4/V5 code;
-- score/denominator/numerator overflow;
+- score/denominator overflow; AV numerator width is protected by the frozen
+  legal-input bound rather than an unreachable runtime fault;
 - internal scheduler/FIFO protocol violation.
 
 Any page-integrity error suppresses decoder output, aborts the affected row or
@@ -131,10 +137,17 @@ contexts. A timeout is a test failure.
 
 ## Vivado evidence
 
-Part `xc7a100tcsg324-1`, initial target 81.25 MHz. Every required variant gets
-OOC synthesis and routed implementation reports. The page128+2×2 candidate is
-run with CRC on/off. LUT, LUTRAM, FF, DSP48E1, RAMB18, RAMB36, WNS/TNS, routed
-Fmax, critical paths, II, cycle counts, FIFO levels, AXI efficiency,
-starvation, page distribution, fallback, CRC cost, and golden status are kept
-in machine-readable summaries. Failed timing remains a reported failure; an
-estimated frequency is never relabeled as timing closure.
+Part `xc7a100tcsg324-1`, target 81.25 MHz. Isolated decoder, QK, softmax, and AV
+variants have synthesis and routed implementation reports. LUT, LUTRAM, FF,
+DSP48E1, RAMB18/RAMB36, WNS/TNS, route errors, critical paths, and retained
+architecture revisions are in `../hardware_estimates/` machine-readable
+summaries. Failed timing remains a reported failure; an estimated frequency is
+never relabeled as timing closure. OOC `HD.CLK_SRC` and parent
+`HD.PARTPIN_LOCS` are unset, so top-level clock/interface placement remains a
+separate integration requirement.
+
+Selected routed OOC results are decoder 4x1 1,713 LUT/440 FF/+0.570 ns WNS,
+QK 835 LUT/850 FF/1 DSP/+4.628 ns, softmax 438 LUT/359 FF/8.5 BRAM tiles/1
+DSP/+1.609 ns, and AV AUTO 3,577 LUT/673 FF/1 DSP/+1.753 ns. AV forced-DSP is
+the LUT-saving option at 1,384 LUT/337 FF/33 DSP/+1.323 ns. The CSD AV mapping
+uses 7,113 LUT and is not selected.

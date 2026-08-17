@@ -1,4 +1,4 @@
-// kv_v03_symbol_decoder.v -- two-symbol/cycle PACKED5 compressed/raw decoder.
+// kv_v03_symbol_decoder.v -- parameterized PACKED5 compressed/raw decoder.
 // SPDX-License-Identifier: CERN-OHL-S-2.0
 `timescale 1ns / 1ps
 `default_nettype none
@@ -7,6 +7,9 @@ module kv_v03_symbol_decoder #(
     parameter integer SYMBOL_WIDTH = 4,
     parameter integer STREAM_IS_V = 0,
     parameter integer RUNTIME_STREAM_SELECT = 0,
+    // One symbol/cycle removes the dependent second prefix lookup.  Two is
+    // retained for the original 2x2 throughput experiment.
+    parameter integer SYMBOLS_PER_CYCLE = 2,
     parameter integer MAX_SYMBOLS = 16384
 ) (
     input  wire         clk,
@@ -148,18 +151,23 @@ module kv_v03_symbol_decoder #(
         end
     endfunction
 
-    // Avoid a shift-by-64 expression when checking the live reservoir tail.
-    // Some synthesis tools give width-sized shifts implementation-specific
-    // behavior, while this bounded reduction has one unambiguous meaning.
-    function low_bits_nonzero;
+    // A valid compressed page may leave at most seven byte-padding bits.  The
+    // count>7 case is rejected separately, so do not synthesize a 64-bit
+    // variable mask merely to inspect this small tail.
+    function low_tail_nonzero;
         input [63:0] value;
-        input [6:0] count;
-        integer bit_index;
+        input [2:0] count;
         begin
-            low_bits_nonzero = 1'b0;
-            for (bit_index = 0; bit_index < 64; bit_index = bit_index + 1)
-                if (bit_index < count)
-                    low_bits_nonzero = low_bits_nonzero | value[bit_index];
+            case (count)
+                3'd0: low_tail_nonzero = 1'b0;
+                3'd1: low_tail_nonzero = value[0];
+                3'd2: low_tail_nonzero = |value[1:0];
+                3'd3: low_tail_nonzero = |value[2:0];
+                3'd4: low_tail_nonzero = |value[3:0];
+                3'd5: low_tail_nonzero = |value[4:0];
+                3'd6: low_tail_nonzero = |value[5:0];
+                default: low_tail_nonzero = |value[6:0];
+            endcase
         end
     endfunction
 
@@ -202,35 +210,45 @@ module kv_v03_symbol_decoder #(
              (entry0[9] && length0 != 0 && length0 <= bit_count &&
               (bit_count >= 8 || saw_last)));
 
-        remaining_count = decodable0 ? bit_count - length0 : 0;
-        if (remaining_count >= 8)
-            prefix1 = reservoir >> (remaining_count - 8);
-        else
-            prefix1 = reservoir << (8 - remaining_count);
-        entry1 = (mode_stream_is_v == STREAM_IS_V) ?
-                 lookup[prefix1] : alternate_lookup[prefix1];
-        length1 = mode_raw ? raw_width : entry1[8:5];
-        symbol1_comb = entry1[4:0];
-        if (mode_raw) begin
-            symbol1_comb = 5'b0;
-            if (remaining_count >= raw_width) begin
-                for (symbol_bit = 0; symbol_bit < 5;
-                     symbol_bit = symbol_bit + 1)
-                    if (symbol_bit < raw_width)
-                        symbol1_comb[symbol_bit] =
-                            reservoir[remaining_count-1-symbol_bit];
-                if (raw_width == 4)
-                    symbol1_comb[4] = symbol1_comb[3];
+        remaining_count = 0;
+        prefix1 = 0;
+        entry1 = 0;
+        length1 = 0;
+        symbol1_comb = 0;
+        reserved1 = 0;
+        decodable1 = 0;
+        if (SYMBOLS_PER_CYCLE == 2) begin
+            remaining_count = decodable0 ? bit_count - length0 : 0;
+            if (remaining_count >= 8)
+                prefix1 = reservoir >> (remaining_count - 8);
+            else
+                prefix1 = reservoir << (8 - remaining_count);
+            entry1 = (mode_stream_is_v == STREAM_IS_V) ?
+                     lookup[prefix1] : alternate_lookup[prefix1];
+            length1 = mode_raw ? raw_width : entry1[8:5];
+            symbol1_comb = entry1[4:0];
+            if (mode_raw) begin
+                symbol1_comb = 5'b0;
+                if (remaining_count >= raw_width) begin
+                    for (symbol_bit = 0; symbol_bit < 5;
+                         symbol_bit = symbol_bit + 1)
+                        if (symbol_bit < raw_width)
+                            symbol1_comb[symbol_bit] =
+                                reservoir[remaining_count-1-symbol_bit];
+                    if (raw_width == 4)
+                        symbol1_comb[4] = symbol1_comb[3];
+                end
             end
+            reserved1 = mode_raw && (remaining_count >= raw_width) &&
+                (((raw_width == 4) && symbol1_comb[3:0] == 4'h8) ||
+                 ((raw_width == 5) && symbol1_comb[4:0] == 5'h10));
+            decodable1 = decodable0 &&
+                (emitted_symbols + 1 < expected_reg) && !reserved1 &&
+                (mode_raw ? (remaining_count >= raw_width) :
+                 (entry1[9] && length1 != 0 &&
+                  length1 <= remaining_count &&
+                  (remaining_count >= 8 || saw_last)));
         end
-        reserved1 = mode_raw && (remaining_count >= raw_width) &&
-            (((raw_width == 4) && symbol1_comb[3:0] == 4'h8) ||
-             ((raw_width == 5) && symbol1_comb[4:0] == 5'h10));
-        decodable1 = decodable0 &&
-            (emitted_symbols + 1 < expected_reg) && !reserved1 &&
-            (mode_raw ? (remaining_count >= raw_width) :
-             (entry1[9] && length1 != 0 && length1 <= remaining_count &&
-              (remaining_count >= 8 || saw_last)));
     end
 
     assign out_valid = active && decodable0;
@@ -282,7 +300,8 @@ module kv_v03_symbol_decoder #(
         end
     end
 
-    wire trailing_nonzero = low_bits_nonzero(work_reservoir, work_bit_count);
+    wire trailing_nonzero =
+        low_tail_nonzero(reservoir, bit_count[2:0]);
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -319,7 +338,25 @@ module kv_v03_symbol_decoder #(
                     active <= 1'b1;
                 end
             end else if (active) begin
-                if (push_word && !valid_mask(in_byte_valid)) begin
+                // Registered counts detect completion one cycle after the
+                // final symbol pop. This keeps decode and tail-validation
+                // logic out of the same timing path without another state.
+                if (saw_last && emitted_symbols == expected_reg) begin
+                    active <= 1'b0;
+                    // done is the page commit point. Although the input CRC
+                    // was checked before start, a later format fault can
+                    // still invalidate symbols already streamed out. The
+                    // integration must therefore keep downstream effects in
+                    // scratch state until this pulse is observed.
+                    if ((mode_raw && bit_count != 0) ||
+                        (!mode_raw &&
+                         (bit_count > 7 || trailing_nonzero))) begin
+                        error_valid <= 1'b1;
+                        error_code  <= ERR_TRAILING;
+                    end else begin
+                        done <= 1'b1;
+                    end
+                end else if (push_word && !valid_mask(in_byte_valid)) begin
                     active      <= 1'b0;
                     error_valid <= 1'b1;
                     error_code  <= ERR_PROTOCOL;
@@ -339,21 +376,6 @@ module kv_v03_symbol_decoder #(
                     emitted_symbols <= work_emitted;
                     saw_last        <= work_saw_last;
 
-                    if (work_saw_last && work_emitted == expected_reg) begin
-                        active <= 1'b0;
-                        // done is the page commit point. Although the input CRC
-                        // was checked before start, a later format fault can
-                        // still invalidate symbols already streamed out. The
-                        // integration must therefore keep downstream effects
-                        // in scratch state until this pulse is observed.
-                        if ((mode_raw && work_bit_count != 0) ||
-                            (!mode_raw && (work_bit_count > 7 || trailing_nonzero))) begin
-                            error_valid <= 1'b1;
-                            error_code  <= ERR_TRAILING;
-                        end else begin
-                            done <= 1'b1;
-                        end
-                    end
                 end
             end
         end
@@ -368,6 +390,8 @@ module kv_v03_symbol_decoder #(
             $error("kv_v03_symbol_decoder: stream/width mismatch");
         if (RUNTIME_STREAM_SELECT != 0 && RUNTIME_STREAM_SELECT != 1)
             $error("kv_v03_symbol_decoder: RUNTIME_STREAM_SELECT must be 0 or 1");
+        if (SYMBOLS_PER_CYCLE != 1 && SYMBOLS_PER_CYCLE != 2)
+            $error("kv_v03_symbol_decoder: SYMBOLS_PER_CYCLE must be 1 or 2");
     end
 `endif
 endmodule

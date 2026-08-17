@@ -15,10 +15,15 @@ Evidence directories are intentionally separated:
   notes (`[SOFTWARE-BIT-EXACT]`).
 - `results/gate_a/`: expanded real-model prompt/profile runs and summaries
   (`[REAL-MODEL-VALIDATED]`).
-- `results/rtl/`: isolated RTL regression logs (`[RTL-SIMULATED]`).
-- `results/vivado/`: synthesis and implementation reports; synthesis and
-  routed implementation remain distinct evidence classes.
-- `reports/`: final results, index, limitations, and theory comparisons.
+- `results/rtl/`: QK cycle accounting and final regression transcripts
+  (`[RTL-SIMULATED]`).
+- `../hardware_estimates/vivado_v0_3_blocks_2026_1/`: raw synthesis/routed
+  reports plus machine-readable current and retained-revision summaries.
+- `reports/`: the consolidated v0.3 implementation report and decision record.
+
+Start with
+[`reports/V0_3_IMPLEMENTATION_REPORT.md`](reports/V0_3_IMPLEMENTATION_REPORT.md)
+for the completed Gate A/B, RTL, Vivado, architecture, and handoff status.
 
 The model runs measure hidden-state, attention, and tied-logit distortion. They
 are not perplexity, task-accuracy, or generation-quality measurements.

@@ -34,7 +34,7 @@ module tb_kv_v03_decoders;
     integer active_stream = 0;
     integer output_index = 0;
     integer expected_count = 0;
-    integer offset, byte_index, bytes_this_word, timeout, i;
+    integer offset, byte_index, bytes_this_word, timeout, ready_timeout, i;
     reg [15:0] ready_lfsr = 16'h63ad;
     reg [15:0] input_lfsr = 16'h275b;
     string golden_root;
@@ -159,8 +159,13 @@ module tb_kv_v03_decoders;
                 k_in_last = (offset + bytes_this_word == payload_bytes);
                 k_in_valid = 1;
                 @(posedge clk);
-                while (!k_in_ready)
+                ready_timeout = 0;
+                while (!k_in_ready && ready_timeout < 30000) begin
                     @(posedge clk);
+                    ready_timeout = ready_timeout + 1;
+                end
+                if (!k_in_ready)
+                    $fatal(1, "K decoder input-ready timeout");
                 @(negedge clk);
                 k_in_valid = 0;
                 k_in_last = 0;
@@ -203,8 +208,13 @@ module tb_kv_v03_decoders;
                 v_in_last = (offset + bytes_this_word == payload_bytes);
                 v_in_valid = 1;
                 @(posedge clk);
-                while (!v_in_ready)
+                ready_timeout = 0;
+                while (!v_in_ready && ready_timeout < 30000) begin
                     @(posedge clk);
+                    ready_timeout = ready_timeout + 1;
+                end
+                if (!v_in_ready)
+                    $fatal(1, "V decoder input-ready timeout");
                 @(negedge clk);
                 v_in_valid = 0;
                 v_in_last = 0;

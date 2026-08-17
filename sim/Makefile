@@ -6,7 +6,7 @@ IVERILOG = iverilog
 VVP      = vvp
 SIMDIR   = .
 
-.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_softmax tb_kv_v03_v5_weight_mul tb_kv_v03_av clean verify analyze_kv
+.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_decoder_cluster_4x1 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_softmax tb_kv_v03_v5_weight_mul tb_kv_v03_av clean verify analyze_kv
 
 all: tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache
 
@@ -67,7 +67,8 @@ KV_RTL = ../rtl/kv_addr_gen.v ../rtl/int4_unpack.v ../rtl/kv_dequant.v \
 
 tb_kv_cache: tb_int4_unpack tb_kv_v03_crc32 tb_kv_v03_page_header \
 	tb_kv_v03_scale12_reader tb_kv_v03_decoders \
-	tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal \
+	tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_decoder_cluster_4x1 \
+	tb_kv_v03_reciprocal \
 	tb_kv_v03_score_store tb_kv_v03_softmax \
 	tb_kv_v03_v5_weight_mul tb_kv_v03_av \
 	tb_kv_dequant tb_qk_dot tb_qk_group_dot \
@@ -99,6 +100,10 @@ tb_kv_v03_decoder_cluster_2x2: ../tb/tb_kv_v03_decoder_cluster_2x2.v ../rtl/kv_v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_decoder_cluster_2x2 $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_decoder_cluster_2x2 +GOLDEN_ROOT=../analysis/kv_validation/v0_3/codec/decoder_goldens
 
+tb_kv_v03_decoder_cluster_4x1: ../tb/tb_kv_v03_decoder_cluster_4x1.v ../rtl/kv_v03_symbol_decoder.v ../rtl/kv_v03_decoder_cluster_4x1.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_decoder_cluster_4x1 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_decoder_cluster_4x1 +GOLDEN_ROOT=../analysis/kv_validation/v0_3/codec/decoder_goldens
+
 SOFTMAX_GOLDEN = ../analysis/kv_validation/v0_3/rtl_goldens/softmax
 
 tb_kv_v03_reciprocal: ../tb/tb_kv_v03_reciprocal.v ../rtl/kv_v03_reciprocal.v
@@ -119,11 +124,15 @@ tb_kv_v03_v5_weight_mul: ../tb/tb_kv_v03_v5_weight_mul.v ../rtl/kv_v03_v5_weight
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_v5_weight_mul $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_v5_weight_mul
 
-tb_kv_v03_av: tb_kv_v03_av_style0 tb_kv_v03_av_style2
+tb_kv_v03_av: tb_kv_v03_av_style0 tb_kv_v03_av_style1 tb_kv_v03_av_style2
 
 tb_kv_v03_av_style0: ../tb/tb_kv_v03_av_accumulator.v ../rtl/kv_v03_v5_weight_mul.v ../rtl/kv_v03_av_accumulator.v
 	$(IVERILOG) -g2012 -DMULT_STYLE_VAL=0 -o $(SIMDIR)/sim_kv_v03_av_style0 $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_av_style0 +GOLDEN_ROOT=$(AV_GOLDEN)
+
+tb_kv_v03_av_style1: ../tb/tb_kv_v03_av_accumulator.v ../rtl/kv_v03_v5_weight_mul.v ../rtl/kv_v03_av_accumulator.v
+	$(IVERILOG) -g2012 -DMULT_STYLE_VAL=1 -o $(SIMDIR)/sim_kv_v03_av_style1 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_av_style1 +GOLDEN_ROOT=$(AV_GOLDEN)
 
 tb_kv_v03_av_style2: ../tb/tb_kv_v03_av_accumulator.v ../rtl/kv_v03_v5_weight_mul.v ../rtl/kv_v03_av_accumulator.v
 	$(IVERILOG) -g2012 -DMULT_STYLE_VAL=2 -o $(SIMDIR)/sim_kv_v03_av_style2 $^

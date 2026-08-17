@@ -22,6 +22,9 @@ set xdc [file join $repo_root analysis kv_validation scripts \
 set decoder_sources [list \
     [file join $repo_root rtl kv_v03_symbol_decoder.v] \
     [file join $repo_root rtl kv_v03_decoder_cluster_2x2.v]]
+set decoder_4x1_sources [list \
+    [file join $repo_root rtl kv_v03_symbol_decoder.v] \
+    [file join $repo_root rtl kv_v03_decoder_cluster_4x1.v]]
 set qk_sources [list [file join $repo_root rtl qk_group_dot.v]]
 set softmax_sources [list \
     [file join $repo_root rtl kv_v03_score_store.v] \
@@ -35,15 +38,21 @@ set av_sources [list \
 
 set configs [list \
     [list decoder_2x2 kv_v03_decoder_cluster_2x2 $decoder_sources {}] \
+    [list decoder_4x1 kv_v03_decoder_cluster_4x1 $decoder_4x1_sources {}] \
     [list qk_k4_auto qk_group_dot $qk_sources \
           {GROUP_SIZE=128 Q_WIDTH=8 K_WIDTH=4 SCALE_WIDTH=16 ACC_WIDTH=64 MULT_STYLE=2}] \
     [list softmax_engine kv_v03_softmax_engine $softmax_sources {}] \
     [list av_v5_csd kv_v03_av_accumulator $av_sources {MULT_STYLE=0}] \
+    [list av_v5_dsp kv_v03_av_accumulator $av_sources {MULT_STYLE=1}] \
     [list av_v5_auto kv_v03_av_accumulator $av_sources {MULT_STYLE=2}]]
 
 set summary_path [file join $out_dir routed_runs.csv]
-set summary [open $summary_path w]
-puts $summary "config,top,part,target_clock_mhz,status,route_status,wns_ns,estimated_fmax_mhz"
+set summary_has_rows [expr {[file exists $summary_path] &&
+                            [file size $summary_path] > 0}]
+set summary [open $summary_path [expr {$summary_has_rows ? "a" : "w"}]]
+if {!$summary_has_rows} {
+    puts $summary "config,top,part,target_clock_mhz,status,route_status,wns_ns,estimated_fmax_mhz"
+}
 
 foreach config $configs {
     lassign $config name top sources generics
@@ -81,7 +90,17 @@ foreach config $configs {
         place_design -directive Explore
         phys_opt_design -directive Explore
         route_design -directive Explore
-        set route_status [get_property ROUTE_STATUS [current_design]]
+        set route_report [report_route_status -return_string]
+        set route_file [open \
+            [file join $out_dir ${name}_routed_route_status.rpt] w]
+        puts $route_file $route_report
+        close $route_file
+        if {[regexp {# of nets with routing errors[^:]*:\s+0\s+:} \
+                    $route_report]} {
+            set route_status "ROUTED"
+        } else {
+            set route_status "ROUTE_ERRORS"
+        }
         report_utilization -file \
             [file join $out_dir ${name}_routed_utilization.rpt]
         report_utilization -hierarchical -hierarchical_depth 6 -file \

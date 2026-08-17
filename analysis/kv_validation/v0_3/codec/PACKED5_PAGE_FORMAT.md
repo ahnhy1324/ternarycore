@@ -10,8 +10,10 @@ K payload, V payload, K scale, and V scale are separate planes. A page decoder
 task is identified by `(stream, layer, KV head, page)`. Parallel decoder engines
 operate on independent tasks; a page is not split into byte-aligned substreams.
 
-Page sizes are 64 or 128 tokens. The preferred baseline is page128 with a 2×2
-decoder organization; page64 is retained as the lower-latency comparison.
+Page sizes are 64 or 128 tokens. The preferred baseline is page128 with four
+independent one-symbol decoder tasks (4×1); page64 is retained as the
+lower-latency comparison. The original 2×2 organization remains bit-exact but
+is rejected by routed OOC timing, not by the page-format contract.
 
 ## Header
 

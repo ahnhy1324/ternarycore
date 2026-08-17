@@ -80,16 +80,22 @@ module kv_v03_scale12_reader #(
         end
     endfunction
 
-    // Bounded reduction avoids relying on tool-specific shift-by-64 behavior.
-    function low_bits_nonzero;
+    // A valid byte-packed scale plane leaves at most seven padding bits.  The
+    // count>7 case is rejected separately, so only inspect the legal tail.
+    function low_tail_nonzero;
         input [63:0] value;
-        input [6:0] count;
-        integer bit_index;
+        input [2:0] count;
         begin
-            low_bits_nonzero = 1'b0;
-            for (bit_index = 0; bit_index < 64; bit_index = bit_index + 1)
-                if (bit_index < count)
-                    low_bits_nonzero = low_bits_nonzero | value[bit_index];
+            case (count)
+                3'd0: low_tail_nonzero = 1'b0;
+                3'd1: low_tail_nonzero = value[0];
+                3'd2: low_tail_nonzero = |value[1:0];
+                3'd3: low_tail_nonzero = |value[2:0];
+                3'd4: low_tail_nonzero = |value[3:0];
+                3'd5: low_tail_nonzero = |value[4:0];
+                3'd6: low_tail_nonzero = |value[5:0];
+                default: low_tail_nonzero = |value[6:0];
+            endcase
         end
     endfunction
 
@@ -168,7 +174,8 @@ module kv_v03_scale12_reader #(
                     end else if (work_saw_last && work_emitted == expected_reg) begin
                         active <= 1'b0;
                         if (work_bit_count > 7 ||
-                            low_bits_nonzero(work_reservoir, work_bit_count)) begin
+                            low_tail_nonzero(work_reservoir,
+                                             work_bit_count[2:0])) begin
                             error_valid <= 1'b1;
                             error_code  <= ERR_OVERFLOW;
                         end else begin

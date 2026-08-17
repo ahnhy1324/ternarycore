@@ -93,6 +93,11 @@ Invoke-IverilogTest "sim_kv_v03_decoder_cluster_2x2" @() @(
     "rtl/kv_v03_symbol_decoder.v",
     "rtl/kv_v03_decoder_cluster_2x2.v") @(
     "+GOLDEN_ROOT=$decoderGoldenRoot")
+Invoke-IverilogTest "sim_kv_v03_decoder_cluster_4x1" @() @(
+    "tb/tb_kv_v03_decoder_cluster_4x1.v",
+    "rtl/kv_v03_symbol_decoder.v",
+    "rtl/kv_v03_decoder_cluster_4x1.v") @(
+    "+GOLDEN_ROOT=$decoderGoldenRoot")
 $softmaxGoldenRoot = (Join-Path $repo (
     "analysis/kv_validation/v0_3/rtl_goldens/softmax")).Replace("\", "/")
 Invoke-IverilogTest "sim_kv_v03_reciprocal" @() @(
@@ -110,7 +115,7 @@ $avGoldenRoot = (Join-Path $repo (
     "analysis/kv_validation/v0_3/rtl_goldens/av")).Replace("\", "/")
 Invoke-IverilogTest "sim_kv_v03_v5_weight_mul" @() @(
     "tb/tb_kv_v03_v5_weight_mul.v", "rtl/kv_v03_v5_weight_mul.v")
-foreach ($avMultStyle in 0, 2) {
+foreach ($avMultStyle in 0, 1, 2) {
     Invoke-IverilogTest "sim_kv_v03_av_style$avMultStyle" @(
         "MULT_STYLE_VAL=$avMultStyle") @(
         "tb/tb_kv_v03_av_accumulator.v",

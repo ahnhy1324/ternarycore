@@ -1,0 +1,21 @@
+PASS softmax uniform_4096 length=4096 cycles=37889
+PASS softmax single_sink_65 length=65 cycles=638
+PASS softmax lut_boundary_129 length=129 cycles=1240
+PASS softmax real_engineering_c128_l00_h0 length=128 cycles=1229
+PASS softmax busy start aborts explicitly
+PASS softmax orphan reciprocal blocks restart
+PASS softmax invalid context rejected
+PASS softmax read timeout is fatal
+TB PASS: v0.3 softmax adversarial/real bit-exact
+tb\tb_kv_v03_softmax.v:260: $finish called at 455160000 (1ps)
+PASS softmax exact /24 identity for 0..3084
+PASS softmax uniform_4096 length=4096 cycles=37889
+PASS softmax single_sink_65 length=65 cycles=638
+PASS softmax lut_boundary_129 length=129 cycles=1240
+PASS softmax real_engineering_c128_l00_h0 length=128 cycles=1229
+PASS softmax busy start aborts explicitly
+PASS softmax orphan reciprocal blocks restart
+PASS softmax invalid context rejected
+PASS softmax read timeout is fatal
+TB PASS: v0.3 softmax adversarial/real bit-exact
+tb\tb_kv_v03_softmax.v:261: $finish called at 455160000 (1ps)

@@ -96,10 +96,29 @@ if (Test-Path -LiteralPath $runRoot) {
     New-Item -ItemType Directory -Path $gateSummaryDestination | Out-Null
     Get-ChildItem -LiteralPath $runRoot -File | Copy-Item -Destination $gateSummaryDestination
 }
-foreach ($resultDirectoryName in @("fixedpoint", "schedule")) {
+foreach ($resultDirectoryName in @("fixedpoint", "schedule", "rtl")) {
     $resultDirectory = Join-Path $v03Root "results\$resultDirectoryName"
     if (Test-Path -LiteralPath $resultDirectory) {
         Copy-Item -LiteralPath $resultDirectory -Destination $compactResultsRoot -Recurse
+    }
+}
+
+# Routed implementation reports and checkpoints are intentionally ignored by
+# Git because they are large and tool-generated.  Preserve them beside the
+# compact numerical evidence so the resource/timing conclusions can be audited
+# after moving environments.
+$implementationEvidenceRoot = Join-Path $stagingRoot "implementation_evidence"
+$vivadoEvidence = Join-Path $repositoryRoot (
+    "analysis\kv_validation\hardware_estimates\vivado_v0_3_blocks_2026_1")
+if (Test-Path -LiteralPath $vivadoEvidence) {
+    New-Item -ItemType Directory -Path $implementationEvidenceRoot -Force | Out-Null
+    Copy-Item -LiteralPath $vivadoEvidence -Destination $implementationEvidenceRoot -Recurse
+}
+foreach ($toolLogName in @("vivado.log", "vivado.jou", "clockInfo.txt")) {
+    $toolLog = Join-Path $repositoryRoot $toolLogName
+    if (Test-Path -LiteralPath $toolLog) {
+        New-Item -ItemType Directory -Path $implementationEvidenceRoot -Force | Out-Null
+        Copy-Item -LiteralPath $toolLog -Destination $implementationEvidenceRoot
     }
 }
 

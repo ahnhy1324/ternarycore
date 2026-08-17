@@ -25,7 +25,7 @@ module tb_kv_v03_scale12_reader;
     integer expected_index = 0;
     integer active_expected = 0;
     integer i, j, bit_position, total_bytes, word_offset, bytes_this_word;
-    integer timeout;
+    integer timeout, ready_timeout;
     reg monitor_enable = 0;
     reg backpressure_enable = 0;
     reg [15:0] lfsr = 16'h5a3c;
@@ -103,8 +103,13 @@ module tb_kv_v03_scale12_reader;
         begin
             word_offset = 0;
             while (word_offset < total_bytes) begin
-                while (!in_ready)
+                ready_timeout = 0;
+                while (!in_ready && ready_timeout < 1000) begin
                     @(negedge clk);
+                    ready_timeout = ready_timeout + 1;
+                end
+                if (!in_ready)
+                    $fatal(1, "scale reader input-ready timeout");
                 bytes_this_word = total_bytes - word_offset;
                 if (bytes_this_word > 4)
                     bytes_this_word = 4;

@@ -49,14 +49,15 @@ or record a license-server value in this handoff.
 2. Restore the completed `analysis/kv_validation/v0_3/results` directories from
    the archive.
 3. Verify the theory ZIP, execution request, and checkpoint hashes.
-4. Run the reference self-checks before resuming the long matrix.
-5. Resume the matrix. It skips profiles that contain a valid `run.json`.
+4. Run the reference self-checks and full RTL regression before new RTL work.
+5. Regenerate compact summaries. Rerun the long matrix only if a completed
+   profile is absent or its recorded hash fails.
 
 ```powershell
 python analysis\kv_validation\scripts\validate_bitnet_streaming_reference.py
 python analysis\kv_validation\scripts\packed5_page_codec.py --self-test
 python analysis\kv_validation\scripts\validate_v0_3_codec.py
-python analysis\kv_validation\scripts\run_v0_3_gate_a_matrix.py
+.\sim\run_windows_regression.ps1
 ```
 
 If a process stopped mid-profile, the matrix refuses to overwrite that partial
@@ -65,34 +66,58 @@ directory. Move the exact incomplete profile directory into
 then rerun the matrix. Never label a partial profile complete merely because its
 log ended.
 
-After Gate A completes:
+Regenerate the compact evidence and routed-report tables with:
 
 ```powershell
 python analysis\kv_validation\scripts\summarize_v0_3_gate_a.py
 python analysis\kv_validation\scripts\validate_v0_3_codec.py
 python analysis\kv_validation\scripts\run_v0_3_fixedpoint_sweep.py
 python analysis\kv_validation\scripts\run_v0_3_schedule_model.py
+python analysis\kv_validation\scripts\summarize_vivado_v03_blocks.py analysis\kv_validation\hardware_estimates\vivado_v0_3_blocks_2026_1
+python analysis\kv_validation\scripts\summarize_vivado_v03_variants.py analysis\kv_validation\hardware_estimates\vivado_v0_3_blocks_2026_1
 ```
 
 Then use the numerical decision to implement RTL. Per `AGENTS.md`, every RTL
 change must pass Icarus regression before Vivado synthesis or implementation.
 
-## Remaining work
+## Completed state — 2026-08-17
 
-- Complete and summarize the eight-prompt, ten-context-case Gate A matrix.
-- Decide whether UQ4.8 is acceptable using aggregate and worst-case paired
-  results, not a single prompt.
-- Complete Gate B fixed-point sweep and freeze explicitly unverified ABI choices.
-- Implement isolated codec/CRC/fixed-point RTL only after Gate A/B.
-- Run Icarus boundary/back-pressure/fault regressions.
-- Run the required Vivado 2026.1 utilization/timing comparisons, with the
-  128-bit Arty path as a first-class configuration.
-- Update `docs/KV-IP.md` and v0.3 result documents with evidence-class labels.
-- Review comments, TODOs, timeout failures, synchronization, and boundary bugs.
-- Produce one final analysis ZIP with SHA-256 manifest and a local final commit.
+- Gate A completed 30/30 runs: eight natural prompts at context 128 and two at
+  context 512. UQ4.8 mean final-hidden relative RMSE is 0.073107 versus
+  0.072898 for UQ5.11; both preserve top-1 in all ten cases and have no scale
+  faults. These are distortion measurements, not accuracy/perplexity claims.
+- Gate B, codec self-checks, nine fault classes, and the page64/page128 storage
+  accounting pass. Page128 averages 129.262 full K+V bytes/token/KV head.
+- The complete Windows regression passes, including all required boundary
+  lengths, randomized back-pressure, short-after-long/fault, explicit timeout
+  failures, 4x1 decoder isolation, softmax abort/orphan reciprocal behavior,
+  and CSD/DSP/AUTO AV goldens.
+- Routed OOC timing closes at 81.25 MHz for decoder 4x1 (+0.570 ns), QK
+  (+4.628 ns), softmax (+1.609 ns), AV AUTO (+1.753 ns), AV forced DSP
+  (+1.323 ns), and AV CSD (+1.221 ns). Decoder 2x2 is rejected at -9.138 ns.
+- AV AUTO is the default resource balance at 3,577 LUT/673 FF/1 DSP. Forced
+  DSP is a 1,384 LUT/337 FF/33 DSP option. CSD uses 7,113 LUT and is rejected.
+- Current and retained-revision machine tables are under
+  `analysis/kv_validation/hardware_estimates/vivado_v0_3_blocks_2026_1/`.
+- The consolidated decision record is
+  `analysis/kv_validation/v0_3/reports/V0_3_IMPLEMENTATION_REPORT.md`.
 
-The optional 24-32-window expansion is not part of the fast path. Run it only
-if the eight-prompt paired results leave the UQ4.8 decision materially unclear.
+## Next safe implementation work
+
+1. Build the AXI-128 page/offset scheduler with long bursts, CRC-gated
+   ping-pong buffers, and starvation/utilization counters.
+2. Add independent K/V scale FIFOs and prefetch with explicit data/scale tags
+   and underflow tests.
+3. Add the V5 AXI stream and connect it to the isolated AV AUTO baseline.
+4. Integrate score/softmax/AV row commit/abort ownership.
+5. Freeze normalized AV output rounding/saturation before implementing the
+   reciprocal-output stage.
+
+Do not add Hadamard or deterministic dither to the baseline. Do not switch to
+the 256-bit port or add MAC lanes until integrated counters show that AXI width
+or arithmetic is the dominant stall source. The optional 24--32-window model
+expansion is no longer needed to decide the current UQ4.8 fast path, but longer
+real-model contexts still require a faster host.
 
 ## What must be preserved outside Git
 

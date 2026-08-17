@@ -28,7 +28,7 @@ module tb_kv_v03_av_accumulator;
     reg [15:0] exp_codes [0:511];
     reg [47:0] expected [0:511];
     integer current_context = 0, output_beats = 0;
-    integer token, head, group_index, lane, timeout, errors = 0;
+    integer token, head, group_index, lane, timeout, ready_timeout, errors = 0;
     reg [15:0] ready_lfsr = 16'h3a7d;
     reg [15:0] input_lfsr = 16'h6c51;
     string golden_root;
@@ -106,8 +106,13 @@ module tb_kv_v03_av_accumulator;
                                 v_codes[token*128 + group_index*16 + lane];
                         in_valid = 1;
                         @(posedge clk);
-                        while (!in_ready)
+                        ready_timeout = 0;
+                        while (!in_ready && ready_timeout < 1000) begin
                             @(posedge clk);
+                            ready_timeout = ready_timeout + 1;
+                        end
+                        if (!in_ready)
+                            $fatal(1, "AV input-ready timeout");
                         @(negedge clk);
                         in_valid = 0;
                         input_lfsr = {input_lfsr[14:0],
@@ -183,6 +188,43 @@ module tb_kv_v03_av_accumulator;
         rst_n = 1;
 
         run_case("real_c128_l00_kvh0", 128);
+        run_case("adversarial_c7", 7);
+
+        // A start while pipeline data is live must abort.  Merely pausing the
+        // valid registers would apply the pending accumulator update twice.
+        context_len = 1;
+        @(negedge clk);
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        in_head = 0;
+        in_group = 0;
+        in_exp_code = 1;
+        in_v_scale = 1;
+        in_v_codes = 0;
+        in_valid = 1;
+        @(posedge clk);
+        ready_timeout = 0;
+        while (!in_ready && ready_timeout < 1000) begin
+            @(posedge clk);
+            ready_timeout = ready_timeout + 1;
+        end
+        if (!in_ready)
+            $fatal(1, "AV busy-start setup input-ready timeout");
+        @(negedge clk);
+        in_valid = 0;
+        start = 1;
+        @(negedge clk);
+        start = 0;
+        expect_error(8'h02);
+        if (busy) begin
+            $display("FAIL AV busy-start abort left engine active");
+            errors = errors + 1;
+        end else begin
+            $display("PASS AV busy-start abort clears live pipeline");
+        end
+
+        // A full case after the abort detects stale stage-valid or bank state.
         run_case("adversarial_c7", 7);
 
         // Schedule mismatch is rejected before any accumulator commit.

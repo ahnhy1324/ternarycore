@@ -3,6 +3,28 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+// Keep each 32-word lane in its own inference boundary.  The accumulator and
+// result stream are mutually exclusive, so one asynchronous read address is
+// sufficient for both phases and maps naturally to distributed RAM.
+module kv_v03_av_numerator_lane (
+    input  wire                    clk,
+    input  wire                    write_en,
+    input  wire [4:0]              write_addr,
+    input  wire signed [47:0]      write_data,
+    input  wire [4:0]              read_addr,
+    output wire signed [47:0]      read_data
+);
+    (* ram_style = "distributed" *)
+    reg signed [47:0] memory [0:31];
+
+    always @(posedge clk) begin
+        if (write_en)
+            memory[write_addr] <= write_data;
+    end
+
+    assign read_data = memory[read_addr];
+endmodule
+
 module kv_v03_av_accumulator #(
     parameter integer MAX_CONTEXT = 4096,
     parameter integer MULT_STYLE = 2
@@ -38,7 +60,10 @@ module kv_v03_av_accumulator #(
     localparam [7:0] ERR_SCHEDULE = 8'h03;
     localparam [7:0] ERR_RESERVED = 8'h04;
     localparam [7:0] ERR_SCALE = 8'h05;
-    localparam [7:0] ERR_OVERFLOW = 8'h06;
+    // The legal maximum magnitude is
+    // (2^16-1)*(2^12-1)*15*4096 < 2^44.  A signed 48-bit accumulator
+    // therefore has three guard bits beyond the 45-bit minimum, so a runtime
+    // overflow detector would only add an unreachable global control path.
 
     reg active, accepting, output_active;
     reg [12:0] context_reg, token_counter;
@@ -89,35 +114,35 @@ module kv_v03_av_accumulator #(
 
     // Sixteen lane banks, each with four heads x eight dimension groups.
     // The first token overwrites every logical entry, so no bulk reset is
-    // required and distributed-RAM inference remains possible.
-    (* ram_style = "distributed" *)
-    reg signed [ACC_WIDTH-1:0] numerator_bank [0:15][0:31];
-    wire signed [ACC_WIDTH:0] next_accumulator [0:15];
-    wire overflow_lane [0:15];
+    // required.  Accumulation and result output never overlap, allowing their
+    // addresses to share the single asynchronous read port.
+    wire [4:0] numerator_read_address = output_active ?
+                                                {out_head, out_group} :
+                                                stage1_address;
+    wire signed [ACC_WIDTH-1:0] numerator_read [0:15];
+    wire signed [ACC_WIDTH-1:0] next_accumulator [0:15];
     generate
         for (lane = 0; lane < LANES; lane = lane + 1) begin : g_accumulate
-            wire signed [ACC_WIDTH:0] extended_product =
-                {{(ACC_WIDTH+1-PRODUCT_WIDTH){stage1_product[lane][PRODUCT_WIDTH-1]}},
+            wire signed [ACC_WIDTH-1:0] extended_product =
+                {{(ACC_WIDTH-PRODUCT_WIDTH){stage1_product[lane][PRODUCT_WIDTH-1]}},
                  stage1_product[lane]};
-            wire signed [ACC_WIDTH:0] extended_previous =
-                {numerator_bank[lane][stage1_address][ACC_WIDTH-1],
-                 numerator_bank[lane][stage1_address]};
             assign next_accumulator[lane] = stage1_first ?
-                extended_product : extended_previous + extended_product;
-            assign overflow_lane[lane] =
-                next_accumulator[lane][ACC_WIDTH] !=
-                next_accumulator[lane][ACC_WIDTH-1];
+                extended_product : numerator_read[lane] + extended_product;
             assign out_numerators[(lane*ACC_WIDTH) +: ACC_WIDTH] =
-                numerator_bank[lane][{out_head, out_group}];
+                numerator_read[lane];
+            kv_v03_av_numerator_lane u_numerator_lane (
+                .clk(clk),
+                // The proven legal bound above makes the write enable depend
+                // only on transaction/pipeline state.  This also avoids a
+                // data-dependent 16-lane reduction feeding all RAM lanes.
+                .write_en(!start && active && stage1_valid),
+                .write_addr(stage1_address),
+                .write_data(next_accumulator[lane]),
+                .read_addr(numerator_read_address),
+                .read_data(numerator_read[lane])
+            );
         end
     endgenerate
-    wire accumulator_overflow = overflow_lane[0] | overflow_lane[1] |
-        overflow_lane[2] | overflow_lane[3] | overflow_lane[4] |
-        overflow_lane[5] | overflow_lane[6] | overflow_lane[7] |
-        overflow_lane[8] | overflow_lane[9] | overflow_lane[10] |
-        overflow_lane[11] | overflow_lane[12] | overflow_lane[13] |
-        overflow_lane[14] | overflow_lane[15];
-
     assign in_ready = active && accepting;
     assign out_valid = output_active;
     assign out_last = output_active && out_head == 3 && out_group == 7;
@@ -157,8 +182,16 @@ module kv_v03_av_accumulator #(
 
             if (start) begin
                 if (active) begin
-                    error_valid <= 1'b1;
-                    error_code  <= ERR_BUSY;
+                    // Do not pause live pipeline-valid bits: resuming them on
+                    // the next cycle would commit the same update twice.
+                    // Abort the in-flight transaction with a typed error.
+                    active        <= 1'b0;
+                    accepting     <= 1'b0;
+                    output_active <= 1'b0;
+                    stage0_valid  <= 1'b0;
+                    stage1_valid  <= 1'b0;
+                    error_valid   <= 1'b1;
+                    error_code    <= ERR_BUSY;
                 end else if (context_len == 0 || context_len > MAX_CONTEXT) begin
                     error_valid <= 1'b1;
                     error_code  <= ERR_CONTEXT;
@@ -191,24 +224,10 @@ module kv_v03_av_accumulator #(
                 end
 
                 if (stage1_valid) begin
-                    if (accumulator_overflow) begin
-                        active        <= 1'b0;
-                        accepting     <= 1'b0;
-                        output_active <= 1'b0;
-                        stage0_valid  <= 1'b0;
-                        stage1_valid  <= 1'b0;
-                        error_valid   <= 1'b1;
-                        error_code    <= ERR_OVERFLOW;
-                    end else begin
-                        for (update_lane = 0; update_lane < LANES;
-                             update_lane = update_lane + 1)
-                            numerator_bank[update_lane][stage1_address] <=
-                                next_accumulator[update_lane][ACC_WIDTH-1:0];
-                        if (stage1_final) begin
-                            output_active <= 1'b1;
-                            out_head      <= 2'b0;
-                            out_group     <= 3'b0;
-                        end
+                    if (stage1_final) begin
+                        output_active <= 1'b1;
+                        out_head      <= 2'b0;
+                        out_group     <= 3'b0;
                     end
                 end
 

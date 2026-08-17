@@ -1,7 +1,9 @@
-# INT4 KV-cache QK IP v0.2
+# INT4/PACKED5 KV-cache IP v0.2 contract and v0.3 development
 
-This document is the normative implementation contract for the current
-KV-cache QK sidecar. Historical v0.1 material and superseded group32/Q8.8
+The v0.2 sections of this document are the normative implementation contract
+for the packaged KV-cache QK sidecar. The v0.3 sections record isolated codec,
+softmax, and AV development and do not silently extend the packaged ABI.
+Historical v0.1 material and superseded group32/Q8.8
 recommendations are not part of this contract; see
 [KV-IP-v0.1-ARCHIVE.md](KV-IP-v0.1-ARCHIVE.md).
 
@@ -62,9 +64,11 @@ cache-engine or packaged-IP format because no 5-bit packer/reader exists yet.
 | AXI-Lite Q/config/logit windows | Implemented | ABI-v2 wrapper test |
 | Physical K scale plane reader/FIFO | Not implemented | compatibility scalar is replicated |
 | Q UQ1.15 scale and `1/sqrt(HEAD_DIM)` | Not implemented | host/post-stage responsibility |
-| Synchronous score BRAM | Not implemented | current 4096×32 array infers LUTRAM |
-| Softmax | Candidate only | no RTL baseline |
-| V reader and AV accumulation | Candidate only | recommended next distinct block |
+| Four-row Q8.8 score BRAM | Isolated v0.3 RTL | 8 RAMB36, Icarus and routed OOC |
+| Softmax | Isolated v0.3 RTL | bit-exact Icarus and routed OOC; not integrated |
+| V5 AV integer numerator | Isolated v0.3 RTL | banked P16 real/adversarial golden |
+| V AXI reader and final AV normalization | Not implemented | recommended next distinct block |
+| PACKED5 compressed K/V decoder | Isolated v0.3 RTL | 4x1 baseline; page scheduler pending |
 | Hadamard | Excluded from baseline | no clear hardware Pareto justification |
 | Deterministic dither | Interface research only | exact mapping remains TODO |
 
@@ -279,10 +283,11 @@ and a clean short transaction after the fault are regression-tested.
 | 128 | 256 | 512 | 10,323 | 8,702 | 15.7% |
 | 128 | 256 | 4,096 | 82,489 | 70,102 | 15.0% |
 
-Evidence: `RTL-SIMULATED/Icarus-v0.3-overlap`. The 81.25 MHz rate remains an
-analytical projection until Vivado synthesis and routed timing complete. The
-compressed page scheduler, decoder cluster, and scale prefetch are not part of
-these cycle measurements.
+Evidence: `RTL-SIMULATED/Icarus-v0.3-overlap`. The isolated QK arithmetic block
+subsequently closed routed OOC timing at 81.25 MHz, but the rates in this table
+still project that clock onto RTL-simulated cycles. The compressed page
+scheduler, decoder cluster, and scale prefetch are not part of these cycle
+measurements.
 
 ## Parameters and legal combinations
 
@@ -375,6 +380,25 @@ The standalone K4 AUTO core uses 840 LUT, 176 FF, and one DSP with +4.820 ns
 WNS at 81.25 MHz. K5 AUTO uses 1,044 LUT, 178 FF, and one DSP. Forced-DSP uses
 21 DSPs and is not the small baseline.
 
+The newer isolated v0.3 blocks were synthesized and routed with the same part
+and 81.25 MHz OOC target:
+
+| Block/configuration | LUT | LUTRAM LUT | FF | BRAM tiles | DSP | Routed WNS | Status |
+|---|---:|---:|---:|---:|---:|---:|---|
+| decoder 2x2 | 1,672 | 0 | 280 | 0 | 0 | -9.138 ns | rejected |
+| decoder 4x1 | 1,713 | 0 | 440 | 0 | 0 | +0.570 ns | baseline |
+| QK K4 AUTO registered tree | 835 | 0 | 850 | 0 | 1 | +4.628 ns | closes |
+| softmax engine | 438 | 0 | 359 | 8.5 | 1 | +1.609 ns | closes |
+| V5 AV CSD | 7,113 | 512 | 689 | 0 | 1 | +1.221 ns | LUT-heavy, rejected |
+| V5 AV forced DSP | 1,384 | 512 | 337 | 0 | 33 | +1.323 ns | LUT-saving option |
+| V5 AV AUTO | 3,577 | 512 | 673 | 0 | 1 | +1.753 ns | default |
+
+AUTO is the AV baseline because it has the largest routed margin while using
+one DSP. Forced DSP saves 2,193 LUT but consumes 33 of 240 DSPs, so it remains
+available for a LUT-limited parent design. CSD is not on the hardware Pareto
+frontier. These are isolated OOC results: `HD.CLK_SRC` and parent
+`HD.PARTPIN_LOCS` remain unset, and no board-frequency claim is made.
+
 Current head128 wrapper OOC results after the ABI-v2 guard revision:
 
 | AXI width | LUT (% device) | Logic LUT | LUTRAM LUT | FF (% device) | BRAM | DSP | WNS at 81.248 MHz | Status |
@@ -418,14 +442,16 @@ Attention-weighted V is the largest current attention component. The next
 distinct block should therefore be V streaming/AV accumulation while QK work
 focuses on utilization.
 
-## v0.3 isolated decoder and softmax RTL
+## v0.3 isolated decoder, softmax, and AV RTL
 
-The balanced decoder candidate is now an isolated 2x2 cluster: two independent
-whole-page tasks, two symbols/cycle per task, and four aggregate symbols/cycle.
+The baseline decoder is now an isolated 4x1 cluster: four independent
+whole-page tasks, one symbol/cycle per task, and four aggregate symbols/cycle.
 The engines select K4 or V5 at task start, so compressed and raw K/V pages can
-be assigned without splitting a prefix stream. Concurrent K/V, runtime task
-swap, and per-lane integrity-fault isolation pass Icarus regression. The 1x4
-and 4x1 organizations remain analytical comparisons and are not implemented.
+be assigned without splitting a prefix stream. Concurrent compressed/raw K/V,
+random back-pressure, and per-lane integrity-fault isolation pass Icarus. The
+original 2x2/two-symbol cluster remains regression-tested but is rejected for
+implementation because its dependent second prefix lookup has routed WNS
+-9.138 ns at 81.25 MHz. The final 4x1 cluster has +0.570 ns routed OOC WNS.
 
 The isolated softmax baseline implements four synchronous 4096x16 signed Q8.8
 score rows, max/subtract, the frozen 128-entry UQ1.15 exponent table, strict
@@ -434,10 +460,10 @@ reciprocal. It is bit-exact against 87 reciprocal cases plus these score rows:
 
 | Case | Keys | Denominator | Underflows | Simulated cycles |
 |---|---:|---:|---:|---:|
-| uniform maximum | 4,096 | 134,217,728 | 0 | 25,614 |
-| single sink | 65 | 32,768 | 64 | 449 |
-| LUT boundary | 129 | 398,929 | 0 | 847 |
-| real Gate A row | 128 | 34,008 | 83 | 849 |
+| uniform maximum | 4,096 | 134,217,728 | 0 | 37,889 |
+| single sink | 65 | 32,768 | 64 | 638 |
+| LUT boundary | 129 | 398,929 | 0 | 1,240 |
+| real Gate A row | 128 | 34,008 | 83 | 1,229 |
 
 Evidence: `RTL-SIMULATED/Icarus-v0.3-softmax`. Cycles include deterministic
 random output back-pressure and the current conservative two-pass/single-read
@@ -446,10 +472,12 @@ responses raise a timeout error; a timeout never ends the test successfully.
 
 The isolated AV numerator block now maintains four heads × 128 dimensions in
 sixteen signed 48-bit banks and accepts one P16 `(exp × V-scale × V5)` update
-per cycle. AUTO and explicit CSD multiplication are bit-identical for a real
+per cycle. AUTO, forced DSP, and explicit CSD multiplication are bit-identical for a real
 context-128 layer-0 capture, a seven-token adversarial case, and 279 exhaustive
 legal-code/boundary-weight multiplier cases. Schedule mismatch, reserved -16,
-zero scale, and accumulator overflow have distinct fault paths.
+and zero scale have distinct fault paths. Legal accumulator magnitude is below
+`2^44`; the 48-bit signed banks have three guard bits beyond the minimum, so an
+unreachable runtime overflow reduction is deliberately not synthesized.
 
 This AV evidence stops at the integer numerator. The handoff specifies a
 signed 64-bit numerator-times-reciprocal intermediate but does not freeze the
@@ -520,35 +548,39 @@ not indicate an integrity failure.
 
 ## Next implementation order
 
-1. Implement the bit-exact PACKED5 V5 P16/48-bit banked AV accumulator and
-   verify it against the existing real-capture integer numerator goldens.
-2. Add separate K/V scale readers, FIFOs, prefetch, and explicit data/scale
+1. Add separate K/V scale readers, FIFOs, prefetch, and explicit data/scale
    synchronization and underflow tests.
-3. Build the AXI128 page scheduler with long bursts, CRC-gated ping-pong page
+2. Build the AXI128 page scheduler with long bursts, CRC-gated ping-pong page
    buffers, offsets, typed faults, and starvation/utilization counters.
-4. Integrate score/softmax/AV row ownership and page commit/abort semantics.
-5. Optimize the correctness-first softmax reader toward one score/cycle, then
-   synthesize AUTO/CSD/DSP AV alternatives before selecting the mapping.
+3. Add the V5 AXI streamer and connect it to the verified banked AV numerator.
+4. Integrate score/softmax/AV row ownership and page commit/abort semantics,
+   then freeze normalized AV output rounding and saturation.
+5. Optimize the correctness-first softmax reader toward one score/cycle only
+   after the integrated page/V path exposes measured starvation counters.
 
 ## Unverified hypotheses and known limitations
 
-- Two context-128 prompts do not establish accuracy, perplexity, generation
-  quality, or long-context behavior.
+- Eight context-128 prompts plus two context-512 cases do not establish
+  accuracy, perplexity, generation quality, or long-context behavior.
 - UQ5.11 did not saturate in ten captures; other models or activation outliers
   may need more range.
-- PACKED5 is software-Pareto, but its V5 reader/unpacker/AV hardware is not
-  synthesized.
+- PACKED5 is software-Pareto and its isolated V5 decoder/AV numerator are
+  synthesized, but its AXI V reader and normalized AV output are not built.
 - OOC timing is not placed-and-routed Arty timing, power, or board throughput.
 - The head128/128-bit wrapper currently misses the 81.248 MHz OOC target by
   0.175 ns; timing closure is an explicit next-revision requirement.
 - The compatibility scalar is not evidence that scale-plane synchronization is
   solved.
-- The Q8.8 score/LUT/reciprocal/softmax path is bit-exact in isolated Icarus
-  simulation but is not integrated, synthesized, or routed.
+- The Q8.8 score/LUT/reciprocal/softmax path is bit-exact and routed in
+  isolation, but is not integrated into the page/V system.
 - Deterministic dither mapping remains deliberately undefined.
 
 ## Artifact index
 
+- [v0.3 implementation report](../analysis/kv_validation/v0_3/reports/V0_3_IMPLEMENTATION_REPORT.md)
+- [v0.3 Gate A real-model summary](../analysis/kv_validation/v0_3/results/gate_a/gate_a_summary.csv)
+- [v0.3 current routed block summary](../analysis/kv_validation/hardware_estimates/vivado_v0_3_blocks_2026_1/summary.csv)
+- [v0.3 retained architecture comparison](../analysis/kv_validation/hardware_estimates/vivado_v0_3_blocks_2026_1/variant_comparison.csv)
 - [Authoritative audit report](../analysis/kv_validation/report/V0_2_AUDIT_ADDENDUM_REPORT.md)
 - [Actual-model end-to-end summary](../analysis/kv_validation/real_model/end_to_end_injection/summary.csv)
 - [K/V UQ5.11 contract sweep](../analysis/kv_validation/real_model/kv_scale_contract_sweep/summary.csv)

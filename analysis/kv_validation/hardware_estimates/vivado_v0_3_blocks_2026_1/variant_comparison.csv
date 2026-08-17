@@ -1,0 +1,15 @@
+report_prefix,block,revision,implementation_phase,target_clock_mhz,wns_ns,timing_met,estimated_fmax_mhz_from_wns,estimated_fmax_is_direct_measurement,route_completed,ooc_hd_clk_src_unset,ooc_hd_partpin_locs_unset,slice_luts,lut_as_logic,lut_as_memory,slice_registers,bram_tiles,dsps
+decoder_2x2,decoder,2x2 / two symbols per lane,routed,81.25,-9.138,False,46.629,False,True,True,True,1672,1672,0,280,0.0,0
+decoder_4x1_prefinalize,decoder,4x1 initial,routed,81.25,-1.896,False,70.404,False,True,True,True,2328,2328,0,542,0.0,0
+decoder_4x1_finalize_pending,decoder,4x1 registered finalize,routed,81.25,0.051,True,81.588,False,True,True,True,1835,1835,0,444,0.0,0
+decoder_4x1,decoder,4x1 direct registered completion,routed,81.25,0.57,True,85.196,False,True,True,True,1713,1713,0,440,0.0,0
+qk_k4_auto,qk,K4 AUTO registered tree,routed,81.25,4.628,True,130.214,False,True,True,True,835,835,0,850,0.0,1
+softmax_engine_prebram,softmax,"3-D score array, inference failure",post_synth,81.25,-7.793,False,49.75,False,False,True,True,7554,1922,5632,646,0.0,0
+softmax_engine_div24,softmax,BRAM rows and inferred divide-by-24,routed,81.25,-0.901,False,75.708,False,True,True,True,590,590,0,359,8.5,0
+softmax_engine,softmax,BRAM rows and exact reciprocal multiply,routed,81.25,1.609,True,93.469,False,True,True,True,438,438,0,359,8.5,1
+av_v5_csd_overflow_guard,av,CSD with runtime overflow guard,routed,81.25,0.142,True,82.198,False,True,True,True,6121,5609,512,674,0.0,1
+av_v5_dsp_overflow_guard,av,forced DSP with runtime overflow guard,routed,81.25,0.847,True,87.255,False,True,True,True,1400,888,512,339,0.0,33
+av_v5_auto_overflow_guard,av,AUTO with runtime overflow guard,routed,81.25,0.001,True,81.257,False,True,True,True,3640,3128,512,674,0.0,1
+av_v5_csd,av,CSD with analytical width bound,routed,81.25,1.221,True,90.198,False,True,True,True,7113,6601,512,689,0.0,1
+av_v5_dsp,av,forced DSP with analytical width bound,routed,81.25,1.323,True,91.036,False,True,True,True,1384,872,512,337,0.0,33
+av_v5_auto,av,AUTO with analytical width bound,routed,81.25,1.753,True,94.745,False,True,True,True,3577,3065,512,673,0.0,1

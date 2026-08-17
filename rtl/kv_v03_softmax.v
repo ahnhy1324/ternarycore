@@ -33,12 +33,15 @@ module kv_v03_softmax #(
     output reg  [7:0]         error_code
 );
     localparam [2:0] ST_IDLE = 3'd0, ST_MAX = 3'd1,
-                     ST_EXP = 3'd2, ST_RECIP = 3'd3;
+                     ST_EXP = 3'd2, ST_RECIP = 3'd3,
+                     ST_EXP_LUT = 3'd4, ST_EXP_COMMIT = 3'd5,
+                     ST_EXP_ADDR = 3'd6;
     localparam [7:0] ERR_CONTEXT = 8'h01;
     localparam [7:0] ERR_READ_PROTOCOL = 8'h02;
     localparam [7:0] ERR_READ_TIMEOUT = 8'h03;
     localparam [7:0] ERR_RECIPROCAL = 8'h04;
     localparam [7:0] ERR_DENOMINATOR = 8'h05;
+    localparam [7:0] ERR_BUSY = 8'h06;
 
     reg [2:0] state;
     reg [1:0] row_reg;
@@ -48,25 +51,38 @@ module kv_v03_softmax #(
     reg read_pending;
     reg [31:0] read_wait_cycles;
     reg reciprocal_complete;
+    reg signed [16:0] exp_delta;
+    reg [12:0] rounded_distance_reg;
+    reg [6:0] exp_lut_address;
+    reg exp_below_underflow;
 
     wire signed [16:0] score_extended =
         {score_rd_data[15], score_rd_data};
     wire signed [16:0] maximum_extended =
         {maximum_score[15], maximum_score};
-    wire signed [16:0] delta = score_extended - maximum_extended;
-    wire [16:0] distance = delta[16] ? -delta : 17'b0;
-    wire [17:0] rounded_distance = {1'b0, distance} + 18'd12;
-    wire [10:0] lut_index_unclamped = rounded_distance / 18'd24;
-    wire [6:0] lut_address = (lut_index_unclamped > 127) ?
-                             7'd127 : lut_index_unclamped[6:0];
+    wire [16:0] distance = exp_delta[16] ? -exp_delta : 17'b0;
+    wire computed_below_underflow = exp_delta < -17'sd3072;
+    // Only distances through 3072 can produce a non-zero table result.  Clamp
+    // larger distances before the address arithmetic so synthesis does not
+    // build a full-width divider for values that are discarded anyway.
+    wire [12:0] rounded_distance_limited = computed_below_underflow ?
+                                           13'd3084 :
+                                           {1'b0, distance[11:0]} + 13'd12;
+    // For every integer n in [0, 3084], floor(n/24) is exactly equal to
+    // floor(n*2731/65536).  The registered range limit and constant multiply
+    // preserve the frozen rounding rule while shortening the timing path.
+    wire [24:0] scaled_distance = rounded_distance_reg * 12'd2731;
+    wire [8:0] lut_index_unclamped = scaled_distance[24:16];
+    wire [6:0] computed_lut_address = (lut_index_unclamped > 127) ?
+                                      7'd127 : lut_index_unclamped[6:0];
     wire [15:0] lut_value;
-    wire below_underflow = delta < -17'sd3072;
-    wire [15:0] selected_exp_code = below_underflow ? 16'b0 : lut_value;
+    wire [15:0] selected_exp_code = exp_below_underflow ?
+                                     16'b0 : lut_value;
     wire [28:0] denominator_sum =
         {1'b0, denominator} + {13'b0, selected_exp_code};
 
     kv_v03_exp_lut u_exp_lut (
-        .address(lut_address), .value(lut_value)
+        .address(exp_lut_address), .value(lut_value)
     );
 
     reg reciprocal_start;
@@ -112,6 +128,10 @@ module kv_v03_softmax #(
             reciprocal_start    <= 1'b0;
             reciprocal_denominator <= 28'b0;
             reciprocal_complete <= 1'b0;
+            exp_delta           <= 17'sb0;
+            rounded_distance_reg <= 13'b0;
+            exp_lut_address     <= 7'b0;
+            exp_below_underflow <= 1'b0;
             error_valid         <= 1'b0;
             error_code          <= 8'b0;
         end else begin
@@ -123,7 +143,19 @@ module kv_v03_softmax #(
                 exp_valid <= 1'b0;
 
             if (start) begin
-                if (context_len == 0 || context_len > MAX_CONTEXT) begin
+                if (busy || reciprocal_busy) begin
+                    // A restart could coincide with an outstanding score
+                    // response or an orphaned reciprocal. Abort explicitly
+                    // instead of silently losing state. A new request is also
+                    // held off until the non-cancellable reciprocal is idle.
+                    busy         <= 1'b0;
+                    read_pending <= 1'b0;
+                    exp_valid    <= 1'b0;
+                    state        <= ST_IDLE;
+                    error_valid  <= 1'b1;
+                    error_code   <= ERR_BUSY;
+                end else if (context_len == 0 ||
+                             context_len > MAX_CONTEXT) begin
                     busy        <= 1'b0;
                     error_valid <= 1'b1;
                     error_code  <= ERR_CONTEXT;
@@ -144,6 +176,10 @@ module kv_v03_softmax #(
                     reciprocal_exponent <= 5'b0;
                     underflow_count     <= 13'b0;
                     reciprocal_complete <= 1'b0;
+                    exp_delta           <= 17'sb0;
+                    rounded_distance_reg <= 13'b0;
+                    exp_lut_address     <= 7'b0;
+                    exp_below_underflow <= 1'b0;
                     error_code          <= 8'b0;
                 end
             end else if (busy) begin
@@ -206,23 +242,50 @@ module kv_v03_softmax #(
                                 error_valid <= 1'b1;
                                 error_code  <= ERR_READ_PROTOCOL;
                                 state       <= ST_IDLE;
-                            end else if (denominator_sum[28]) begin
+                            end else begin
+                                read_pending     <= 1'b0;
+                                read_wait_cycles <= 32'b0;
+                                // Register score subtraction before the
+                                // distance/divide/LUT and denominator paths.
+                                exp_delta <= score_extended - maximum_extended;
+                                state <= ST_EXP_LUT;
+                            end
+                        end
+                    end
+
+                    ST_EXP_LUT: begin
+                        // Register the range-limited, rounded distance before
+                        // the exact reciprocal multiply.
+                        rounded_distance_reg <= rounded_distance_limited;
+                        exp_below_underflow <= computed_below_underflow;
+                        state               <= ST_EXP_ADDR;
+                    end
+
+                    ST_EXP_ADDR: begin
+                        // The exact /24 address equation is isolated from the
+                        // BRAM response and denominator accumulator paths.
+                        exp_lut_address <= computed_lut_address;
+                        state               <= ST_EXP_COMMIT;
+                    end
+
+                    ST_EXP_COMMIT: begin
+                        if (!exp_valid || exp_ready) begin
+                            if (denominator_sum[28]) begin
                                 busy        <= 1'b0;
                                 exp_valid   <= 1'b0;
                                 error_valid <= 1'b1;
                                 error_code  <= ERR_DENOMINATOR;
                                 state       <= ST_IDLE;
                             end else begin
-                                read_pending     <= 1'b0;
-                                read_wait_cycles <= 32'b0;
-                                exp_valid         <= 1'b1;
-                                exp_index         <= response_count[11:0];
-                                exp_code          <= selected_exp_code;
-                                exp_last          <= (response_count ==
-                                                      context_reg-1'b1);
-                                denominator       <= denominator_sum[27:0];
-                                if (below_underflow)
-                                    underflow_count <= underflow_count + 1'b1;
+                                exp_valid   <= 1'b1;
+                                exp_index   <= response_count[11:0];
+                                exp_code    <= selected_exp_code;
+                                exp_last    <= (response_count ==
+                                                context_reg-1'b1);
+                                denominator <= denominator_sum[27:0];
+                                if (exp_below_underflow)
+                                    underflow_count <=
+                                        underflow_count + 1'b1;
                                 if (response_count == context_reg-1'b1) begin
                                     reciprocal_denominator <=
                                         denominator_sum[27:0];
@@ -230,6 +293,7 @@ module kv_v03_softmax #(
                                     state <= ST_RECIP;
                                 end else begin
                                     response_count <= response_count + 1'b1;
+                                    state <= ST_EXP;
                                 end
                             end
                         end
