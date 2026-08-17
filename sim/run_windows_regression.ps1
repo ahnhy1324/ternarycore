@@ -76,6 +76,18 @@ $kvRtl = @(
     "rtl/kv_cache_engine.v")
 Invoke-IverilogTest "sim_int4_unpack" @() @(
     "tb/tb_int4_unpack.v", "rtl/int4_unpack.v")
+Invoke-IverilogTest "sim_kv_v03_crc32" @() @(
+    "tb/tb_kv_v03_crc32.v", "rtl/kv_v03_crc32.v")
+Invoke-IverilogTest "sim_kv_v03_page_header" @() @(
+    "tb/tb_kv_v03_page_header.v", "rtl/kv_v03_page_header.v")
+Invoke-IverilogTest "sim_kv_v03_scale12_reader" @() @(
+    "tb/tb_kv_v03_scale12_reader.v", "rtl/kv_v03_scale12_reader.v")
+$decoderGoldenRoot = (Join-Path $repo (
+    "analysis/kv_validation/v0_3/codec/decoder_goldens")).Replace("\", "/")
+Invoke-IverilogTest "sim_kv_v03_decoders" @() @(
+    "tb/tb_kv_v03_decoders.v", "rtl/kv_v03_symbol_decoder.v",
+    "rtl/kv_v03_k4_decoder.v", "rtl/kv_v03_v5_decoder.v") @(
+    "+GOLDEN_ROOT=$decoderGoldenRoot")
 Invoke-IverilogTest "sim_kv_dequant" @() @(
     "tb/tb_kv_dequant.v", "rtl/kv_dequant.v")
 Invoke-IverilogTest "sim_qk_dot" @() @(
@@ -85,10 +97,14 @@ $goldenRoot = Join-Path $repo (
 foreach ($qkProfile in @(
     @{Name="regular4"; Width=4}, @{Name="accurate5"; Width=5})) {
     $profileRoot = (Join-Path $goldenRoot $qkProfile.Name).Replace("\", "/")
-    Invoke-IverilogTest "sim_qk_group_dot_$($qkProfile.Name)" @(
-        "K_WIDTH_VAL=$($qkProfile.Width)") @(
-        "tb/tb_qk_group_dot.v", "rtl/qk_group_dot.v") @(
-        "+GOLDEN_ROOT=$profileRoot")
+    foreach ($multStyle in 0, 2) {
+        Invoke-IverilogTest (
+            "sim_qk_group_dot_$($qkProfile.Name)_style$multStyle") @(
+            "K_WIDTH_VAL=$($qkProfile.Width)",
+            "MULT_STYLE_VAL=$multStyle") @(
+            "tb/tb_qk_group_dot.v", "rtl/qk_group_dot.v") @(
+            "+GOLDEN_ROOT=$profileRoot")
+    }
 }
 Invoke-IverilogTest "sim_kv_cache_engine" @() @(
     @("tb/tb_kv_cache_engine.v") + $kvRtl)

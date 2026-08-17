@@ -45,7 +45,7 @@ module tb_qk_group_dot;
         .K_WIDTH(K_WIDTH), .SCALE_WIDTH(16), .ACC_WIDTH(ACC_WIDTH),
         .MULT_STYLE(MULT_STYLE)
     ) dut (
-        .clk(clk), .rst_n(rst_n), .in_valid(in_valid),
+        .clk(clk), .rst_n(rst_n), .abort(1'b0), .in_valid(in_valid),
         .vector_start(vector_start), .vector_last(vector_last),
         .q_lanes(q_lanes), .k_lanes(k_lanes), .group_scale(group_scale),
         .out_valid(out_valid), .result(result), .invalid_code(invalid_code)

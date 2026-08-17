@@ -14,6 +14,7 @@ module qk_group_dot #(
 ) (
     input  wire clk,
     input  wire rst_n,
+    input  wire abort,
     input  wire in_valid,
     input  wire vector_start,
     input  wire vector_last,
@@ -58,51 +59,80 @@ module qk_group_dot #(
         end
     endfunction
 
-    wire signed [PRODUCT_WIDTH-1:0] product [0:15];
+    // Register the selected lanes before arithmetic. This breaks the reader /
+    // unpacker path at the core boundary and makes all later tree levels
+    // explicit, one-level-per-cycle timing stages.
+    reg [(LANES*Q_WIDTH)-1:0] q_lanes_reg;
+    reg [(LANES*K_WIDTH)-1:0] k_lanes_reg;
+    reg input_valid_reg, input_vector_start, input_vector_last, input_invalid;
+    reg [SCALE_WIDTH-1:0] input_scale;
+
     wire invalid_lane [0:15];
+    wire signed [PRODUCT_WIDTH-1:0] product_next [0:15];
     genvar lane;
     generate
         for (lane = 0; lane < 16; lane = lane + 1) begin : g_product
             wire signed [Q_WIDTH-1:0] q =
-                q_lanes[(lane*Q_WIDTH) +: Q_WIDTH];
+                q_lanes_reg[(lane*Q_WIDTH) +: Q_WIDTH];
             wire signed [K_WIDTH-1:0] k =
-                k_lanes[(lane*K_WIDTH) +: K_WIDTH];
+                k_lanes_reg[(lane*K_WIDTH) +: K_WIDTH];
             if (MULT_STYLE == 0) begin : g_shift_add
-                assign product[lane] = shift_add_product(q, k);
+                assign product_next[lane] = shift_add_product(q, k);
             end else if (MULT_STYLE == 1) begin : g_dsp
                 (* use_dsp = "yes" *) wire signed [PRODUCT_WIDTH-1:0] dsp_product = q * k;
-                assign product[lane] = dsp_product;
+                assign product_next[lane] = dsp_product;
             end else begin : g_auto
                 wire signed [PRODUCT_WIDTH-1:0] auto_product = q * k;
-                assign product[lane] = auto_product;
+                assign product_next[lane] = auto_product;
             end
             assign invalid_lane[lane] =
                 (k_lanes[(lane*K_WIDTH) +: K_WIDTH] == {1'b1, {(K_WIDTH-1){1'b0}}});
         end
     endgenerate
-
-    wire signed [PAIR_WIDTH-1:0] pair_sum [0:7];
-    wire signed [QUAD_WIDTH-1:0] quad_sum [0:3];
-    wire signed [OCT_WIDTH-1:0] oct_sum [0:1];
-    genvar node;
-    generate
-        for (node = 0; node < 8; node = node + 1) begin : g_pair
-            assign pair_sum[node] = product[node*2] + product[node*2+1];
-        end
-        for (node = 0; node < 4; node = node + 1) begin : g_quad
-            assign quad_sum[node] = pair_sum[node*2] + pair_sum[node*2+1];
-        end
-        for (node = 0; node < 2; node = node + 1) begin : g_oct
-            assign oct_sum[node] = quad_sum[node*2] + quad_sum[node*2+1];
-        end
-    endgenerate
-    wire signed [SLICE_SUM_WIDTH-1:0] slice_sum = oct_sum[0] + oct_sum[1];
-    wire invalid_slice = invalid_lane[0] | invalid_lane[1] |
+    wire input_invalid_next = invalid_lane[0] | invalid_lane[1] |
         invalid_lane[2] | invalid_lane[3] | invalid_lane[4] |
         invalid_lane[5] | invalid_lane[6] | invalid_lane[7] |
         invalid_lane[8] | invalid_lane[9] | invalid_lane[10] |
         invalid_lane[11] | invalid_lane[12] | invalid_lane[13] |
         invalid_lane[14] | invalid_lane[15];
+
+    reg signed [PRODUCT_WIDTH-1:0] product_reg [0:15];
+    reg product_valid, product_vector_start, product_vector_last;
+    reg product_invalid;
+    reg [SCALE_WIDTH-1:0] product_scale;
+
+    wire signed [PAIR_WIDTH-1:0] pair_next [0:7];
+    reg signed [PAIR_WIDTH-1:0] pair_sum_reg [0:7];
+    reg pair_valid, pair_vector_start, pair_vector_last, pair_invalid;
+    reg [SCALE_WIDTH-1:0] pair_scale;
+
+    wire signed [QUAD_WIDTH-1:0] quad_next [0:3];
+    reg signed [QUAD_WIDTH-1:0] quad_sum_reg [0:3];
+    reg quad_valid, quad_vector_start, quad_vector_last, quad_invalid;
+    reg [SCALE_WIDTH-1:0] quad_scale;
+
+    wire signed [OCT_WIDTH-1:0] oct_next [0:1];
+    reg signed [OCT_WIDTH-1:0] oct_sum_reg [0:1];
+    reg oct_valid, oct_vector_start, oct_vector_last, oct_invalid;
+    reg [SCALE_WIDTH-1:0] oct_scale;
+
+    genvar node;
+    generate
+        for (node = 0; node < 8; node = node + 1) begin : g_pair
+            assign pair_next[node] = product_reg[node*2] +
+                                     product_reg[node*2+1];
+        end
+        for (node = 0; node < 4; node = node + 1) begin : g_quad
+            assign quad_next[node] = pair_sum_reg[node*2] +
+                                     pair_sum_reg[node*2+1];
+        end
+        for (node = 0; node < 2; node = node + 1) begin : g_oct
+            assign oct_next[node] = quad_sum_reg[node*2] +
+                                    quad_sum_reg[node*2+1];
+        end
+    endgenerate
+    wire signed [SLICE_SUM_WIDTH-1:0] slice_sum_next =
+        oct_sum_reg[0] + oct_sum_reg[1];
 
     reg signed [SLICE_SUM_WIDTH-1:0] slice_sum_reg;
     reg slice_valid, slice_vector_start, slice_vector_last, slice_invalid;
@@ -124,8 +154,36 @@ module qk_group_dot #(
         pending_group_sum * $signed({1'b0, pending_scale});
     wire signed [ACC_WIDTH-1:0] scaled_product = scaled_product_full;
 
+    integer reset_index;
     always @(posedge clk) begin
-        if (!rst_n) begin
+        if (!rst_n || abort) begin
+            q_lanes_reg       <= {(LANES*Q_WIDTH){1'b0}};
+            k_lanes_reg       <= {(LANES*K_WIDTH){1'b0}};
+            input_valid_reg   <= 1'b0;
+            input_vector_start <= 1'b0;
+            input_vector_last <= 1'b0;
+            input_invalid     <= 1'b0;
+            input_scale       <= {SCALE_WIDTH{1'b0}};
+            product_valid     <= 1'b0;
+            product_vector_start <= 1'b0;
+            product_vector_last <= 1'b0;
+            product_invalid   <= 1'b0;
+            product_scale     <= {SCALE_WIDTH{1'b0}};
+            pair_valid        <= 1'b0;
+            pair_vector_start <= 1'b0;
+            pair_vector_last  <= 1'b0;
+            pair_invalid      <= 1'b0;
+            pair_scale        <= {SCALE_WIDTH{1'b0}};
+            quad_valid        <= 1'b0;
+            quad_vector_start <= 1'b0;
+            quad_vector_last  <= 1'b0;
+            quad_invalid      <= 1'b0;
+            quad_scale        <= {SCALE_WIDTH{1'b0}};
+            oct_valid         <= 1'b0;
+            oct_vector_start  <= 1'b0;
+            oct_vector_last   <= 1'b0;
+            oct_invalid       <= 1'b0;
+            oct_scale         <= {SCALE_WIDTH{1'b0}};
             slice_index        <= {SLICE_INDEX_WIDTH{1'b0}};
             slice_sum_reg      <= {SLICE_SUM_WIDTH{1'b0}};
             slice_valid        <= 1'b0;
@@ -144,16 +202,83 @@ module qk_group_dot #(
             out_valid          <= 1'b0;
             result             <= {ACC_WIDTH{1'b0}};
             invalid_code       <= 1'b0;
+            for (reset_index = 0; reset_index < 16;
+                 reset_index = reset_index + 1)
+                product_reg[reset_index] <= {PRODUCT_WIDTH{1'b0}};
+            for (reset_index = 0; reset_index < 8;
+                 reset_index = reset_index + 1)
+                pair_sum_reg[reset_index] <= {PAIR_WIDTH{1'b0}};
+            for (reset_index = 0; reset_index < 4;
+                 reset_index = reset_index + 1)
+                quad_sum_reg[reset_index] <= {QUAD_WIDTH{1'b0}};
+            for (reset_index = 0; reset_index < 2;
+                 reset_index = reset_index + 1)
+                oct_sum_reg[reset_index] <= {OCT_WIDTH{1'b0}};
         end else begin
             out_valid    <= 1'b0;
             invalid_code <= 1'b0;
-            slice_valid  <= in_valid;
+
+            input_valid_reg <= in_valid;
             if (in_valid) begin
-                slice_sum_reg      <= slice_sum;
-                slice_vector_start <= vector_start;
-                slice_vector_last  <= vector_last;
-                slice_invalid      <= invalid_slice;
-                slice_scale        <= group_scale;
+                q_lanes_reg       <= q_lanes;
+                k_lanes_reg       <= k_lanes;
+                input_vector_start <= vector_start;
+                input_vector_last <= vector_last;
+                input_invalid     <= input_invalid_next;
+                input_scale       <= group_scale;
+            end
+
+            product_valid <= input_valid_reg;
+            if (input_valid_reg) begin
+                for (reset_index = 0; reset_index < 16;
+                     reset_index = reset_index + 1)
+                    product_reg[reset_index] <= product_next[reset_index];
+                product_vector_start <= input_vector_start;
+                product_vector_last  <= input_vector_last;
+                product_invalid      <= input_invalid;
+                product_scale        <= input_scale;
+            end
+
+            pair_valid <= product_valid;
+            if (product_valid) begin
+                for (reset_index = 0; reset_index < 8;
+                     reset_index = reset_index + 1)
+                    pair_sum_reg[reset_index] <= pair_next[reset_index];
+                pair_vector_start <= product_vector_start;
+                pair_vector_last  <= product_vector_last;
+                pair_invalid      <= product_invalid;
+                pair_scale        <= product_scale;
+            end
+
+            quad_valid <= pair_valid;
+            if (pair_valid) begin
+                for (reset_index = 0; reset_index < 4;
+                     reset_index = reset_index + 1)
+                    quad_sum_reg[reset_index] <= quad_next[reset_index];
+                quad_vector_start <= pair_vector_start;
+                quad_vector_last  <= pair_vector_last;
+                quad_invalid      <= pair_invalid;
+                quad_scale        <= pair_scale;
+            end
+
+            oct_valid <= quad_valid;
+            if (quad_valid) begin
+                for (reset_index = 0; reset_index < 2;
+                     reset_index = reset_index + 1)
+                    oct_sum_reg[reset_index] <= oct_next[reset_index];
+                oct_vector_start <= quad_vector_start;
+                oct_vector_last  <= quad_vector_last;
+                oct_invalid      <= quad_invalid;
+                oct_scale        <= quad_scale;
+            end
+
+            slice_valid <= oct_valid;
+            if (oct_valid) begin
+                slice_sum_reg      <= slice_sum_next;
+                slice_vector_start <= oct_vector_start;
+                slice_vector_last  <= oct_vector_last;
+                slice_invalid      <= oct_invalid;
+                slice_scale        <= oct_scale;
             end
 
             // The registered group boundary keeps the raw reduction tree out

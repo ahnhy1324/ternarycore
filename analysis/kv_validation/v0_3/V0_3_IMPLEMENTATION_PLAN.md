@@ -64,6 +64,29 @@ For every RTL edit, the complete relevant Icarus suite runs before Vivado.
    ping-pong buffers, payload/scale FIFOs, typed faults, and all required
    starvation/utilization counters.
 
+## Execution status — 2026-08-17
+
+Evidence labels below distinguish Icarus RTL simulation from software and from
+Vivado results. No Vivado timing or resource claim is made in this section.
+
+- Steps 1-4 pass unit and full KV regression: CRC32, typed page header,
+  contiguous UQ4.8 scale reader, and bit-exact K4/V5 compressed/raw decoders.
+- Step 6 arithmetic is implemented ahead of the decoder cluster: registered
+  Q/K inputs, registered product/reduction levels, group128 accumulation, and
+  identical K4/K5 AUTO versus SHIFT_ADD real-model golden results.
+- The legacy vector FSM now overlaps the next AXI read with QK pipeline drain.
+  It drains accepted AXI bursts and flushes the QK pipeline on a late format
+  fault, including restart-after-long and short-after-error regression.
+- Step 5 and steps 7-9 remain pending. The decoder `done` pulse is the page
+  commit point; integration must keep streamed symbols in scratch state until
+  format completion succeeds.
+
+Machine-readable simulated cycle results are in
+`results/rtl/qk_cycle_accounting.csv` and `.json`. At HEAD_DIM=64 and 4096 keys,
+the overlap revision reduced 128-bit cycles from 67,832 to 55,249 and 256-bit
+cycles from 61,445 to 49,231. These are RTL simulation counts; rates computed
+at 81.25 MHz are projections until Vivado timing closes.
+
 ## Sticky error classes
 
 The exact numeric register encoding is frozen with the integrated ABI, but the

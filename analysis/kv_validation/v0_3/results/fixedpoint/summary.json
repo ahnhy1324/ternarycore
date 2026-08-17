@@ -1,0 +1,30 @@
+{
+  "adversarial_cases": 256,
+  "adversarial_f12": {
+    "denominator_saturations": 0,
+    "mean_probability_relative_rmse_vs_float_scores": 0.008942476259764635,
+    "monotonicity_failures": 0,
+    "top1_failures": 29,
+    "top5_failures": 43,
+    "worst_absolute_mass_error": 0.00024402141571044922,
+    "worst_probability_relative_rmse_vs_float_scores": 0.03828699607368079
+  },
+  "claim_scope": "fixed-point/adversarial screening and ten existing real-model captures; not model accuracy or RTL evidence",
+  "evidence": "SOFTWARE-FIXED-POINT/v0.3-softmax-av",
+  "expanded_real_logit_rows": 1800,
+  "lut_address_mapping_status": "NEW ABI ASSUMPTION: 24 Q8.8 codes/bin, nearest bin; theory package freezes table size/domain but not address mapping",
+  "real_av_rows": 200,
+  "real_f12": {
+    "floor_zero_code_mismatch_rows": 0,
+    "maximum_observed_denominator_bits": 21,
+    "maximum_observed_numerator_bits": 34,
+    "mean_av_relative_rmse_vs_floating_packed5": 0.005347418140915279,
+    "mean_probability_relative_rmse_vs_float_scores": 0.016373229076097378,
+    "mean_reciprocal_increment": 7.961591589264846e-05,
+    "worst_av_relative_rmse_vs_floating_packed5": 0.026100590481565315,
+    "worst_probability_relative_rmse_vs_float_scores": 0.029224553432953958,
+    "worst_reciprocal_increment": 0.00022625178098678836
+  },
+  "real_logit_rows": 400,
+  "status": "PASS"
+}

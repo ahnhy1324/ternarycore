@@ -1,0 +1,31 @@
+{
+  "schema": "kv-v0.3-qk-cycle-accounting-v1",
+  "evidence": "RTL-SIMULATED/Icarus-v0.3-overlap",
+  "clock_mhz_for_rate_projection": 81.25,
+  "clock_rate_status": "target only; not yet validated by Vivado timing",
+  "baseline_definition": "pre-registered-tree, per-vector result-wait FSM",
+  "revision_definition": "registered input/product/reduction tree plus next-vector AXI overlap",
+  "regression": {
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File sim\\run_windows_regression.ps1 -KvOnly -SkipPython",
+    "status": "PASS",
+    "lengths": [1, 7, 63, 64, 65, 127, 128, 129, 511, 512, 513, 1023, 1024, 1025, 4095, 4096],
+    "multiplier_ablations": ["K4 SHIFT_ADD", "K4 AUTO", "K5 SHIFT_ADD", "K5 AUTO"],
+    "fault_additions": ["prefetch abort", "AXI drain", "QK pipeline flush", "restart after drain"]
+  },
+  "rows": [
+    {"head_dim": 64, "axi_width": 128, "context_len": 512, "baseline_cycles": 8446, "cycles": 6863, "cycle_reduction_percent": 18.743, "mkeys_per_second": 6.0615},
+    {"head_dim": 64, "axi_width": 128, "context_len": 4096, "baseline_cycles": 67832, "cycles": 55249, "cycle_reduction_percent": 18.550, "mkeys_per_second": 6.0236},
+    {"head_dim": 64, "axi_width": 256, "context_len": 512, "baseline_cycles": 7631, "cycles": 6131, "cycle_reduction_percent": 19.657, "mkeys_per_second": 6.7852},
+    {"head_dim": 64, "axi_width": 256, "context_len": 4096, "baseline_cycles": 61445, "cycles": 49231, "cycle_reduction_percent": 19.878, "mkeys_per_second": 6.7600},
+    {"head_dim": 128, "axi_width": 128, "context_len": 512, "baseline_cycles": 11826, "cycles": 10306, "cycle_reduction_percent": 12.853, "mkeys_per_second": 4.0365},
+    {"head_dim": 128, "axi_width": 128, "context_len": 4096, "baseline_cycles": 94912, "cycles": 82483, "cycle_reduction_percent": 13.095, "mkeys_per_second": 4.0348},
+    {"head_dim": 128, "axi_width": 256, "context_len": 512, "baseline_cycles": 10323, "cycles": 8702, "cycle_reduction_percent": 15.703, "mkeys_per_second": 4.7805},
+    {"head_dim": 128, "axi_width": 256, "context_len": 4096, "baseline_cycles": 82489, "cycles": 70102, "cycle_reduction_percent": 15.017, "mkeys_per_second": 4.7474}
+  ],
+  "unverified": [
+    "81.25 MHz timing closure",
+    "post-route resource use and power",
+    "compressed-page scheduler throughput",
+    "hardware AXI efficiency"
+  ]
+}

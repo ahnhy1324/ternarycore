@@ -1,0 +1,9 @@
+evidence,head_dim,axi_width,context_len,baseline_cycles,pipelined_overlap_cycles,cycle_reduction_percent,mkeys_per_second_at_81p25mhz,issue_cycles,reader_launch_cycles,axi_ar_cycles,axi_r_empty_cycles,axi_r_transfer_cycles,beat_handoff_cycles,mac_cycles,result_wait_cycles,other_cycles
+RTL-SIMULATED/Icarus-v0.3-overlap,64,128,512,8446,6863,18.743,6.0615,512,1024,998,1128,633,512,2048,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,64,128,4096,67832,55249,18.550,6.0236,4096,8192,8161,9183,5129,4096,16384,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,64,256,512,7631,6131,19.657,6.7852,512,1024,1005,1022,512,0,2048,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,64,256,4096,61445,49231,19.878,6.7600,4096,8192,8094,8361,4096,0,16384,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,128,128,512,11826,10306,12.853,4.0365,512,1024,1003,1313,814,1536,4096,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,128,128,4096,94912,82483,13.095,4.0348,4096,8192,8075,10513,6543,12288,32768,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,128,256,512,10323,8702,15.703,4.7805,512,1024,975,1032,543,512,4096,8,0
+RTL-SIMULATED/Icarus-v0.3-overlap,128,256,4096,82489,70102,15.017,4.7474,4096,8192,8053,8551,4338,4096,32768,8,0

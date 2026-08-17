@@ -6,7 +6,7 @@ IVERILOG = iverilog
 VVP      = vvp
 SIMDIR   = .
 
-.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache clean verify analyze_kv
+.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders clean verify analyze_kv
 
 all: tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache
 
@@ -65,7 +65,9 @@ tb_weight_bram_d8: ../tb/tb_weight_bram.v ../rtl/weight_bram.v
 KV_RTL = ../rtl/kv_addr_gen.v ../rtl/int4_unpack.v ../rtl/kv_dequant.v \
 	../rtl/qk_dot.v ../rtl/qk_group_dot.v ../rtl/kv_reader.v ../rtl/kv_cache_engine.v
 
-tb_kv_cache: tb_int4_unpack tb_kv_dequant tb_qk_dot tb_qk_group_dot \
+tb_kv_cache: tb_int4_unpack tb_kv_v03_crc32 tb_kv_v03_page_header \
+	tb_kv_v03_scale12_reader tb_kv_v03_decoders \
+	tb_kv_dequant tb_qk_dot tb_qk_group_dot \
 	tb_kv_cache_engine tb_kv_cache_engine_256 \
 	tb_kv_cache_engine_hd128 tb_kv_cache_engine_hd128_256 \
 	tb_axi_kv_cache tb_axi_kv_cache_hd128
@@ -73,6 +75,22 @@ tb_kv_cache: tb_int4_unpack tb_kv_dequant tb_qk_dot tb_qk_group_dot \
 tb_int4_unpack: ../tb/tb_int4_unpack.v ../rtl/int4_unpack.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_int4_unpack $^
 	$(VVP) $(SIMDIR)/sim_int4_unpack
+
+tb_kv_v03_crc32: ../tb/tb_kv_v03_crc32.v ../rtl/kv_v03_crc32.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_crc32 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_crc32
+
+tb_kv_v03_page_header: ../tb/tb_kv_v03_page_header.v ../rtl/kv_v03_page_header.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_page_header $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_page_header
+
+tb_kv_v03_scale12_reader: ../tb/tb_kv_v03_scale12_reader.v ../rtl/kv_v03_scale12_reader.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_scale12_reader $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_scale12_reader
+
+tb_kv_v03_decoders: ../tb/tb_kv_v03_decoders.v ../rtl/kv_v03_symbol_decoder.v ../rtl/kv_v03_k4_decoder.v ../rtl/kv_v03_v5_decoder.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_decoders $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_decoders +GOLDEN_ROOT=../analysis/kv_validation/v0_3/codec/decoder_goldens
 
 tb_kv_dequant: ../tb/tb_kv_dequant.v ../rtl/kv_dequant.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_dequant $^
@@ -82,9 +100,26 @@ tb_qk_dot: ../tb/tb_qk_dot.v ../rtl/qk_dot.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_qk_dot $^
 	$(VVP) $(SIMDIR)/sim_qk_dot
 
-tb_qk_group_dot: ../tb/tb_qk_group_dot.v ../rtl/qk_group_dot.v
-	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_qk_group_dot $^
-	$(VVP) $(SIMDIR)/sim_qk_group_dot
+QK_GOLDEN = ../analysis/kv_validation/real_model/qk_profile_golden_v0_2
+
+tb_qk_group_dot: tb_qk_group_dot_k4_style0 tb_qk_group_dot_k4_style2 \
+	tb_qk_group_dot_k5_style0 tb_qk_group_dot_k5_style2
+
+tb_qk_group_dot_k4_style0: ../tb/tb_qk_group_dot.v ../rtl/qk_group_dot.v
+	$(IVERILOG) -g2012 -DK_WIDTH_VAL=4 -DMULT_STYLE_VAL=0 -o $(SIMDIR)/sim_qk_group_dot_k4_style0 $^
+	$(VVP) $(SIMDIR)/sim_qk_group_dot_k4_style0 +GOLDEN_ROOT=$(QK_GOLDEN)/regular4
+
+tb_qk_group_dot_k4_style2: ../tb/tb_qk_group_dot.v ../rtl/qk_group_dot.v
+	$(IVERILOG) -g2012 -DK_WIDTH_VAL=4 -DMULT_STYLE_VAL=2 -o $(SIMDIR)/sim_qk_group_dot_k4_style2 $^
+	$(VVP) $(SIMDIR)/sim_qk_group_dot_k4_style2 +GOLDEN_ROOT=$(QK_GOLDEN)/regular4
+
+tb_qk_group_dot_k5_style0: ../tb/tb_qk_group_dot.v ../rtl/qk_group_dot.v
+	$(IVERILOG) -g2012 -DK_WIDTH_VAL=5 -DMULT_STYLE_VAL=0 -o $(SIMDIR)/sim_qk_group_dot_k5_style0 $^
+	$(VVP) $(SIMDIR)/sim_qk_group_dot_k5_style0 +GOLDEN_ROOT=$(QK_GOLDEN)/accurate5
+
+tb_qk_group_dot_k5_style2: ../tb/tb_qk_group_dot.v ../rtl/qk_group_dot.v
+	$(IVERILOG) -g2012 -DK_WIDTH_VAL=5 -DMULT_STYLE_VAL=2 -o $(SIMDIR)/sim_qk_group_dot_k5_style2 $^
+	$(VVP) $(SIMDIR)/sim_qk_group_dot_k5_style2 +GOLDEN_ROOT=$(QK_GOLDEN)/accurate5
 
 tb_kv_cache_engine: ../tb/tb_kv_cache_engine.v $(KV_RTL)
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_cache_engine $^

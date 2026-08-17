@@ -168,6 +168,7 @@ module tb_kv_cache_engine;
     end
 
     integer seen = 0, active_length = 0, errors = 0;
+    integer abort_drain_timeout = 0;
     integer account_issue = 0, account_reader_launch = 0;
     integer account_axi_ar = 0, account_axi_r_empty = 0;
     integer account_axi_r_transfer = 0, account_beat_handoff = 0;
@@ -349,7 +350,7 @@ module tb_kv_cache_engine;
 
         // The canonical symmetric INT4 producer must never emit -8. Verify
         // that a malformed payload is reported and no logit is accepted.
-        context_len = 1; inject_invalid_code = 1;
+        context_len = 2; inject_invalid_code = 1;
         @(negedge clk); start = 1;
         @(negedge clk); start = 0;
         begin : invalid_code_check
@@ -362,7 +363,36 @@ module tb_kv_cache_engine;
         end else $display("PASS reserved INT4 code rejected");
         end
         inject_invalid_code = 0;
+
+        // The second vector may already have an accepted AXI read when the
+        // first vector reports its invalid code. A restart is rejected until
+        // that legal-but-discarded burst has drained, then a clean short job
+        // must work without reset.
+        if (dut.u_reader.busy) begin
+            context_len = 1;
+            @(negedge clk); start = 1;
+            @(negedge clk); start = 0;
+            if (!error || error_code != 8'h05) begin
+                $display("FAIL restart during AXI drain error=%0d code=%02x",
+                         error, error_code);
+                errors = errors + 1;
+            end else begin
+                $display("PASS restart rejected during AXI drain");
+            end
+            abort_drain_timeout = 0;
+            while (dut.u_reader.busy && abort_drain_timeout < 100) begin
+                @(negedge clk);
+                abort_drain_timeout = abort_drain_timeout + 1;
+            end
+            if (dut.u_reader.busy) begin
+                $display("FAIL aborted AXI burst did not drain");
+                errors = errors + 1;
+            end
+        end else begin
+            $display("PASS prefetch completed before abort; QK flush exercised");
+        end
         repeat (3) @(posedge clk);
+        run_case(1);
 
         // Both AXI channel timeout classes propagate through the engine.
         k_base_addr = BASE; context_len = 1; force_ar_stall = 1;

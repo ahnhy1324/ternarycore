@@ -213,6 +213,7 @@ v2. They must be added without reinterpreting existing offsets.
 | `0x02` | K base is not vector-aligned | No |
 | `0x03` | UQ5.11 scale can overflow the signed 32-bit result | No |
 | `0x04` | K address is not representable or the context would wrap M_AXI | No |
+| `0x05` | restart requested while an aborted AXI read is draining | Outstanding read only |
 | `0x11` | AXI address timeout | Attempted |
 | `0x12` | AXI read-data timeout | Attempted |
 | `0x13` | non-OKAY RRESP | Yes |
@@ -250,8 +251,38 @@ registered 16-lane reduction -> raw group accumulator -> UQ5.11 scale DSP
 
 `qk_group_dot` registers the raw 16-lane reduction before group accumulation
 and applies exactly one scale multiplication at each group boundary. AUTO is
-the baseline mapping. The full wrapper currently serializes read, handoff, MAC,
-and result phases; it does not overlap adjacent vectors.
+the baseline mapping. The v0.2 cycle baseline serialized read, handoff, MAC,
+and result phases; the v0.3 utilization revision below overlaps the result
+drain with the next vector read.
+
+### v0.3 registered-tree utilization revision
+
+The current development branch registers selected Q/K lanes, products, and
+each balanced reduction level. AUTO and SHIFT_ADD are bit-identical against the
+same 128-token real-model K4 and K5 golden vectors. The vector controller also
+issues the next AXI read while the previous tree drains, so the deeper timing
+pipeline does not impose a per-key result-wait bubble.
+
+The overlap required two explicit recovery rules. An accepted AXI burst is
+drained rather than cancelled after a late reserved-code fault, and the QK
+pipeline is flushed before a new job. Both an active-drain restart rejection
+and a clean short transaction after the fault are regression-tested.
+
+| Head dim | AXI | Keys | Previous cycles | Revised cycles | Reduction |
+|---:|---:|---:|---:|---:|---:|
+| 64 | 128 | 512 | 8,446 | 6,863 | 18.7% |
+| 64 | 128 | 4,096 | 67,832 | 55,249 | 18.6% |
+| 64 | 256 | 512 | 7,631 | 6,131 | 19.7% |
+| 64 | 256 | 4,096 | 61,445 | 49,231 | 19.9% |
+| 128 | 128 | 512 | 11,826 | 10,306 | 12.9% |
+| 128 | 128 | 4,096 | 94,912 | 82,483 | 13.1% |
+| 128 | 256 | 512 | 10,323 | 8,702 | 15.7% |
+| 128 | 256 | 4,096 | 82,489 | 70,102 | 15.0% |
+
+Evidence: `RTL-SIMULATED/Icarus-v0.3-overlap`. The 81.25 MHz rate remains an
+analytical projection until Vivado synthesis and routed timing complete. The
+compressed page scheduler, decoder cluster, and scale prefetch are not part of
+these cycle measurements.
 
 ## Parameters and legal combinations
 

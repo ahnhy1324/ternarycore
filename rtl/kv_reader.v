@@ -14,6 +14,7 @@ module kv_reader #(
     input  wire rst_n,
 
     input  wire start,
+    input  wire abort,
     input  wire [ADDR_WIDTH-1:0] vector_addr,
     output reg  busy,
     output reg  done,
@@ -48,7 +49,8 @@ module kv_reader #(
     localparam integer BEAT_COUNT_WIDTH =
         (BEATS_PER_VECTOR <= 1) ? 1 : $clog2(BEATS_PER_VECTOR);
     localparam integer BYTES_PER_BEAT = DATA_WIDTH / 8;
-    localparam [1:0] S_IDLE = 2'd0, S_ADDR = 2'd1, S_DATA = 2'd2;
+    localparam [1:0] S_IDLE = 2'd0, S_ADDR = 2'd1, S_DATA = 2'd2,
+                     S_DRAIN = 2'd3;
 
     reg [1:0] state;
     reg [BEAT_COUNT_WIDTH-1:0] beat_count;
@@ -66,7 +68,9 @@ module kv_reader #(
     assign m_axi_arqos   = 4'b0000;
 
     // Consume and replace the one-beat buffer in the same cycle when possible.
-    assign m_axi_rready = (state == S_DATA) && (!beat_valid || beat_ready);
+    assign m_axi_rready = ((state == S_DATA) &&
+                           (!beat_valid || beat_ready)) ||
+                          (state == S_DRAIN);
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -81,6 +85,26 @@ module kv_reader #(
             beat_count    <= {BEAT_COUNT_WIDTH{1'b0}};
             timeout_count <= 32'd0;
             m_axi_araddr  <= {ADDR_WIDTH{1'b0}};
+            m_axi_arvalid <= 1'b0;
+        end else if (abort) begin
+            // AXI reads cannot be cancelled after AR handshake. Cancel a
+            // still-pending address, otherwise drain the accepted burst while
+            // discarding its data before accepting another job.
+            if ((state == S_DATA && !(r_handshake && m_axi_rlast)) ||
+                (state == S_ADDR && m_axi_arvalid && m_axi_arready)) begin
+                state <= S_DRAIN;
+                busy  <= 1'b1;
+            end else begin
+                state <= S_IDLE;
+                busy  <= 1'b0;
+            end
+            done          <= 1'b0;
+            error         <= 1'b0;
+            error_code    <= 4'd0;
+            beat_valid    <= 1'b0;
+            beat_last     <= 1'b0;
+            beat_count    <= {BEAT_COUNT_WIDTH{1'b0}};
+            timeout_count <= 32'd0;
             m_axi_arvalid <= 1'b0;
         end else begin
             done  <= 1'b0;
@@ -157,6 +181,15 @@ module kv_reader #(
                         end else begin
                             timeout_count <= timeout_count + 1'b1;
                         end
+                    end
+                end
+
+                S_DRAIN: begin
+                    // Keep RREADY asserted until the outstanding transaction
+                    // ends. The payload was invalidated by downstream logic.
+                    if (m_axi_rvalid && m_axi_rlast) begin
+                        busy  <= 1'b0;
+                        state <= S_IDLE;
                     end
                 end
 

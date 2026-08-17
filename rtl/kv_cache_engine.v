@@ -97,6 +97,7 @@ module kv_cache_engine #(
 
     reg [2:0] state;
     reg [TOKEN_WIDTH-1:0] token_counter;
+    reg [TOKEN_WIDTH-1:0] result_counter;
     reg [SLICE_WIDTH-1:0] global_slice;
     reg [BEAT_SLICE_WIDTH-1:0] beat_slice;
     reg [AXI_DATA_WIDTH-1:0] beat_buffer;
@@ -130,6 +131,12 @@ module kv_cache_engine #(
     wire [AXI_DATA_WIDTH-1:0] reader_beat_data;
     wire reader_beat_valid, reader_beat_last;
     wire reader_beat_ready = (state == ST_WAIT_BEAT);
+    wire dot_out_valid;
+    wire signed [ACC_WIDTH-1:0] dot_result;
+    wire dot_invalid_code;
+    wire reader_abort = busy && dot_out_valid && dot_invalid_code;
+    wire pipeline_abort = busy && (reader_error ||
+                          (dot_out_valid && dot_invalid_code));
 
     kv_reader #(
         .ADDR_WIDTH(AXI_ADDR_WIDTH),
@@ -139,7 +146,8 @@ module kv_cache_engine #(
         .TIMEOUT_CYCLES(TIMEOUT_CYCLES)
     ) u_reader (
         .clk(clk), .rst_n(rst_n),
-        .start(reader_start), .vector_addr(vector_addr),
+        .start(reader_start), .abort(reader_abort),
+        .vector_addr(vector_addr),
         .busy(reader_busy), .done(reader_done),
         .error(reader_error), .error_code(reader_error_code),
         .beat_data(reader_beat_data), .beat_valid(reader_beat_valid),
@@ -169,16 +177,14 @@ module kv_cache_engine #(
     wire dot_in_valid = (state == ST_PROCESS);
     wire dot_vector_start = (global_slice == 0);
     wire dot_vector_last  = (global_slice == TOTAL_SLICES-1);
-    wire dot_out_valid;
-    wire signed [ACC_WIDTH-1:0] dot_result;
-    wire dot_invalid_code;
     qk_group_dot #(
         .GROUP_SIZE(SCALE_GROUP_SIZE),
         .Q_WIDTH(Q_WIDTH), .K_WIDTH(KV_BITS),
         .SCALE_WIDTH(SCALE_WIDTH), .ACC_WIDTH(ACC_WIDTH),
         .MULT_STYLE(MULT_STYLE)
     ) u_group_dot (
-        .clk(clk), .rst_n(rst_n), .in_valid(dot_in_valid),
+        .clk(clk), .rst_n(rst_n), .abort(pipeline_abort),
+        .in_valid(dot_in_valid),
         .vector_start(dot_vector_start), .vector_last(dot_vector_last),
         .q_lanes(q_slice), .k_lanes(unpacked_slice),
         .group_scale(group_scale), .out_valid(dot_out_valid),
@@ -197,6 +203,7 @@ module kv_cache_engine #(
             logit_index        <= {TOKEN_WIDTH{1'b0}};
             logit_data         <= {ACC_WIDTH{1'b0}};
             token_counter      <= {TOKEN_WIDTH{1'b0}};
+            result_counter     <= {TOKEN_WIDTH{1'b0}};
             global_slice       <= {SLICE_WIDTH{1'b0}};
             beat_slice         <= {BEAT_SLICE_WIDTH{1'b0}};
             beat_buffer        <= {AXI_DATA_WIDTH{1'b0}};
@@ -218,19 +225,46 @@ module kv_cache_engine #(
                 error      <= 1'b1;
                 error_code <= {4'h1, reader_error_code};
                 state      <= ST_IDLE;
+            end else if (busy && dot_out_valid && dot_invalid_code) begin
+                busy       <= 1'b0;
+                error      <= 1'b1;
+                error_code <= 8'h30;
+                state      <= ST_IDLE;
+            end else if (busy && dot_out_valid &&
+                         result_counter == context_len - 1'b1) begin
+                // The last result is the commit point. Earlier vectors may
+                // have been issued while the registered QK tree was draining.
+                logit_valid <= 1'b1;
+                logit_index <= result_counter;
+                logit_data  <= dot_result;
+                busy        <= 1'b0;
+                done        <= 1'b1;
+                state       <= ST_IDLE;
             end else begin
+                if (busy && dot_out_valid) begin
+                    logit_valid    <= 1'b1;
+                    logit_index    <= result_counter;
+                    logit_data     <= dot_result;
+                    result_counter <= result_counter + 1'b1;
+                end
                 case (state)
                     ST_IDLE: begin
                         busy <= 1'b0;
                         if (start) begin
                             perf_cycles   <= 32'd0;
                             token_counter <= {TOKEN_WIDTH{1'b0}};
+                            result_counter <= {TOKEN_WIDTH{1'b0}};
                             global_slice  <= {SLICE_WIDTH{1'b0}};
                             beat_slice    <= {BEAT_SLICE_WIDTH{1'b0}};
                             error_code    <= 8'd0;
                             if (context_len == 0 || context_len > MAX_CONTEXT) begin
                                 error      <= 1'b1;
                                 error_code <= 8'h01;
+                            end else if (reader_busy) begin
+                                // An aborted AXI burst is still draining and
+                                // cannot accept a new address yet.
+                                error      <= 1'b1;
+                                error_code <= 8'h05;
                             end else if (k_base_addr[VECTOR_SHIFT-1:0] != 0) begin
                                 error      <= 1'b1;
                                 error_code <= 8'h02;
@@ -265,37 +299,28 @@ module kv_cache_engine #(
                         global_slice <= global_slice + 1'b1;
                         if (beat_slice == SLICES_PER_BEAT-1) begin
                             beat_slice <= {BEAT_SLICE_WIDTH{1'b0}};
-                            if (buffered_beat_last)
-                                state <= ST_WAIT_RESULT;
-                            else
+                            if (!buffered_beat_last) begin
                                 state <= ST_WAIT_BEAT;
+                            end else if (token_counter ==
+                                         context_len - 1'b1) begin
+                                state <= ST_WAIT_RESULT;
+                            end else begin
+                                // Start the next vector immediately. This
+                                // overlaps AXI launch/read gaps with QK tree
+                                // drain latency without increasing MAC width.
+                                token_counter <= token_counter + 1'b1;
+                                global_slice  <= {SLICE_WIDTH{1'b0}};
+                                state         <= ST_ISSUE;
+                            end
                         end else begin
                             beat_slice <= beat_slice + 1'b1;
                         end
                     end
 
                     ST_WAIT_RESULT: begin
-                        if (dot_out_valid) begin
-                            if (dot_invalid_code) begin
-                                busy  <= 1'b0;
-                                error <= 1'b1;
-                                error_code <= 8'h30;
-                                state <= ST_IDLE;
-                            end else begin
-                                logit_valid <= 1'b1;
-                                logit_index <= token_counter;
-                                logit_data  <= dot_result;
-                                if (token_counter == context_len - 1'b1) begin
-                                    busy  <= 1'b0;
-                                    done  <= 1'b1;
-                                    state <= ST_IDLE;
-                                end else begin
-                                    token_counter <= token_counter + 1'b1;
-                                    global_slice  <= {SLICE_WIDTH{1'b0}};
-                                    state         <= ST_ISSUE;
-                                end
-                            end
-                        end
+                        // Results are retired by the common logic above. This
+                        // state is reached only after all requested vectors
+                        // have entered the QK pipeline.
                     end
 
                     default: state <= ST_IDLE;
