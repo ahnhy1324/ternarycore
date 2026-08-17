@@ -109,7 +109,7 @@ tb_kv_v03_score_store: ../tb/tb_kv_v03_score_store.v ../rtl/kv_v03_score_store.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_score_store $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_score_store
 
-tb_kv_v03_softmax: ../tb/tb_kv_v03_softmax.v ../rtl/kv_v03_score_store.v ../rtl/kv_v03_exp_lut.v ../rtl/kv_v03_reciprocal.v ../rtl/kv_v03_softmax.v
+tb_kv_v03_softmax: ../tb/tb_kv_v03_softmax.v ../rtl/kv_v03_softmax_engine.v ../rtl/kv_v03_score_store.v ../rtl/kv_v03_exp_lut.v ../rtl/kv_v03_reciprocal.v ../rtl/kv_v03_softmax.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_softmax $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_softmax +GOLDEN_ROOT=$(SOFTMAX_GOLDEN)
 

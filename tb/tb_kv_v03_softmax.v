@@ -7,13 +7,6 @@ module tb_kv_v03_softmax;
     reg clk = 0, rst_n = 0, start = 0;
     reg [1:0] score_row = 0;
     reg [12:0] context_len = 0;
-    wire score_rd_en;
-    wire [1:0] score_rd_row;
-    wire [11:0] score_rd_addr;
-    wire store_rd_valid;
-    wire signed [15:0] store_rd_data;
-    reg block_read_response = 0;
-    wire score_rd_valid = store_rd_valid && !block_read_response;
     reg exp_ready = 0;
     wire exp_valid, exp_last, busy, done, error_valid;
     wire [11:0] exp_index;
@@ -38,18 +31,11 @@ module tb_kv_v03_softmax;
 
     always #5 clk = ~clk;
 
-    kv_v03_score_store store (
-        .clk(clk), .wr_en(wr_en), .wr_row(wr_row), .wr_addr(wr_addr),
-        .wr_data(wr_data), .rd_en(score_rd_en), .rd_row(score_rd_row),
-        .rd_addr(score_rd_addr), .rd_valid(store_rd_valid),
-        .rd_data(store_rd_data)
-    );
-
-    kv_v03_softmax #(.READ_TIMEOUT_CYCLES(16)) dut (
+    kv_v03_softmax_engine #(.READ_TIMEOUT_CYCLES(16)) dut (
         .clk(clk), .rst_n(rst_n), .start(start), .score_row(score_row),
-        .context_len(context_len), .score_rd_en(score_rd_en),
-        .score_rd_row(score_rd_row), .score_rd_addr(score_rd_addr),
-        .score_rd_valid(score_rd_valid), .score_rd_data(store_rd_data),
+        .context_len(context_len), .score_wr_en(wr_en),
+        .score_wr_row(wr_row), .score_wr_addr(wr_addr),
+        .score_wr_data(wr_data),
         .exp_valid(exp_valid), .exp_ready(exp_ready),
         .exp_index(exp_index), .exp_code(exp_code), .exp_last(exp_last),
         .busy(busy), .done(done), .maximum_score(maximum_score),
@@ -173,7 +159,7 @@ module tb_kv_v03_softmax;
         // Suppress a legal synchronous response: timeout must be an error.
         context_len = 1;
         score_row = 0;
-        block_read_response = 1;
+        force dut.u_score_store.rd_valid = 1'b0;
         @(negedge clk);
         start = 1;
         @(negedge clk);
@@ -183,7 +169,7 @@ module tb_kv_v03_softmax;
             @(negedge clk);
             timeout = timeout + 1;
         end
-        block_read_response = 0;
+        release dut.u_score_store.rd_valid;
         if (!error_valid || error_code != 8'h03) begin
             $display("FAIL softmax read timeout error=%0d code=%02x",
                      error_valid, error_code);

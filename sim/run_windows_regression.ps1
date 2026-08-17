@@ -101,7 +101,8 @@ Invoke-IverilogTest "sim_kv_v03_reciprocal" @() @(
 Invoke-IverilogTest "sim_kv_v03_score_store" @() @(
     "tb/tb_kv_v03_score_store.v", "rtl/kv_v03_score_store.v")
 Invoke-IverilogTest "sim_kv_v03_softmax" @() @(
-    "tb/tb_kv_v03_softmax.v", "rtl/kv_v03_score_store.v",
+    "tb/tb_kv_v03_softmax.v", "rtl/kv_v03_softmax_engine.v",
+    "rtl/kv_v03_score_store.v",
     "rtl/kv_v03_exp_lut.v", "rtl/kv_v03_reciprocal.v",
     "rtl/kv_v03_softmax.v") @(
     "+GOLDEN_ROOT=$softmaxGoldenRoot")
