@@ -418,6 +418,32 @@ Attention-weighted V is the largest current attention component. The next
 distinct block should therefore be V streaming/AV accumulation while QK work
 focuses on utilization.
 
+## v0.3 isolated decoder and softmax RTL
+
+The balanced decoder candidate is now an isolated 2x2 cluster: two independent
+whole-page tasks, two symbols/cycle per task, and four aggregate symbols/cycle.
+The engines select K4 or V5 at task start, so compressed and raw K/V pages can
+be assigned without splitting a prefix stream. Concurrent K/V, runtime task
+swap, and per-lane integrity-fault isolation pass Icarus regression. The 1x4
+and 4x1 organizations remain analytical comparisons and are not implemented.
+
+The isolated softmax baseline implements four synchronous 4096x16 signed Q8.8
+score rows, max/subtract, the frozen 128-entry UQ1.15 exponent table, strict
+zero below -12, a 28-bit denominator, and an iterative normalized F12
+reciprocal. It is bit-exact against 87 reciprocal cases plus these score rows:
+
+| Case | Keys | Denominator | Underflows | Simulated cycles |
+|---|---:|---:|---:|---:|
+| uniform maximum | 4,096 | 134,217,728 | 0 | 25,614 |
+| single sink | 65 | 32,768 | 64 | 449 |
+| LUT boundary | 129 | 398,929 | 0 | 847 |
+| real Gate A row | 128 | 34,008 | 83 | 849 |
+
+Evidence: `RTL-SIMULATED/Icarus-v0.3-softmax`. Cycles include deterministic
+random output back-pressure and the current conservative two-pass/single-read
+controller. They are not a synthesized throughput claim. Missing score-memory
+responses raise a timeout error; a timeout never ends the test successfully.
+
 ## Verification requirements
 
 Required lengths:
@@ -482,14 +508,15 @@ not indicate an integrity failure.
 
 ## Next implementation order
 
-1. Freeze Q-scale, `1/sqrt(HEAD_DIM)`, rounding, clipping, and score-format ABI.
-2. Replace the 4096×32 asynchronous score LUTRAM with synchronous BRAM.
-3. Add separate K-scale base/configuration, AXI reader, FIFO, prefetch, and
-   explicit data/scale synchronization and underflow tests.
-4. Convert per-vector reads to long bursts and double-buffer reader/MAC work.
-5. Implement and synthesize REGULAR4 V4 and PACKED5 V5 streaming/AV before
-   selecting the full-attention format.
-6. Add softmax only after score and AV interfaces stabilize.
+1. Implement the bit-exact PACKED5 V5 P16/48-bit banked AV accumulator and
+   verify it against the existing real-capture integer numerator goldens.
+2. Add separate K/V scale readers, FIFOs, prefetch, and explicit data/scale
+   synchronization and underflow tests.
+3. Build the AXI128 page scheduler with long bursts, CRC-gated ping-pong page
+   buffers, offsets, typed faults, and starvation/utilization counters.
+4. Integrate score/softmax/AV row ownership and page commit/abort semantics.
+5. Optimize the correctness-first softmax reader toward one score/cycle, then
+   synthesize AUTO/CSD/DSP AV alternatives before selecting the mapping.
 
 ## Unverified hypotheses and known limitations
 
@@ -504,7 +531,8 @@ not indicate an integrity failure.
   0.175 ns; timing closure is an explicit next-revision requirement.
 - The compatibility scalar is not evidence that scale-plane synchronization is
   solved.
-- The proposed Q8.8 score, exp LUT, divider, and softmax remain candidates.
+- The Q8.8 score/LUT/reciprocal/softmax path is bit-exact in isolated Icarus
+  simulation but is not integrated, synthesized, or routed.
 - Deterministic dither mapping remains deliberately undefined.
 
 ## Artifact index

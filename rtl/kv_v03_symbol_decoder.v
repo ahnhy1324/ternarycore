@@ -6,12 +6,14 @@
 module kv_v03_symbol_decoder #(
     parameter integer SYMBOL_WIDTH = 4,
     parameter integer STREAM_IS_V = 0,
+    parameter integer RUNTIME_STREAM_SELECT = 0,
     parameter integer MAX_SYMBOLS = 16384
 ) (
     input  wire         clk,
     input  wire         rst_n,
     input  wire         start,
     input  wire         integrity_passed,
+    input  wire         stream_is_v,
     input  wire         raw_mode,
     input  wire [14:0]  expected_symbols,
     input  wire         in_valid,
@@ -38,6 +40,7 @@ module kv_v03_symbol_decoder #(
 
     reg active;
     reg mode_raw;
+    reg mode_stream_is_v;
     reg [14:0] expected_reg;
     reg [14:0] emitted_symbols;
     reg [63:0] reservoir;
@@ -117,11 +120,15 @@ module kv_v03_symbol_decoder #(
     endfunction
 
     reg [9:0] lookup [0:255];
+    reg [9:0] alternate_lookup [0:255];
     integer init_index;
     initial begin
-        for (init_index = 0; init_index < 256; init_index = init_index + 1)
+        for (init_index = 0; init_index < 256; init_index = init_index + 1) begin
             lookup[init_index] = STREAM_IS_V ?
                 v_entry(init_index[7:0]) : k_entry(init_index[7:0]);
+            alternate_lookup[init_index] = STREAM_IS_V ?
+                k_entry(init_index[7:0]) : v_entry(init_index[7:0]);
+        end
     end
 
     function [7:0] reverse_byte;
@@ -163,31 +170,35 @@ module kv_v03_symbol_decoder #(
     reg signed [4:0] symbol0_comb, symbol1_comb;
     reg decodable0, decodable1;
     reg reserved0, reserved1;
+    reg [3:0] raw_width;
     integer symbol_bit;
     always @* begin
+        raw_width = mode_stream_is_v ? 4'd5 : 4'd4;
         if (bit_count >= 8)
             prefix0 = reservoir >> (bit_count - 8);
         else
             prefix0 = reservoir << (8 - bit_count);
-        entry0 = lookup[prefix0];
-        length0 = mode_raw ? SYMBOL_WIDTH : entry0[8:5];
+        entry0 = (mode_stream_is_v == STREAM_IS_V) ?
+                 lookup[prefix0] : alternate_lookup[prefix0];
+        length0 = mode_raw ? raw_width : entry0[8:5];
         symbol0_comb = entry0[4:0];
         if (mode_raw) begin
             symbol0_comb = 5'b0;
-            if (bit_count >= SYMBOL_WIDTH) begin
-                for (symbol_bit = 0; symbol_bit < SYMBOL_WIDTH;
+            if (bit_count >= raw_width) begin
+                for (symbol_bit = 0; symbol_bit < 5;
                      symbol_bit = symbol_bit + 1)
-                    symbol0_comb[symbol_bit] =
-                        reservoir[bit_count-1-symbol_bit];
-                if (SYMBOL_WIDTH == 4)
+                    if (symbol_bit < raw_width)
+                        symbol0_comb[symbol_bit] =
+                            reservoir[bit_count-1-symbol_bit];
+                if (raw_width == 4)
                     symbol0_comb[4] = symbol0_comb[3];
             end
         end
-        reserved0 = mode_raw && (bit_count >= SYMBOL_WIDTH) &&
-            (symbol0_comb[SYMBOL_WIDTH-1:0] ==
-             ({{(SYMBOL_WIDTH-1){1'b0}}, 1'b1} << (SYMBOL_WIDTH-1)));
+        reserved0 = mode_raw && (bit_count >= raw_width) &&
+            (((raw_width == 4) && symbol0_comb[3:0] == 4'h8) ||
+             ((raw_width == 5) && symbol0_comb[4:0] == 5'h10));
         decodable0 = (emitted_symbols < expected_reg) && !reserved0 &&
-            (mode_raw ? (bit_count >= SYMBOL_WIDTH) :
+            (mode_raw ? (bit_count >= raw_width) :
              (entry0[9] && length0 != 0 && length0 <= bit_count &&
               (bit_count >= 8 || saw_last)));
 
@@ -196,26 +207,28 @@ module kv_v03_symbol_decoder #(
             prefix1 = reservoir >> (remaining_count - 8);
         else
             prefix1 = reservoir << (8 - remaining_count);
-        entry1 = lookup[prefix1];
-        length1 = mode_raw ? SYMBOL_WIDTH : entry1[8:5];
+        entry1 = (mode_stream_is_v == STREAM_IS_V) ?
+                 lookup[prefix1] : alternate_lookup[prefix1];
+        length1 = mode_raw ? raw_width : entry1[8:5];
         symbol1_comb = entry1[4:0];
         if (mode_raw) begin
             symbol1_comb = 5'b0;
-            if (remaining_count >= SYMBOL_WIDTH) begin
-                for (symbol_bit = 0; symbol_bit < SYMBOL_WIDTH;
+            if (remaining_count >= raw_width) begin
+                for (symbol_bit = 0; symbol_bit < 5;
                      symbol_bit = symbol_bit + 1)
-                    symbol1_comb[symbol_bit] =
-                        reservoir[remaining_count-1-symbol_bit];
-                if (SYMBOL_WIDTH == 4)
+                    if (symbol_bit < raw_width)
+                        symbol1_comb[symbol_bit] =
+                            reservoir[remaining_count-1-symbol_bit];
+                if (raw_width == 4)
                     symbol1_comb[4] = symbol1_comb[3];
             end
         end
-        reserved1 = mode_raw && (remaining_count >= SYMBOL_WIDTH) &&
-            (symbol1_comb[SYMBOL_WIDTH-1:0] ==
-             ({{(SYMBOL_WIDTH-1){1'b0}}, 1'b1} << (SYMBOL_WIDTH-1)));
+        reserved1 = mode_raw && (remaining_count >= raw_width) &&
+            (((raw_width == 4) && symbol1_comb[3:0] == 4'h8) ||
+             ((raw_width == 5) && symbol1_comb[4:0] == 5'h10));
         decodable1 = decodable0 &&
             (emitted_symbols + 1 < expected_reg) && !reserved1 &&
-            (mode_raw ? (remaining_count >= SYMBOL_WIDTH) :
+            (mode_raw ? (remaining_count >= raw_width) :
              (entry1[9] && length1 != 0 && length1 <= remaining_count &&
               (remaining_count >= 8 || saw_last)));
     end
@@ -275,6 +288,7 @@ module kv_v03_symbol_decoder #(
         if (!rst_n) begin
             active          <= 1'b0;
             mode_raw        <= 1'b0;
+            mode_stream_is_v <= STREAM_IS_V;
             expected_reg    <= 15'b0;
             emitted_symbols <= 15'b0;
             reservoir       <= 64'b0;
@@ -289,6 +303,8 @@ module kv_v03_symbol_decoder #(
 
             if (start) begin
                 mode_raw        <= raw_mode;
+                mode_stream_is_v <= RUNTIME_STREAM_SELECT ?
+                                    stream_is_v : STREAM_IS_V;
                 expected_reg    <= expected_symbols;
                 emitted_symbols <= 15'b0;
                 reservoir       <= 64'b0;
@@ -350,6 +366,8 @@ module kv_v03_symbol_decoder #(
         if ((STREAM_IS_V && SYMBOL_WIDTH != 5) ||
             (!STREAM_IS_V && SYMBOL_WIDTH != 4))
             $error("kv_v03_symbol_decoder: stream/width mismatch");
+        if (RUNTIME_STREAM_SELECT != 0 && RUNTIME_STREAM_SELECT != 1)
+            $error("kv_v03_symbol_decoder: RUNTIME_STREAM_SELECT must be 0 or 1");
     end
 `endif
 endmodule

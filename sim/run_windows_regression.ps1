@@ -88,6 +88,23 @@ Invoke-IverilogTest "sim_kv_v03_decoders" @() @(
     "tb/tb_kv_v03_decoders.v", "rtl/kv_v03_symbol_decoder.v",
     "rtl/kv_v03_k4_decoder.v", "rtl/kv_v03_v5_decoder.v") @(
     "+GOLDEN_ROOT=$decoderGoldenRoot")
+Invoke-IverilogTest "sim_kv_v03_decoder_cluster_2x2" @() @(
+    "tb/tb_kv_v03_decoder_cluster_2x2.v",
+    "rtl/kv_v03_symbol_decoder.v",
+    "rtl/kv_v03_decoder_cluster_2x2.v") @(
+    "+GOLDEN_ROOT=$decoderGoldenRoot")
+$softmaxGoldenRoot = (Join-Path $repo (
+    "analysis/kv_validation/v0_3/rtl_goldens/softmax")).Replace("\", "/")
+Invoke-IverilogTest "sim_kv_v03_reciprocal" @() @(
+    "tb/tb_kv_v03_reciprocal.v", "rtl/kv_v03_reciprocal.v") @(
+    "+GOLDEN_ROOT=$softmaxGoldenRoot")
+Invoke-IverilogTest "sim_kv_v03_score_store" @() @(
+    "tb/tb_kv_v03_score_store.v", "rtl/kv_v03_score_store.v")
+Invoke-IverilogTest "sim_kv_v03_softmax" @() @(
+    "tb/tb_kv_v03_softmax.v", "rtl/kv_v03_score_store.v",
+    "rtl/kv_v03_exp_lut.v", "rtl/kv_v03_reciprocal.v",
+    "rtl/kv_v03_softmax.v") @(
+    "+GOLDEN_ROOT=$softmaxGoldenRoot")
 Invoke-IverilogTest "sim_kv_dequant" @() @(
     "tb/tb_kv_dequant.v", "rtl/kv_dequant.v")
 Invoke-IverilogTest "sim_qk_dot" @() @(

@@ -69,15 +69,24 @@ For every RTL edit, the complete relevant Icarus suite runs before Vivado.
 Evidence labels below distinguish Icarus RTL simulation from software and from
 Vivado results. No Vivado timing or resource claim is made in this section.
 
-- Steps 1-4 pass unit and full KV regression: CRC32, typed page header,
+- Steps 1-5 pass unit and full KV regression: CRC32, typed page header,
   contiguous UQ4.8 scale reader, and bit-exact K4/V5 compressed/raw decoders.
+- The balanced 2x2 decoder cluster runs two complete independent page tasks,
+  supports runtime K4/V5 selection, and has concurrent compressed/raw and
+  per-lane fault-isolation coverage. The 1x4 and 4x1 organizations remain
+  analytical alternatives rather than baseline RTL.
 - Step 6 arithmetic is implemented ahead of the decoder cluster: registered
   Q/K inputs, registered product/reduction levels, group128 accumulation, and
   identical K4/K5 AUTO versus SHIFT_ADD real-model golden results.
 - The legacy vector FSM now overlaps the next AXI read with QK pipeline drain.
   It drains accepted AXI bursts and flushes the QK pipeline on a late format
   fault, including restart-after-long and short-after-error regression.
-- Step 5 and steps 7-9 remain pending. The decoder `done` pulse is the page
+- Step 7 now has an isolated RTL baseline: four synchronous 4096x16 score rows,
+  the frozen 128-entry UQ1.15 LUT, strictly-below -12 underflow, 28-bit
+  denominator, and an iterative F12 normalized reciprocal. It is bit-exact on
+  adversarial boundaries and one real Gate A score row. The current two-pass
+  controller is a correctness baseline, not a final utilization result.
+- Steps 8-9 remain pending. The decoder `done` pulse is the page
   commit point; integration must keep streamed symbols in scratch state until
   format completion succeeds.
 

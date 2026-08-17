@@ -21,7 +21,8 @@ module kv_v03_v5_decoder (
         .SYMBOL_WIDTH(5), .STREAM_IS_V(1), .MAX_SYMBOLS(16384)
     ) u_decoder (
         .clk(clk), .rst_n(rst_n), .start(start),
-        .integrity_passed(integrity_passed), .raw_mode(raw_mode),
+        .integrity_passed(integrity_passed), .stream_is_v(1'b1),
+        .raw_mode(raw_mode),
         .expected_symbols(expected_symbols), .in_valid(in_valid),
         .in_ready(in_ready), .in_data(in_data),
         .in_byte_valid(in_byte_valid), .in_last(in_last),

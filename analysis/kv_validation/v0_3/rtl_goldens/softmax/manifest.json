@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "denominator": 134217728,
+      "length": 4096,
+      "maximum_score_code": 0,
+      "name": "uniform_4096",
+      "reciprocal_code_f12": 4096,
+      "reciprocal_exponent": 27,
+      "underflow_count": 0
+    },
+    {
+      "denominator": 32768,
+      "length": 65,
+      "maximum_score_code": 0,
+      "name": "single_sink_65",
+      "reciprocal_code_f12": 4096,
+      "reciprocal_exponent": 15,
+      "underflow_count": 64
+    },
+    {
+      "denominator": 398929,
+      "length": 129,
+      "maximum_score_code": 1,
+      "name": "lut_boundary_129",
+      "reciprocal_code_f12": 2692,
+      "reciprocal_exponent": 18,
+      "underflow_count": 0
+    },
+    {
+      "denominator": 34008,
+      "length": 128,
+      "maximum_score_code": 1416,
+      "name": "real_engineering_c128_l00_h0",
+      "reciprocal_code_f12": 3947,
+      "reciprocal_exponent": 15,
+      "underflow_count": 83
+    }
+  ],
+  "claim_scope": "RTL bit-exact vectors; not model-accuracy evidence",
+  "evidence": "SOFTWARE-BIT-EXACT/v0.3-softmax-rtl-goldens",
+  "real_case_source": "analysis/kv_validation/v0_3/results/gate_a/context_0128/council/PACKED5_PAGE128_UQ4_8/fixedpoint_inputs/layer_00_last_query_scores.npz",
+  "reciprocal_case_count": 87,
+  "reciprocal_fraction": 12,
+  "schema": "kv-v0.3-softmax-rtl-goldens-v1"
+}

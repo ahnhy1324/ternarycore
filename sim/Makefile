@@ -6,7 +6,7 @@ IVERILOG = iverilog
 VVP      = vvp
 SIMDIR   = .
 
-.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders clean verify analyze_kv
+.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_softmax clean verify analyze_kv
 
 all: tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache
 
@@ -67,6 +67,8 @@ KV_RTL = ../rtl/kv_addr_gen.v ../rtl/int4_unpack.v ../rtl/kv_dequant.v \
 
 tb_kv_cache: tb_int4_unpack tb_kv_v03_crc32 tb_kv_v03_page_header \
 	tb_kv_v03_scale12_reader tb_kv_v03_decoders \
+	tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal \
+	tb_kv_v03_score_store tb_kv_v03_softmax \
 	tb_kv_dequant tb_qk_dot tb_qk_group_dot \
 	tb_kv_cache_engine tb_kv_cache_engine_256 \
 	tb_kv_cache_engine_hd128 tb_kv_cache_engine_hd128_256 \
@@ -91,6 +93,24 @@ tb_kv_v03_scale12_reader: ../tb/tb_kv_v03_scale12_reader.v ../rtl/kv_v03_scale12
 tb_kv_v03_decoders: ../tb/tb_kv_v03_decoders.v ../rtl/kv_v03_symbol_decoder.v ../rtl/kv_v03_k4_decoder.v ../rtl/kv_v03_v5_decoder.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_decoders $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_decoders +GOLDEN_ROOT=../analysis/kv_validation/v0_3/codec/decoder_goldens
+
+tb_kv_v03_decoder_cluster_2x2: ../tb/tb_kv_v03_decoder_cluster_2x2.v ../rtl/kv_v03_symbol_decoder.v ../rtl/kv_v03_decoder_cluster_2x2.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_decoder_cluster_2x2 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_decoder_cluster_2x2 +GOLDEN_ROOT=../analysis/kv_validation/v0_3/codec/decoder_goldens
+
+SOFTMAX_GOLDEN = ../analysis/kv_validation/v0_3/rtl_goldens/softmax
+
+tb_kv_v03_reciprocal: ../tb/tb_kv_v03_reciprocal.v ../rtl/kv_v03_reciprocal.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_reciprocal $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_reciprocal +GOLDEN_ROOT=$(SOFTMAX_GOLDEN)
+
+tb_kv_v03_score_store: ../tb/tb_kv_v03_score_store.v ../rtl/kv_v03_score_store.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_score_store $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_score_store
+
+tb_kv_v03_softmax: ../tb/tb_kv_v03_softmax.v ../rtl/kv_v03_score_store.v ../rtl/kv_v03_exp_lut.v ../rtl/kv_v03_reciprocal.v ../rtl/kv_v03_softmax.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_softmax $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_softmax +GOLDEN_ROOT=$(SOFTMAX_GOLDEN)
 
 tb_kv_dequant: ../tb/tb_kv_dequant.v ../rtl/kv_dequant.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_dequant $^
