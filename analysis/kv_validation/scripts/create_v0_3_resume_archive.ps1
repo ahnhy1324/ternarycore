@@ -89,6 +89,20 @@ if (Test-Path -LiteralPath $runRoot) {
 }
 $completedRunRecords | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $metadataDirectory "completed-runs.json")
 
+$compactResultsRoot = Join-Path $stagingRoot "compact_results"
+New-Item -ItemType Directory -Path $compactResultsRoot | Out-Null
+if (Test-Path -LiteralPath $runRoot) {
+    $gateSummaryDestination = Join-Path $compactResultsRoot "gate_a"
+    New-Item -ItemType Directory -Path $gateSummaryDestination | Out-Null
+    Get-ChildItem -LiteralPath $runRoot -File | Copy-Item -Destination $gateSummaryDestination
+}
+foreach ($resultDirectoryName in @("fixedpoint", "schedule")) {
+    $resultDirectory = Join-Path $v03Root "results\$resultDirectoryName"
+    if (Test-Path -LiteralPath $resultDirectory) {
+        Copy-Item -LiteralPath $resultDirectory -Destination $compactResultsRoot -Recurse
+    }
+}
+
 $referenceBaseRoot = Join-Path $stagingRoot "reference_base_runs"
 foreach ($promptId in @("engineering", "observatory")) {
     $referenceBase = Join-Path $repositoryRoot "analysis\kv_validation\real_model\end_to_end_injection\$promptId\BASE_FP"
