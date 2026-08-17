@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {
+      "context_len": 128,
+      "maximum_abs_numerator": 111758403,
+      "name": "real_c128_l00_kvh0",
+      "observed_signed_numerator_bits": 28
+    },
+    {
+      "context_len": 7,
+      "maximum_abs_numerator": 2012976327,
+      "name": "adversarial_c7",
+      "observed_signed_numerator_bits": 32
+    }
+  ],
+  "claim_scope": "integer AV numerator RTL vectors; not model accuracy",
+  "evidence": "SOFTWARE-BIT-EXACT/v0.3-av-rtl-goldens",
+  "layout": "inputs token-major; exponents token-major/head-minor; numerators head-major/dimension-minor",
+  "real_case_source": "analysis/kv_validation/real_model/runs/20260816-streaming-full-c128/tensors/layer_00.pt",
+  "schema": "kv-v0.3-av-rtl-goldens-v1"
+}

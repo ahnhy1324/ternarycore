@@ -9,9 +9,14 @@ import json
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from run_v0_3_fixedpoint_sweep import scores_for
-from v0_3_fixedpoint_reference import fixed_softmax, normalized_reciprocal
+from v0_3_fixedpoint_reference import (
+    fixed_softmax,
+    normalized_reciprocal,
+    quantize_symmetric,
+)
 
 
 def write_hex(path: Path, values: np.ndarray, width: int) -> None:
@@ -46,6 +51,37 @@ def write_softmax_case(root: Path, name: str, scores: np.ndarray) -> dict:
         "denominator": fixed.denominator,
         "reciprocal_code_f12": fixed.reciprocal_code,
         "reciprocal_exponent": fixed.reciprocal_exponent,
+    }
+
+
+def write_av_case(root: Path, name: str, v_codes: np.ndarray,
+                  v_scale_codes: np.ndarray,
+                  exp_codes: np.ndarray) -> dict:
+    case_root = root / name
+    case_root.mkdir(parents=True, exist_ok=True)
+    codes = np.asarray(v_codes, dtype=np.int8)
+    scales = np.asarray(v_scale_codes, dtype=np.uint16).reshape(-1)
+    exponents = np.asarray(exp_codes, dtype=np.uint16)
+    if codes.ndim != 2 or codes.shape[1] != 128:
+        raise ValueError("AV V codes must be [tokens,128]")
+    if exponents.shape != (4, codes.shape[0]):
+        raise ValueError("AV exponents must be [4,tokens]")
+    if scales.shape != (codes.shape[0],):
+        raise ValueError("AV scales must be one per token")
+    weights = exponents.astype(np.int64) * scales[np.newaxis, :]
+    numerators = weights @ codes.astype(np.int64)
+    if np.max(np.abs(numerators)) >= (1 << 47):
+        raise OverflowError("AV golden exceeds signed 48-bit contract")
+    write_hex(case_root / "v_codes_s5.hex", codes, 2)
+    write_hex(case_root / "v_scales_u12.hex", scales, 3)
+    write_hex(case_root / "exp_h4_u16.hex", exponents.T, 4)
+    write_hex(case_root / "expected_numerators_s48.hex", numerators, 12)
+    maximum_abs = int(np.max(np.abs(numerators)))
+    return {
+        "name": name,
+        "context_len": int(codes.shape[0]),
+        "maximum_abs_numerator": maximum_abs,
+        "observed_signed_numerator_bits": maximum_abs.bit_length() + 1,
     }
 
 
@@ -109,7 +145,60 @@ def main() -> None:
     (args.output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")
+
+    av_root = args.output.parent / "av"
+    av_root.mkdir(parents=True, exist_ok=True)
+    capture_path = (repo / "analysis" / "kv_validation" / "real_model" /
+                    "runs" / "20260816-streaming-full-c128" / "tensors" /
+                    "layer_00.pt")
+    saved_capture = torch.load(
+        capture_path, map_location="cpu", weights_only=True)["tensors"]
+    q = quantize_symmetric(
+        saved_capture["q_post_rope"].float().numpy(), 8,
+        scale_fraction=15, scale_width=16)
+    k = quantize_symmetric(
+        saved_capture["k_post_rope"].float().numpy(), 4,
+        scale_fraction=8, scale_width=12)
+    v = quantize_symmetric(
+        saved_capture["v"].float().numpy(), 5,
+        scale_fraction=8, scale_width=12)
+    real_exp = []
+    for head in range(4):
+        scores = (k.dequant[0] @ q.dequant[head, -1] / np.sqrt(128.0))
+        real_exp.append(fixed_softmax(scores).exp_codes)
+    av_cases = [write_av_case(
+        av_root, "real_c128_l00_kvh0",
+        v.codes[0], v.scale_codes[0], np.stack(real_exp))]
+
+    short_context = 7
+    short_codes = np.fromfunction(
+        lambda token, dim: ((token * 3 + dim * 5) % 31) - 15,
+        (short_context, 128), dtype=int).astype(np.int8)
+    short_scales = np.asarray([1, 17, 255, 256, 1023, 2048, 4095],
+                              dtype=np.uint16)
+    short_exp = np.asarray([
+        [32768, 0, 1, 17, 1024, 8192, 16384],
+        [0, 32768, 1, 31, 2048, 4096, 8192],
+        [1, 2, 3, 4, 5, 6, 32768],
+        [32768, 32768, 0, 0, 1, 1, 1],
+    ], dtype=np.uint16)
+    av_cases.append(write_av_case(
+        av_root, "adversarial_c7", short_codes, short_scales, short_exp))
+    av_manifest = {
+        "schema": "kv-v0.3-av-rtl-goldens-v1",
+        "evidence": "SOFTWARE-BIT-EXACT/v0.3-av-rtl-goldens",
+        "cases": av_cases,
+        "real_case_source": str(capture_path.relative_to(repo)).replace(
+            "\\", "/"),
+        "layout": "inputs token-major; exponents token-major/head-minor; "
+                  "numerators head-major/dimension-minor",
+        "claim_scope": "integer AV numerator RTL vectors; not model accuracy",
+    }
+    (av_root / "manifest.json").write_text(
+        json.dumps(av_manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8")
     print(json.dumps(manifest, indent=2, sort_keys=True))
+    print(json.dumps(av_manifest, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

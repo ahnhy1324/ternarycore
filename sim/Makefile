@@ -6,7 +6,7 @@ IVERILOG = iverilog
 VVP      = vvp
 SIMDIR   = .
 
-.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_softmax clean verify analyze_kv
+.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_softmax tb_kv_v03_v5_weight_mul tb_kv_v03_av clean verify analyze_kv
 
 all: tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache
 
@@ -69,6 +69,7 @@ tb_kv_cache: tb_int4_unpack tb_kv_v03_crc32 tb_kv_v03_page_header \
 	tb_kv_v03_scale12_reader tb_kv_v03_decoders \
 	tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_reciprocal \
 	tb_kv_v03_score_store tb_kv_v03_softmax \
+	tb_kv_v03_v5_weight_mul tb_kv_v03_av \
 	tb_kv_dequant tb_qk_dot tb_qk_group_dot \
 	tb_kv_cache_engine tb_kv_cache_engine_256 \
 	tb_kv_cache_engine_hd128 tb_kv_cache_engine_hd128_256 \
@@ -111,6 +112,22 @@ tb_kv_v03_score_store: ../tb/tb_kv_v03_score_store.v ../rtl/kv_v03_score_store.v
 tb_kv_v03_softmax: ../tb/tb_kv_v03_softmax.v ../rtl/kv_v03_score_store.v ../rtl/kv_v03_exp_lut.v ../rtl/kv_v03_reciprocal.v ../rtl/kv_v03_softmax.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_softmax $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_softmax +GOLDEN_ROOT=$(SOFTMAX_GOLDEN)
+
+AV_GOLDEN = ../analysis/kv_validation/v0_3/rtl_goldens/av
+
+tb_kv_v03_v5_weight_mul: ../tb/tb_kv_v03_v5_weight_mul.v ../rtl/kv_v03_v5_weight_mul.v
+	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_v5_weight_mul $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_v5_weight_mul
+
+tb_kv_v03_av: tb_kv_v03_av_style0 tb_kv_v03_av_style2
+
+tb_kv_v03_av_style0: ../tb/tb_kv_v03_av_accumulator.v ../rtl/kv_v03_v5_weight_mul.v ../rtl/kv_v03_av_accumulator.v
+	$(IVERILOG) -g2012 -DMULT_STYLE_VAL=0 -o $(SIMDIR)/sim_kv_v03_av_style0 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_av_style0 +GOLDEN_ROOT=$(AV_GOLDEN)
+
+tb_kv_v03_av_style2: ../tb/tb_kv_v03_av_accumulator.v ../rtl/kv_v03_v5_weight_mul.v ../rtl/kv_v03_av_accumulator.v
+	$(IVERILOG) -g2012 -DMULT_STYLE_VAL=2 -o $(SIMDIR)/sim_kv_v03_av_style2 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_av_style2 +GOLDEN_ROOT=$(AV_GOLDEN)
 
 tb_kv_dequant: ../tb/tb_kv_dequant.v ../rtl/kv_dequant.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_dequant $^

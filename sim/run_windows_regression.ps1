@@ -105,6 +105,18 @@ Invoke-IverilogTest "sim_kv_v03_softmax" @() @(
     "rtl/kv_v03_exp_lut.v", "rtl/kv_v03_reciprocal.v",
     "rtl/kv_v03_softmax.v") @(
     "+GOLDEN_ROOT=$softmaxGoldenRoot")
+$avGoldenRoot = (Join-Path $repo (
+    "analysis/kv_validation/v0_3/rtl_goldens/av")).Replace("\", "/")
+Invoke-IverilogTest "sim_kv_v03_v5_weight_mul" @() @(
+    "tb/tb_kv_v03_v5_weight_mul.v", "rtl/kv_v03_v5_weight_mul.v")
+foreach ($avMultStyle in 0, 2) {
+    Invoke-IverilogTest "sim_kv_v03_av_style$avMultStyle" @(
+        "MULT_STYLE_VAL=$avMultStyle") @(
+        "tb/tb_kv_v03_av_accumulator.v",
+        "rtl/kv_v03_v5_weight_mul.v",
+        "rtl/kv_v03_av_accumulator.v") @(
+        "+GOLDEN_ROOT=$avGoldenRoot")
+}
 Invoke-IverilogTest "sim_kv_dequant" @() @(
     "tb/tb_kv_dequant.v", "rtl/kv_dequant.v")
 Invoke-IverilogTest "sim_qk_dot" @() @(

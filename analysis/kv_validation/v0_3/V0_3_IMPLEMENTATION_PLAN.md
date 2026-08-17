@@ -86,7 +86,13 @@ Vivado results. No Vivado timing or resource claim is made in this section.
   denominator, and an iterative F12 normalized reciprocal. It is bit-exact on
   adversarial boundaries and one real Gate A score row. The current two-pass
   controller is a correctness baseline, not a final utilization result.
-- Steps 8-9 remain pending. The decoder `done` pulse is the page
+- Step 8 now has a bit-exact integer-numerator baseline: P16, four heads,
+  sixteen signed 48-bit banks, and AUTO/CSD-equivalent V5 products. It passes
+  one context-128 real capture and a short adversarial case. The final
+  numerator-times-reciprocal output rounding/format remains deliberately open
+  because the handoff freezes a signed 64-bit intermediate but not an output
+  code format.
+- Step 9 remains pending. The decoder `done` pulse is the page
   commit point; integration must keep streamed symbols in scratch state until
   format completion succeeds.
 

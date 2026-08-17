@@ -444,6 +444,18 @@ random output back-pressure and the current conservative two-pass/single-read
 controller. They are not a synthesized throughput claim. Missing score-memory
 responses raise a timeout error; a timeout never ends the test successfully.
 
+The isolated AV numerator block now maintains four heads × 128 dimensions in
+sixteen signed 48-bit banks and accepts one P16 `(exp × V-scale × V5)` update
+per cycle. AUTO and explicit CSD multiplication are bit-identical for a real
+context-128 layer-0 capture, a seven-token adversarial case, and 279 exhaustive
+legal-code/boundary-weight multiplier cases. Schedule mismatch, reserved -16,
+zero scale, and accumulator overflow have distinct fault paths.
+
+This AV evidence stops at the integer numerator. The handoff specifies a
+signed 64-bit numerator-times-reciprocal intermediate but does not freeze the
+final output code width, rounding, or saturation. Those details remain an ABI
+TODO and were not invented for the RTL test.
+
 ## Verification requirements
 
 Required lengths:
