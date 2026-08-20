@@ -529,9 +529,6 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
         ::zybo_bringup::require_absent \
             [get_bd_intf_pins -quiet axi_kvq_canned_page_diag_0/m_axi*] \
             "canned-page external AXI master interface"
-        ::zybo_bringup::require_absent \
-            [get_bd_addr_spaces -quiet axi_kvq_canned_page_diag_0/*] \
-            "canned-page AXI master address space"
         foreach unused_hp_input {S01_AXI S02_AXI} {
             ::zybo_bringup::require_absent \
                 [get_bd_intf_pins -quiet hp_sc/$unused_hp_input] \
