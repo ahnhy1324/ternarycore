@@ -197,6 +197,8 @@ module kv_v03_av_normalizer #(
             end else if (active) begin
                 if (output_handshake) begin
                     output_valid_reg <= 1'b0;
+                    if (output_saturated)
+                        saturation_count <= saturation_count + 1'b1;
                     if (output_last_reg) begin
                         active  <= 1'b0;
                         done    <= 1'b1;
@@ -211,8 +213,6 @@ module kv_v03_av_normalizer #(
                         output_numerator <= stage_numerator;
                         output_code      <= normalized[OUT_WIDTH-1:0];
                         output_saturated <= normalized[OUT_WIDTH];
-                        if (normalized[OUT_WIDTH])
-                            saturation_count <= saturation_count + 1'b1;
                     end
                     stage_valid <= 1'b0;
                 end
