@@ -256,6 +256,9 @@ module kv_v03_canned_page_arithmetic #(
          k_token_count != context_reg[7:0] ||
          v_token_count != context_reg[7:0]);
     reg ownership_fault_pending;
+    reg child_fault_pending;
+    reg [7:0] child_fault_code_pending;
+    reg [7:0] child_fault_subcode_pending;
 
     // The lane-bank descriptor is intentionally checked throughout page
     // ownership, but its wide comparison must not feed every arithmetic
@@ -522,6 +525,36 @@ module kv_v03_canned_page_arithmetic #(
         end
     endgenerate
 
+    // Child error outputs can themselves react to core_abort.  Capture them
+    // before adding them to the abort tree so no error->abort->error
+    // combinational loop reaches implementation or bitstream DRC.
+    always @(posedge clk) begin
+        if (!rst_n || state == ST_IDLE || state == ST_FAULT_DRAIN ||
+            state == ST_FAULT) begin
+            child_fault_pending <= 1'b0;
+            child_fault_code_pending <= 8'd0;
+            child_fault_subcode_pending <= 8'd0;
+        end else if (!child_fault_pending) begin
+            if (guard_error_valid) begin
+                child_fault_pending <= 1'b1;
+                child_fault_code_pending <= ERR_SCORE;
+                child_fault_subcode_pending <= guard_error_code;
+            end else if (soft_error_valid) begin
+                child_fault_pending <= 1'b1;
+                child_fault_code_pending <= ERR_SOFTMAX;
+                child_fault_subcode_pending <= soft_error_code;
+            end else if (av_error_valid) begin
+                child_fault_pending <= 1'b1;
+                child_fault_code_pending <= ERR_AV;
+                child_fault_subcode_pending <= av_error_code;
+            end else if (norm_error_valid) begin
+                child_fault_pending <= 1'b1;
+                child_fault_code_pending <= ERR_NORMALIZE;
+                child_fault_subcode_pending <= norm_error_code;
+            end
+        end
+    end
+
     // Datapath faults remain combinational so children see abort/cancel on the
     // exact edge on which public outputs are hidden.  The wide live ownership
     // comparison above is deliberately registered to bound its timing cone.
@@ -551,22 +584,10 @@ module kv_v03_canned_page_arithmetic #(
             runtime_fault = 1'b1;
             runtime_fault_code = ERR_INTERNAL;
             runtime_fault_subcode = 8'h11;
-        end else if (guard_error_valid) begin
+        end else if (child_fault_pending) begin
             runtime_fault = 1'b1;
-            runtime_fault_code = ERR_SCORE;
-            runtime_fault_subcode = guard_error_code;
-        end else if (soft_error_valid) begin
-            runtime_fault = 1'b1;
-            runtime_fault_code = ERR_SOFTMAX;
-            runtime_fault_subcode = soft_error_code;
-        end else if (av_error_valid) begin
-            runtime_fault = 1'b1;
-            runtime_fault_code = ERR_AV;
-            runtime_fault_subcode = av_error_code;
-        end else if (norm_error_valid) begin
-            runtime_fault = 1'b1;
-            runtime_fault_code = ERR_NORMALIZE;
-            runtime_fault_subcode = norm_error_code;
+            runtime_fault_code = child_fault_code_pending;
+            runtime_fault_subcode = child_fault_subcode_pending;
         end else if (state == ST_SOFT_RUN && soft_exp_valid &&
                      (soft_exp_index[6:0] != soft_expected_index ||
                       soft_exp_index >= context_reg ||
