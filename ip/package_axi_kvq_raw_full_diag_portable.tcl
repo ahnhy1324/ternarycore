@@ -301,8 +301,9 @@ if {![file isdirectory $repo_root]} {
 if {![string equal -nocase $requested_part "xc7z020clg400-1"]} {
     error "PART must be exactly xc7z020clg400-1 for the Zybo Z7-20 board gate; got '$requested_part'"
 }
-if {![string is integer -strict $clock_hz] || $clock_hz != 76923080} {
-    error "CLOCK_HZ must be exactly 76923080 for the current native-FCLK board gate; got '$clock_hz'"
+if {![string is integer -strict $clock_hz] ||
+    $clock_hz ni {75000000 76923080 81250000}} {
+    error "CLOCK_HZ must be exactly 75000000, 76923080, or 81250000; got '$clock_hz'"
 }
 if {![string is integer -strict $m_axi_data_width] ||
     $m_axi_data_width ni {64 128}} {
