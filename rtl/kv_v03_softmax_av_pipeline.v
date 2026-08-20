@@ -224,6 +224,7 @@ module kv_v03_softmax_av_pipeline #(
     wire normalizer_output_valid;
     wire [6:0] normalizer_output_index;
     wire signed [17:0] normalizer_output_code;
+    wire signed [47:0] normalizer_output_numerator;
     wire normalizer_output_saturated, normalizer_output_last;
     wire [15:0] head_saturation_count;
     wire signed [47:0] current_numerator =
@@ -253,6 +254,7 @@ module kv_v03_softmax_av_pipeline #(
         .output_valid(normalizer_output_valid),
         .output_ready(normalizer_output_ready),
         .output_index(normalizer_output_index),
+        .output_numerator(normalizer_output_numerator),
         .output_code(normalizer_output_code),
         .output_saturated(normalizer_output_saturated),
         .output_last(normalizer_output_last), .busy(normalizer_busy),
@@ -268,7 +270,7 @@ module kv_v03_softmax_av_pipeline #(
                           !abort && !start;
     assign result_head = normalize_head;
     assign result_dimension = normalizer_output_index;
-    assign result_numerator = result_numerator_hold;
+    assign result_numerator = normalizer_output_numerator;
     assign result_code = normalizer_output_code;
     assign result_saturated = normalizer_output_saturated;
     assign result_last = normalize_head == 3 && normalizer_output_last;

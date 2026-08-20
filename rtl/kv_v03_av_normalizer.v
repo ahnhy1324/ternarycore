@@ -28,6 +28,7 @@ module kv_v03_av_normalizer #(
     output wire                          output_valid,
     input  wire                          output_ready,
     output reg  [INDEX_WIDTH-1:0]        output_index,
+    output reg  signed [47:0]            output_numerator,
     output reg  signed [OUT_WIDTH-1:0]   output_code,
     output reg                           output_saturated,
     output wire                          output_last,
@@ -53,6 +54,7 @@ module kv_v03_av_normalizer #(
     reg stage_valid;
     reg signed [PRODUCT_WIDTH-1:0] stage_product;
     reg [INDEX_WIDTH-1:0] stage_index;
+    reg signed [47:0] stage_numerator;
     reg stage_last;
 
     wire output_handshake = output_valid && output_ready;
@@ -143,8 +145,10 @@ module kv_v03_av_normalizer #(
             stage_valid          <= 1'b0;
             stage_product        <= {PRODUCT_WIDTH{1'b0}};
             stage_index          <= {INDEX_WIDTH{1'b0}};
+            stage_numerator      <= 48'sd0;
             stage_last           <= 1'b0;
             output_index         <= {INDEX_WIDTH{1'b0}};
+            output_numerator     <= 48'sd0;
             output_code          <= {OUT_WIDTH{1'b0}};
             output_saturated     <= 1'b0;
             done                 <= 1'b0;
@@ -204,6 +208,7 @@ module kv_v03_av_normalizer #(
                     if (stage_valid) begin
                         output_last_reg  <= stage_last;
                         output_index     <= stage_index;
+                        output_numerator <= stage_numerator;
                         output_code      <= normalized[OUT_WIDTH-1:0];
                         output_saturated <= normalized[OUT_WIDTH];
                         if (normalized[OUT_WIDTH])
@@ -227,6 +232,7 @@ module kv_v03_av_normalizer #(
                         stage_product <= numerator *
                                          $signed({1'b0, reciprocal_reg});
                         stage_index   <= numerator_index;
+                        stage_numerator <= numerator;
                         stage_last    <= expected_last;
                         if (expected_last)
                             accepting <= 1'b0;

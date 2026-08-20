@@ -436,6 +436,7 @@ module kv_v03_canned_page_arithmetic #(
     wire signed [47:0] norm_num_data;
     wire norm_output_valid, norm_output_ready, norm_output_last;
     wire [6:0] norm_output_index;
+    wire signed [47:0] norm_output_numerator;
     wire signed [17:0] norm_output_code;
     wire norm_output_saturated;
     wire norm_busy, norm_done, norm_aborted, norm_error_valid;
@@ -452,6 +453,7 @@ module kv_v03_canned_page_arithmetic #(
         .numerator_index(norm_num_index), .numerator(norm_num_data),
         .numerator_last(norm_num_last), .output_valid(norm_output_valid),
         .output_ready(norm_output_ready), .output_index(norm_output_index),
+        .output_numerator(norm_output_numerator),
         .output_code(norm_output_code),
         .output_saturated(norm_output_saturated),
         .output_last(norm_output_last), .busy(norm_busy), .done(norm_done),
@@ -479,7 +481,7 @@ module kv_v03_canned_page_arithmetic #(
                           !core_abort;
     assign result_head = norm_head_reg;
     assign result_dimension = norm_output_index;
-    assign result_numerator = pending_numerator;
+    assign result_numerator = norm_output_numerator;
     assign result_normalized = norm_output_code;
     assign result_saturated = norm_output_saturated;
     assign result_last = norm_head_reg == 3 && norm_output_last;
