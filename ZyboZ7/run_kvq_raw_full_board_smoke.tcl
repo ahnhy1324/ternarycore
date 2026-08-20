@@ -493,7 +493,7 @@ proc require_build_identity {build_root} {
     }
     set identity $::zybo_bringup_identity
     require_dict_keys $identity {
-        schema_version kv_smoke_enabled av_diag_enabled raw_full_enabled
+        schema_version pl_clock_hz kv_smoke_enabled av_diag_enabled raw_full_enabled
         raw_full_ip_repo raw_full_component_sha256
         raw_full_m_axi_data_width raw_full_scale_width
         raw_full_qk_mult_style raw_full_av_mult_style raw_full_profile
@@ -513,11 +513,13 @@ proc require_build_identity {build_root} {
     }
 
     set width [dict get $identity raw_full_m_axi_data_width]
+    set clock_hz [dict get $identity pl_clock_hz]
     set scale_width [dict get $identity raw_full_scale_width]
     set qk_style [dict get $identity raw_full_qk_mult_style]
     set av_style [dict get $identity raw_full_av_mult_style]
     set profile [dict get $identity raw_full_profile]
-    if {$width ni {64 128} || $scale_width ni {12 16} ||
+    if {$clock_hz ni {75000000 81250000} ||
+        $width ni {64 128} || $scale_width ni {12 16} ||
         $qk_style != 2 || $av_style ni {1 2}} {
         fail "invalid RAW-full identity width/scale/styles: width=$width scale=$scale_width QK=$qk_style AV=$av_style"
     }
@@ -573,7 +575,7 @@ proc require_build_identity {build_root} {
         lappend package_keys "source.$relative_path.sha256"
     }
     require_dict_keys $package_identity $package_keys         "RAW-full package identity"
-    foreach {key expected} [list         flow axi_kvq_raw_full_diag_portable_package         vivado_version 2025.1         part xc7z020clg400-1         clock_hz 76923080         m_axi_data_width $width         scale_width $scale_width         qk_mult_style $qk_style         av_mult_style $av_style         raw_full_profile $profile         ip_vlnv shepherdscientific.com:user:axi_kvq_raw_full_diag:1.0] {
+    foreach {key expected} [list         flow axi_kvq_raw_full_diag_portable_package         vivado_version 2025.1         part xc7z020clg400-1         clock_hz $clock_hz         m_axi_data_width $width         scale_width $scale_width         qk_mult_style $qk_style         av_mult_style $av_style         raw_full_profile $profile         ip_vlnv shepherdscientific.com:user:axi_kvq_raw_full_diag:1.0] {
         if {[dict get $package_identity $key] ne $expected} {
             fail "RAW-full package identity '$key'='[dict get $package_identity $key]' expected='$expected'"
         }
@@ -589,7 +591,7 @@ proc require_build_identity {build_root} {
             fail "RAW-full source hash mismatch for $relative_path: got=$actual_hash expected=$expected_hash"
         }
     }
-    return [dict create component_hash $component_hash         component_path $component_path package_repo $identity_repo         package_identity_path $package_identity_path width $width         scale_width $scale_width qk_style $qk_style av_style $av_style         profile $profile]
+    return [dict create component_hash $component_hash         component_path $component_path package_repo $identity_repo         package_identity_path $package_identity_path clock_hz $clock_hz width $width         scale_width $scale_width qk_style $qk_style av_style $av_style         profile $profile]
 }
 
 proc require_build_artifacts {build_root identity_info artifacts} {
