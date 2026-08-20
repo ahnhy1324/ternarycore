@@ -151,11 +151,13 @@ module axi_kvq_canned_page_diag #(
     reg [C_S_AXI_ADDR_WIDTH-1:0] awaddr_hold;
     reg [31:0] wdata_hold;
     reg [3:0] wstrb_hold;
-    reg score_read_pending, result_read_pending;
+    reg score_read_pending, result_decode_pending;
+    reg result_fetch_pending, result_read_pending;
     assign s_axi_awready = !aw_hold && !s_axi_bvalid;
     assign s_axi_wready = !w_hold && !s_axi_bvalid;
     assign s_axi_bresp = 2'b00;
     assign s_axi_arready = !s_axi_rvalid && !score_read_pending &&
+                           !result_decode_pending && !result_fetch_pending &&
                            !result_read_pending;
     assign s_axi_rresp = 2'b00;
     wire write_commit = aw_hold && w_hold && !s_axi_bvalid;
@@ -191,6 +193,8 @@ module axi_kvq_canned_page_diag #(
     reg score_read_visible, result_read_visible;
     reg [16:0] score_read_data;
     reg [66:0] result_read_data;
+    reg [10:0] result_read_word_pending;
+    reg [8:0] result_read_index_pending;
     reg [3:0] result_read_lane_pending;
     reg [9:0] stored_score_count;
     reg [9:0] stored_result_count;
@@ -1010,11 +1014,15 @@ module axi_kvq_canned_page_diag #(
             stored_score_count <= 10'd0;
             stored_result_count <= 10'd0;
             score_read_pending <= 1'b0;
+            result_decode_pending <= 1'b0;
+            result_fetch_pending <= 1'b0;
             result_read_pending <= 1'b0;
             score_read_visible <= 1'b0;
             result_read_visible <= 1'b0;
             score_read_data <= 17'd0;
             result_read_data <= 67'd0;
+            result_read_word_pending <= 11'd0;
+            result_read_index_pending <= 9'd0;
             result_read_lane_pending <= 4'd0;
             done_sticky <= 1'b0;
             error_sticky <= 1'b0;
@@ -1279,6 +1287,19 @@ module axi_kvq_canned_page_diag #(
                 s_axi_rvalid <= 1'b1;
                 s_axi_rdata <= score_read_visible ?
                     {15'd0, score_read_data} : 32'd0;
+            end else if (result_decode_pending) begin
+                // Decode the 12-byte result stride in its own cycle.  Keeping
+                // this constant divide between registers prevents the AXI
+                // address path from driving a BRAM address combinationally.
+                result_decode_pending <= 1'b0;
+                result_fetch_pending <= 1'b1;
+                result_read_index_pending <= result_read_word_pending / 3;
+                result_read_lane_pending <=
+                    (result_read_word_pending % 3) << 2;
+            end else if (result_fetch_pending) begin
+                result_fetch_pending <= 1'b0;
+                result_read_pending <= 1'b1;
+                result_read_data <= result_mem[result_read_index_pending];
             end else if (result_read_pending) begin
                 result_read_pending <= 1'b0;
                 s_axi_rvalid <= 1'b1;
@@ -1399,14 +1420,11 @@ module axi_kvq_canned_page_diag #(
                             score_read_data <= score_mem[result_read_index];
                         end else if (s_axi_araddr[15:0] >= RESULT_BASE &&
                             s_axi_araddr[15:0] < RESULT_BASE + 16'h1800) begin
-                            result_read_index =
-                                (s_axi_araddr[15:0] - RESULT_BASE) / 12;
                             s_axi_rvalid <= 1'b0;
-                            result_read_pending <= 1'b1;
+                            result_decode_pending <= 1'b1;
                             result_read_visible <= result_valid_sticky;
-                            result_read_data <= result_mem[result_read_index];
-                            result_read_lane_pending <=
-                                (s_axi_araddr[15:0] - RESULT_BASE) % 12;
+                            result_read_word_pending <=
+                                (s_axi_araddr[15:0] - RESULT_BASE) >> 2;
                         end
                     end
                 endcase
