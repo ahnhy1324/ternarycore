@@ -5,7 +5,11 @@
 
 module kv_v03_page_header #(
     parameter integer MAX_PAGE_TOKENS = 128,
-    parameter integer VALUES_PER_TOKEN = 128
+    parameter integer VALUES_PER_TOKEN = 128,
+    // The generated profile supplies the static codebook identifier.  Keep
+    // the historical value as the default so existing v0.3 vectors retain
+    // their byte-for-byte ABI.
+    parameter integer COMPILED_CODEBOOK_ID = 1
 ) (
     input  wire        clk,
     input  wire        rst_n,
@@ -26,8 +30,6 @@ module kv_v03_page_header #(
     output reg  [7:0]  error_code
 );
     localparam [15:0] MAGIC_VERSION = 16'hc303;
-    localparam [7:0] CODEBOOK_ID = 8'd1;
-
     localparam [7:0] ERR_MAGIC    = 8'h01;
     localparam [7:0] ERR_FLAGS    = 8'h02;
     localparam [7:0] ERR_TOKENS   = 8'h03;
@@ -71,7 +73,7 @@ module kv_v03_page_header #(
                  (parsed_raw && parsed_payload_bytes != raw_payload_bytes) ||
                  (!parsed_raw && parsed_payload_bytes >= raw_payload_bytes))
             validation_error = ERR_PAYLOAD;
-        else if (parsed_codebook != CODEBOOK_ID)
+        else if (parsed_codebook != COMPILED_CODEBOOK_ID[7:0])
             validation_error = ERR_CODEBOOK;
         else if (parsed_scale != 8'd1 && parsed_scale != 8'd2)
             validation_error = ERR_SCALE;
@@ -139,6 +141,8 @@ module kv_v03_page_header #(
             $error("kv_v03_page_header: MAX_PAGE_TOKENS must be 1..255");
         if (VALUES_PER_TOKEN != 128)
             $error("kv_v03_page_header: v0.3 requires 128 values/token");
+        if (COMPILED_CODEBOOK_ID < 0 || COMPILED_CODEBOOK_ID > 255)
+            $error("kv_v03_page_header: codebook ID must fit in 8 bits");
     end
 `endif
 endmodule

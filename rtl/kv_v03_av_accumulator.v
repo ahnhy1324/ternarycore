@@ -27,7 +27,9 @@ endmodule
 
 module kv_v03_av_accumulator #(
     parameter integer MAX_CONTEXT = 4096,
-    parameter integer MULT_STYLE = 2
+    parameter integer MULT_STYLE = 2,
+    // 12 selects UQ4.8; 16 selects UQ5.11.  The default preserves v0.3.
+    parameter integer SCALE_WIDTH = 12
 ) (
     input  wire                 clk,
     input  wire                 rst_n,
@@ -38,7 +40,7 @@ module kv_v03_av_accumulator #(
     input  wire [1:0]           in_head,
     input  wire [2:0]           in_group,
     input  wire [15:0]          in_exp_code,
-    input  wire [11:0]          in_v_scale,
+    input  wire [SCALE_WIDTH-1:0] in_v_scale,
     input  wire [79:0]          in_v_codes,
     output wire                 out_valid,
     input  wire                 out_ready,
@@ -54,16 +56,16 @@ module kv_v03_av_accumulator #(
     localparam integer LANES = 16;
     localparam integer GROUPS = 8;
     localparam integer ACC_WIDTH = 48;
-    localparam integer PRODUCT_WIDTH = 33;
+    localparam integer WEIGHT_WIDTH = 16 + SCALE_WIDTH;
+    localparam integer PRODUCT_WIDTH = WEIGHT_WIDTH + 5;
     localparam [7:0] ERR_CONTEXT = 8'h01;
     localparam [7:0] ERR_BUSY = 8'h02;
     localparam [7:0] ERR_SCHEDULE = 8'h03;
     localparam [7:0] ERR_RESERVED = 8'h04;
     localparam [7:0] ERR_SCALE = 8'h05;
-    // The legal maximum magnitude is
-    // (2^16-1)*(2^12-1)*15*4096 < 2^44.  A signed 48-bit accumulator
-    // therefore has three guard bits beyond the 45-bit minimum, so a runtime
-    // overflow detector would only add an unreachable global control path.
+    // The largest legal UQ1.15 exponent code is 2^15.  Thus even the wider
+    // profile is bounded by 2^15*(2^16-1)*15*4096 < 2^47, so every legal
+    // UQ4.8/UQ5.11 numerator is exact in the signed 48-bit accumulator.
 
     reg active, accepting, output_active;
     reg [12:0] context_reg, token_counter;
@@ -71,7 +73,7 @@ module kv_v03_av_accumulator #(
     reg [2:0] expected_group;
 
     wire input_handshake = in_valid && in_ready;
-    wire [27:0] input_weight = in_exp_code * in_v_scale;
+    wire [WEIGHT_WIDTH-1:0] input_weight = in_exp_code * in_v_scale;
     wire input_first_token = (token_counter == 0);
     wire input_final = (token_counter == context_reg-1'b1) &&
                        (expected_head == 3) && (expected_group == 7);
@@ -93,13 +95,13 @@ module kv_v03_av_accumulator #(
 
     reg stage0_valid, stage0_first, stage0_final;
     reg [4:0] stage0_address;
-    reg [27:0] stage0_weight;
+    reg [WEIGHT_WIDTH-1:0] stage0_weight;
     reg [79:0] stage0_v_codes;
     wire signed [PRODUCT_WIDTH-1:0] product_next [0:15];
     generate
         for (lane = 0; lane < LANES; lane = lane + 1) begin : g_multiply
             kv_v03_v5_weight_mul #(
-                .WEIGHT_WIDTH(28), .MULT_STYLE(MULT_STYLE)
+                .WEIGHT_WIDTH(WEIGHT_WIDTH), .MULT_STYLE(MULT_STYLE)
             ) u_multiply (
                 .weight(stage0_weight),
                 .v_code(stage0_v_codes[(lane*5) +: 5]),
@@ -162,7 +164,7 @@ module kv_v03_av_accumulator #(
             stage0_first     <= 1'b0;
             stage0_final     <= 1'b0;
             stage0_address   <= 5'b0;
-            stage0_weight    <= 28'b0;
+            stage0_weight    <= {WEIGHT_WIDTH{1'b0}};
             stage0_v_codes   <= 80'b0;
             stage1_valid     <= 1'b0;
             stage1_first     <= 1'b0;
@@ -302,6 +304,8 @@ module kv_v03_av_accumulator #(
     initial begin
         if (MAX_CONTEXT != 4096)
             $error("kv_v03_av_accumulator: v0.3 ABI fixes MAX_CONTEXT=4096");
+        if (SCALE_WIDTH != 12 && SCALE_WIDTH != 16)
+            $error("kv_v03_av_accumulator: SCALE_WIDTH must be 12 or 16");
         if (MULT_STYLE < 0 || MULT_STYLE > 2)
             $error("kv_v03_av_accumulator: MULT_STYLE must be 0..2");
     end

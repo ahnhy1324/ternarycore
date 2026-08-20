@@ -23,6 +23,7 @@ module kv_v03_softmax #(
     output reg  [15:0]        exp_code,
     output reg                exp_last,
     output reg                busy,
+    output wire               quiescent,
     output reg                done,
     output reg signed [15:0]  maximum_score,
     output reg  [27:0]        denominator,
@@ -100,6 +101,11 @@ module kv_v03_softmax #(
         .error_valid(reciprocal_error),
         .error_code(reciprocal_error_code)
     );
+
+    // A busy-start cancels the softmax controller, but the iterative
+    // reciprocal has no abort input and must finish before a new row can
+    // safely start.  Expose that full-unit idle condition to integrators.
+    assign quiescent = !busy && !reciprocal_busy;
 
     assign score_rd_row = row_reg;
 

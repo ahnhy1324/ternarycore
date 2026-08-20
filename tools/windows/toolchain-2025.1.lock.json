@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "profile": "windows-vivado-2025.1-zybo-z7-20",
+  "tools": {
+    "vivado": {
+      "root": "D:\\xilinx\\2025.1\\Vivado",
+      "executable": "bin\\vivado.bat",
+      "library_directory": "lib\\win64.o",
+      "version": "2025.1"
+    },
+    "vitis": {
+      "root": "D:\\xilinx\\2025.1\\Vitis",
+      "executable": "bin\\vitis.bat",
+      "xsct_executable": "bin\\xsct.bat",
+      "version": "2025.1",
+      "xsct_version": "2025.1.0"
+    },
+    "arm_none_eabi_gcc": {
+      "root": "D:\\xilinx\\2025.1\\Vitis\\gnu\\aarch32\\nt\\gcc-arm-none-eabi",
+      "executable": "bin\\arm-none-eabi-gcc.exe",
+      "version": "13.3.0",
+      "target_cpu": "cortex-a9"
+    },
+    "icarus": {
+      "root": "D:\\tc-tools\\iverilog\\12.0",
+      "bin_directory": "bin",
+      "iverilog_executable": "bin\\iverilog.exe",
+      "vvp_executable": "bin\\vvp.exe",
+      "version": "12.0",
+      "installer": "D:\\tc-tools\\downloads\\iverilog-v12-20220611-x64_setup.exe",
+      "installer_sha256": "a614057374dfaed5da0fe454cdeb410e54981fd85dbd28bd472f4ccb765deb84"
+    },
+    "msys2_ucrt64": {
+      "root": "D:\\tc-tools\\msys64",
+      "bin_directory": "ucrt64\\bin",
+      "verilator_executable": "ucrt64\\bin\\verilator_bin.exe",
+      "verilator_root_directory": "ucrt64\\share\\verilator",
+      "make_executable": "ucrt64\\bin\\mingw32-make.exe",
+      "verilator_version": "5.050",
+      "make_version": "4.4.1",
+      "verilator_package": "mingw-w64-ucrt-x86_64-verilator-5.050-1",
+      "make_package": "mingw-w64-ucrt-x86_64-make-4.4.1-5"
+    }
+  },
+  "python": {
+    "executable": "C:\\Windows\\py.exe",
+    "arguments": [
+      "-3.12"
+    ],
+    "version_prefix": "3.12",
+    "required_modules": [
+      "numpy"
+    ]
+  },
+  "board_files": {
+    "repository": "D:\\tc-tools\\board-files\\digilent-vivado-boards",
+    "remote": "https://github.com/Digilent/vivado-boards.git",
+    "commit": "36f34ab687b7fa9c778b779d027f3bce63b3ace9",
+    "sparse_path": "new/board_files/zybo-z7-20",
+    "vivado_repo_path": "new\\board_files",
+    "board_part": "digilentinc.com:zybo-z7-20:part0:1.2",
+    "device_part": "xc7z020clg400-1",
+    "definition_revision_directory": "new\\board_files\\zybo-z7-20\\A.0",
+    "files": [
+      {
+        "path": "new\\board_files\\zybo-z7-20\\A.0\\board.xml",
+        "sha256": "76818330728b9c1b75e72f39cc43595725be4cb1ae7cf9ce99b34a13985c424d"
+      },
+      {
+        "path": "new\\board_files\\zybo-z7-20\\A.0\\preset.xml",
+        "sha256": "f46da8b9b34a1df04696abfb991d59094546a1f850614d9da62efdc2ed897a1c"
+      },
+      {
+        "path": "new\\board_files\\zybo-z7-20\\A.0\\part0_pins.xml",
+        "sha256": "287de15f4ba68b4039112478530f304e950a9f82a49214455b1932087bd1fe98"
+      }
+    ]
+  },
+  "runtime": {
+    "work_root": "D:\\tc-work\\ternarycore",
+    "evidence_root": "D:\\tc-logs\\ternarycore"
+  }
+}

@@ -4,6 +4,7 @@
 `default_nettype none
 
 module kv_v03_v5_weight_mul #(
+    // 28 bits covers exp(UQ1.15) x UQ4.8; 32 bits covers UQ5.11.
     parameter integer WEIGHT_WIDTH = 28,
     // 0: explicit CSD/shift-add, 1: force DSP, 2: Vivado auto.
     parameter integer MULT_STYLE = 2
@@ -76,8 +77,8 @@ module kv_v03_v5_weight_mul #(
 
 `ifndef SYNTHESIS
     initial begin
-        if (WEIGHT_WIDTH != 28)
-            $error("kv_v03_v5_weight_mul: v0.3 weight width must be 28");
+        if (WEIGHT_WIDTH != 28 && WEIGHT_WIDTH != 32)
+            $error("kv_v03_v5_weight_mul: WEIGHT_WIDTH must be 28 or 32");
         if (MULT_STYLE < 0 || MULT_STYLE > 2)
             $error("kv_v03_v5_weight_mul: MULT_STYLE must be 0..2");
     end

@@ -25,6 +25,11 @@
 *.bin
 vivado*/
 
+# Query-only Vivado sessions and explicitly repository-scoped tool scratch.
+/dfx_runtime.txt
+/.ternarycore-tool-scratch/
+/results/zybo/tool-scratch/
+
 # Gowin EDA project artifacts
 impl/
 *.fs

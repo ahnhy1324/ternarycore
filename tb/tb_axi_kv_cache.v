@@ -9,13 +9,18 @@ module tb_axi_kv_cache;
 `else
     localparam HEAD_DIM = 64;
 `endif
+`ifdef AXI_DATA_WIDTH_VAL
+    localparam AXI_WIDTH = `AXI_DATA_WIDTH_VAL;
+`else
+    localparam AXI_WIDTH = 128;
+`endif
     localparam MAX_CONTEXT = 4096, BASE = 32'h8000_2000;
     localparam VECTOR_BITS = HEAD_DIM * 4;
     localparam VECTOR_BYTES = VECTOR_BITS / 8;
     localparam VECTOR_SHIFT = $clog2(VECTOR_BYTES);
-    localparam BEATS_PER_VECTOR = VECTOR_BITS / 128;
+    localparam BEATS_PER_VECTOR = VECTOR_BITS / AXI_WIDTH;
     localparam [31:0] EXPECTED_GEOMETRY =
-        ((128      & 8'hff) << 24) |
+        ((AXI_WIDTH & 8'hff) << 24) |
         ((HEAD_DIM & 8'hff) << 16) |
         ((16       & 8'hff) <<  8) |
         (4         & 8'hff);
@@ -37,13 +42,13 @@ module tb_axi_kv_cache;
     wire [1:0] arburst;
     wire arlock; wire [3:0] arcache, arqos; wire [2:0] arprot;
     wire arvalid; reg arready = 0;
-    reg [0:0] rid = 0; reg [127:0] rdata = 0;
+    reg [0:0] rid = 0; reg [AXI_WIDTH-1:0] rdata = 0;
     reg [1:0] rresp = 0; reg rlast = 0, rvalid = 0;
     wire rready;
 
     axi_kv_cache #(
         .HEAD_DIM(HEAD_DIM), .MAX_CONTEXT(MAX_CONTEXT),
-        .M_AXI_DATA_WIDTH(128), .TIMEOUT_CYCLES(1000)
+        .M_AXI_DATA_WIDTH(AXI_WIDTH), .TIMEOUT_CYCLES(1000)
     ) dut (
         .clk(clk), .rst_n(rst_n),
         .s_axi_awaddr(awaddr), .s_axi_awprot(awprot),
@@ -85,13 +90,14 @@ module tb_axi_kv_cache;
             expected_dot = sum;
         end
     endfunction
-    function [127:0] make_beat;
+    function [AXI_WIDTH-1:0] make_beat;
         input integer token; input integer beat;
-        integer lane; reg [127:0] value;
+        integer lane; reg [AXI_WIDTH-1:0] value;
         begin
             value = 0;
-            for (lane = 0; lane < 32; lane = lane + 1)
-                value[(lane*4) +: 4] = k_at(token, beat*32 + lane);
+            for (lane = 0; lane < AXI_WIDTH/4; lane = lane + 1)
+                value[(lane*4) +: 4] =
+                    k_at(token, beat*(AXI_WIDTH/4) + lane);
             make_beat = value;
         end
     endfunction

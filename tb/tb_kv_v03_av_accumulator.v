@@ -9,12 +9,17 @@ module tb_kv_v03_av_accumulator;
 `else
     localparam MULT_STYLE = 2;
 `endif
+`ifdef SCALE_WIDTH_VAL
+    localparam SCALE_WIDTH = `SCALE_WIDTH_VAL;
+`else
+    localparam SCALE_WIDTH = 12;
+`endif
     reg clk = 0, rst_n = 0, start = 0, in_valid = 0;
     reg [12:0] context_len = 0;
     reg [1:0] in_head = 0;
     reg [2:0] in_group = 0;
     reg [15:0] in_exp_code = 0;
-    reg [11:0] in_v_scale = 0;
+    reg [SCALE_WIDTH-1:0] in_v_scale = 0;
     reg [79:0] in_v_codes = 0;
     wire in_ready, out_valid, out_last, busy, done, error_valid;
     reg out_ready = 0;
@@ -24,7 +29,7 @@ module tb_kv_v03_av_accumulator;
     wire [7:0] error_code;
 
     reg [4:0] v_codes [0:16383];
-    reg [11:0] v_scales [0:127];
+    reg [SCALE_WIDTH-1:0] v_scales [0:127];
     reg [15:0] exp_codes [0:511];
     reg [47:0] expected [0:511];
     integer current_context = 0, output_beats = 0;
@@ -35,7 +40,9 @@ module tb_kv_v03_av_accumulator;
 
     always #5 clk = ~clk;
 
-    kv_v03_av_accumulator #(.MULT_STYLE(MULT_STYLE)) dut (
+    kv_v03_av_accumulator #(
+        .MULT_STYLE(MULT_STYLE), .SCALE_WIDTH(SCALE_WIDTH)
+    ) dut (
         .clk(clk), .rst_n(rst_n), .start(start),
         .context_len(context_len), .in_valid(in_valid),
         .in_ready(in_ready), .in_head(in_head), .in_group(in_group),
@@ -163,6 +170,65 @@ module tb_kv_v03_av_accumulator;
         end
     endtask
 
+    task run_scale16_exact_case;
+        begin
+            // Maximum legal UQ1.15 exponent, UQ5.11 scale, V5 magnitude,
+            // and context.  The exact positive numerator is just below the
+            // signed-48 limit; alternating lanes cover both signs.
+            for (head = 0; head < 4; head = head + 1)
+                for (group_index = 0; group_index < 8;
+                     group_index = group_index + 1)
+                    for (lane = 0; lane < 16; lane = lane + 1)
+                        expected[head*128 + group_index*16 + lane] =
+                            lane[0] ? 48'h8800_7800_0000 :
+                                      48'h77ff_8800_0000;
+
+            current_context = 4096;
+            output_beats = 0;
+            context_len = 13'd4096;
+            @(negedge clk);
+            start = 1;
+            @(negedge clk);
+            start = 0;
+            in_valid = 1;
+            for (token = 0; token < 4096; token = token + 1) begin
+                for (head = 0; head < 4; head = head + 1) begin
+                    for (group_index = 0; group_index < 8;
+                         group_index = group_index + 1) begin
+                        in_head = head;
+                        in_group = group_index;
+                        in_exp_code = 16'h8000;
+                        in_v_scale = {SCALE_WIDTH{1'b1}};
+                        in_v_codes = 0;
+                        for (lane = 0; lane < 16; lane = lane + 1)
+                            in_v_codes[(lane*5) +: 5] =
+                                lane[0] ? -5'sd15 : 5'sd15;
+                        @(posedge clk);
+                        if (!in_ready)
+                            $fatal(1, "AV UQ5.11 input-ready failure");
+                        @(negedge clk);
+                    end
+                end
+            end
+            in_valid = 0;
+            timeout = 0;
+            while (!done && !error_valid && timeout < 1000) begin
+                @(negedge clk);
+                timeout = timeout + 1;
+            end
+            if (!done || error_valid || output_beats != 32) begin
+                $display("FAIL AV UQ5.11 exact style%0d done=%0d err=%0d code=%02x beats=%0d",
+                         MULT_STYLE, done, error_valid, error_code,
+                         output_beats);
+                errors = errors + 1;
+            end else begin
+                $display("PASS AV UQ5.11 signed-48 exact style%0d context=4096",
+                         MULT_STYLE);
+            end
+            repeat (2) @(negedge clk);
+        end
+    endtask
+
     task expect_error;
         input [7:0] wanted;
         begin
@@ -189,6 +255,8 @@ module tb_kv_v03_av_accumulator;
 
         run_case("real_c128_l00_kvh0", 128);
         run_case("adversarial_c7", 7);
+        if (SCALE_WIDTH == 16)
+            run_scale16_exact_case();
 
         // A start while pipeline data is live must abort.  Merely pausing the
         // valid registers would apply the pending accumulator update twice.
@@ -266,8 +334,8 @@ module tb_kv_v03_av_accumulator;
         expect_error(8'h05);
 
         if (errors == 0) begin
-            $display("TB PASS: v0.3 AV P16 banked accumulator style%0d",
-                     MULT_STYLE);
+            $display("TB PASS: v0.3 AV P16 accumulator scale%0d style%0d",
+                     SCALE_WIDTH, MULT_STYLE);
             $finish;
         end
         $fatal(1, "TB FAIL: v0.3 AV errors=%0d", errors);
