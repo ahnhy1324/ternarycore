@@ -98,6 +98,7 @@ module kv_v03_page128_record_validator #(
     localparam [3:0] ST_SCALE       = 4'd5;
     localparam [3:0] ST_WAIT        = 4'd6;
     localparam [3:0] ST_HOLD        = 4'd7;
+    localparam [3:0] ST_START       = 4'd8;
 
     localparam [7:0] EXPECTED_SCALE_ID = (SCALE_BITS == 12) ? 8'd1 : 8'd2;
 
@@ -212,7 +213,10 @@ module kv_v03_page128_record_validator #(
     assign verified_scale_slice_bytes = scale_slice_reg;
     assign verified_padding_bytes = padding_bytes_reg;
 
-    wire crc_start = cmd_fire && (cmd_error == 0);
+    // Keep command preflight out of the CRC/header state-input cone.  The
+    // accepted descriptor is latched first, then both integrity blocks are
+    // started from this registered state on the following edge.
+    wire crc_start = (state == ST_START);
     wire header_start = crc_start;
     wire scale12_start;
 
@@ -522,9 +526,13 @@ module kv_v03_page128_record_validator #(
                                 padding_bytes_reg <= 14'b0;
                                 header_crc_ok <= 1'b0;
                                 scale_ok <= 1'b0;
-                                state <= ST_HEADER;
+                                state <= ST_START;
                             end
                         end
+                    end
+
+                    ST_START: begin
+                        state <= ST_HEADER;
                     end
 
                     ST_HEADER: begin
