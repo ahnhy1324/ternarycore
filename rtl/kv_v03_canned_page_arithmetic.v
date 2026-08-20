@@ -255,6 +255,19 @@ module kv_v03_canned_page_arithmetic #(
          k_raw_mode != k_raw_reg || v_raw_mode != v_raw_reg ||
          k_token_count != context_reg[7:0] ||
          v_token_count != context_reg[7:0]);
+    reg ownership_fault_pending;
+
+    // The lane-bank descriptor is intentionally checked throughout page
+    // ownership, but its wide comparison must not feed every arithmetic
+    // register's abort/enable cone.  Register the mismatch and fail closed on
+    // the following cycle; published results remain hidden until completion.
+    always @(posedge clk) begin
+        if (!rst_n || state == ST_IDLE || state == ST_FAULT_DRAIN ||
+            state == ST_FAULT)
+            ownership_fault_pending <= 1'b0;
+        else
+            ownership_fault_pending <= ownership_fault;
+    end
 
     assign k_scale_rd_en = state == ST_K_SCALE_REQ && !abort && !fault_event;
     assign k_scale_rd_addr = token_reg;
@@ -509,15 +522,16 @@ module kv_v03_canned_page_arithmetic #(
         end
     endgenerate
 
-    // Fault selection is kept combinational so every child sees abort/cancel
-    // on the exact edge on which the controller hides its public outputs.
+    // Datapath faults remain combinational so children see abort/cancel on the
+    // exact edge on which public outputs are hidden.  The wide live ownership
+    // comparison above is deliberately registered to bound its timing cone.
     reg runtime_fault;
     reg [7:0] runtime_fault_code, runtime_fault_subcode;
     always @* begin
         runtime_fault = 1'b0;
         runtime_fault_code = 8'b0;
         runtime_fault_subcode = 8'b0;
-        if (ownership_fault) begin
+        if (ownership_fault_pending) begin
             runtime_fault = 1'b1;
             runtime_fault_code = ERR_OWNERSHIP;
             runtime_fault_subcode = 8'h01;
