@@ -387,7 +387,11 @@ module kv_v03_canned_page_arithmetic #(
     wire [12:0] soft_reciprocal;
     wire [4:0] soft_reciprocal_exponent;
     wire soft_score_wr_en = state == ST_COPY_WAIT && guard_rd_valid;
-    assign soft_exp_ready = state == ST_SOFT_RUN && !core_abort;
+    // The sequential fault branch has priority over the state machine, so a
+    // fault-edge handshake cannot commit exp_mem.  Keeping READY independent
+    // of the combinational fault tree also prevents context/descriptor checks
+    // from becoming a high-fanout clock-enable path into the exponent store.
+    assign soft_exp_ready = state == ST_SOFT_RUN;
     kv_v03_softmax_engine u_softmax (
         .clk(clk), .rst_n(rst_n),
         .score_wr_en(soft_score_wr_en), .score_wr_row(copy_row),
