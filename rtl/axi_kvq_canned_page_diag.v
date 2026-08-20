@@ -203,6 +203,11 @@ module axi_kvq_canned_page_diag #(
     reg done_sticky, error_sticky, aborted_sticky, result_valid_sticky;
     reg [7:0] error_code_reg, error_subcode_reg;
     reg [2:0] error_source_reg;
+    reg child_fault_pending;
+    reg [7:0] child_fault_code_pending;
+    reg [7:0] child_fault_subcode_pending;
+    reg [2:0] child_fault_source_pending;
+    reg child_fault_decoder_pending;
     reg [63:0] error_k_tag_reg, error_v_tag_reg;
     reg [15:0] error_epoch_reg;
     reg [4:0] error_page_reg;
@@ -775,12 +780,12 @@ module axi_kvq_canned_page_diag #(
 
     wire busy_write_fault = write_commit && !ctrl_write && top_busy;
     wire busy_start_fault = ctrl_start && state != ST_IDLE;
-    wire child_fault = k_validator_error || v_validator_error ||
-                       k_lane_sticky || v_lane_sticky || arith_sticky ||
-                       verified_type_fault;
+    wire child_fault_now = k_validator_error || v_validator_error ||
+                           k_lane_sticky || v_lane_sticky || arith_sticky ||
+                           verified_type_fault;
     wire fault_entry = state != ST_DRAIN && state != ST_FAULT &&
         ((ctrl_abort && state != ST_IDLE) || busy_write_fault ||
-         busy_start_fault || child_fault);
+         busy_start_fault || child_fault_pending);
     reg abort_children;
     assign validator_abort = abort_children;
     assign lane_abort = abort_children;
@@ -1090,6 +1095,11 @@ module axi_kvq_canned_page_diag #(
             error_code_reg <= 8'd0;
             error_subcode_reg <= 8'd0;
             error_source_reg <= SRC_NONE;
+            child_fault_pending <= 1'b0;
+            child_fault_code_pending <= 8'd0;
+            child_fault_subcode_pending <= 8'd0;
+            child_fault_source_pending <= SRC_NONE;
+            child_fault_decoder_pending <= 1'b0;
             error_k_tag_reg <= 64'd0;
             error_v_tag_reg <= 64'd0;
             error_epoch_reg <= 16'd0;
@@ -1128,6 +1138,44 @@ module axi_kvq_canned_page_diag #(
         end else begin
             abort_children <= 1'b0;
             arith_clear_counters_reg <= 1'b0;
+
+            if (fault_entry) begin
+                child_fault_pending <= 1'b0;
+            end else if (!child_fault_pending &&
+                         state != ST_DRAIN && state != ST_FAULT &&
+                         child_fault_now) begin
+                child_fault_pending <= 1'b1;
+                child_fault_decoder_pending <= 1'b0;
+                if (k_validator_error) begin
+                    child_fault_code_pending <= ERR_VALIDATOR;
+                    child_fault_subcode_pending <= k_validator_error_code;
+                    child_fault_source_pending <= SRC_K;
+                end else if (v_validator_error) begin
+                    child_fault_code_pending <= ERR_VALIDATOR;
+                    child_fault_subcode_pending <= v_validator_error_code;
+                    child_fault_source_pending <= SRC_V;
+                end else if (verified_type_fault) begin
+                    child_fault_code_pending <= ERR_VALIDATOR;
+                    child_fault_subcode_pending <= 8'hfe;
+                    child_fault_source_pending <= SRC_HOST;
+                end else if (k_lane_sticky) begin
+                    child_fault_code_pending <= ERR_LANE;
+                    child_fault_subcode_pending <= k_lane_error_code;
+                    child_fault_source_pending <= SRC_K;
+                    child_fault_decoder_pending <=
+                        k_lane_error_code == 8'h07;
+                end else if (v_lane_sticky) begin
+                    child_fault_code_pending <= ERR_LANE;
+                    child_fault_subcode_pending <= v_lane_error_code;
+                    child_fault_source_pending <= SRC_V;
+                    child_fault_decoder_pending <=
+                        v_lane_error_code == 8'h07;
+                end else begin
+                    child_fault_code_pending <= ERR_ARITH;
+                    child_fault_subcode_pending <= arith_error_code;
+                    child_fault_source_pending <= SRC_ARITH;
+                end
+            end
 
             if (top_busy)
                 wrapper_cycles <= wrapper_cycles + 1'b1;
@@ -1514,34 +1562,12 @@ module axi_kvq_canned_page_diag #(
                     error_code_reg <= ERR_BUSY;
                     error_subcode_reg <= state;
                     error_source_reg <= SRC_HOST;
-                end else if (k_validator_error) begin
-                    error_code_reg <= ERR_VALIDATOR;
-                    error_subcode_reg <= k_validator_error_code;
-                    error_source_reg <= SRC_K;
-                end else if (v_validator_error) begin
-                    error_code_reg <= ERR_VALIDATOR;
-                    error_subcode_reg <= v_validator_error_code;
-                    error_source_reg <= SRC_V;
-                end else if (verified_type_fault) begin
-                    error_code_reg <= ERR_VALIDATOR;
-                    error_subcode_reg <= 8'hfe;
-                    error_source_reg <= SRC_HOST;
-                end else if (k_lane_sticky) begin
-                    error_code_reg <= ERR_LANE;
-                    error_subcode_reg <= k_lane_error_code;
-                    error_source_reg <= SRC_K;
-                    if (k_lane_error_code == 8'h07)
-                        decoder_fault_count <= decoder_fault_count + 1'b1;
-                end else if (v_lane_sticky) begin
-                    error_code_reg <= ERR_LANE;
-                    error_subcode_reg <= v_lane_error_code;
-                    error_source_reg <= SRC_V;
-                    if (v_lane_error_code == 8'h07)
-                        decoder_fault_count <= decoder_fault_count + 1'b1;
                 end else begin
-                    error_code_reg <= ERR_ARITH;
-                    error_subcode_reg <= arith_error_code;
-                    error_source_reg <= SRC_ARITH;
+                    error_code_reg <= child_fault_code_pending;
+                    error_subcode_reg <= child_fault_subcode_pending;
+                    error_source_reg <= child_fault_source_pending;
+                    if (child_fault_decoder_pending)
+                        decoder_fault_count <= decoder_fault_count + 1'b1;
                 end
             end else begin
                 case (state)
