@@ -440,10 +440,15 @@ module axi_kvq_canned_page_diag #(
     reg [11:0] k_lane_data_pending_addr, v_lane_data_pending_addr;
     reg k_lane_scale_pending, v_lane_scale_pending;
     reg [6:0] k_lane_scale_pending_addr, v_lane_scale_pending_addr;
+    (* DONT_TOUCH = "yes" *)
     reg [15:0] k_payload_latched, v_payload_latched;
+    (* DONT_TOUCH = "yes" *)
     reg [8:0] k_scale_bytes_latched, v_scale_bytes_latched;
+    (* DONT_TOUCH = "yes" *)
     reg k_raw_latched, v_raw_latched;
+    (* DONT_TOUCH = "yes" *)
     reg [14:0] k_symbols_latched, v_symbols_latched;
+    (* DONT_TOUCH = "yes" *)
     reg [7:0] k_tokens_latched, v_tokens_latched;
 
     wire k_validator_data_advance = k_validator_data_word_valid &&

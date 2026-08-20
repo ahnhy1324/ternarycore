@@ -178,7 +178,7 @@ module kv_v03_canned_page_arithmetic #(
                      ERR_INTERNAL   = 8'h0c;
 
     reg [4:0] state;
-    reg [12:0] context_reg;
+    (* DONT_TOUCH = "yes" *) reg [12:0] context_reg;
     reg [63:0] k_tag_reg, v_tag_reg;
     reg [15:0] epoch_reg;
     reg [4:0] page_reg;
