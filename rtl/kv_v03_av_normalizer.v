@@ -56,21 +56,29 @@ module kv_v03_av_normalizer #(
     reg [INDEX_WIDTH-1:0] stage_index;
     reg signed [47:0] stage_numerator;
     reg stage_last;
+    reg round_valid;
+    reg round_negative;
+    reg [PRODUCT_WIDTH:0] round_magnitude;
+    reg [INDEX_WIDTH-1:0] round_index;
+    reg signed [47:0] round_numerator;
+    reg round_last;
 
     wire output_handshake = output_valid && output_ready;
     assign output_valid = output_valid_reg && !abort;
     assign output_last = output_last_reg;
     wire output_slot_available = !output_valid_reg || output_ready;
+    wire round_slot_available = !round_valid || output_slot_available;
+    wire stage_slot_available = !stage_valid || round_slot_available;
     assign numerator_ready = active && accepting &&
-                             (!stage_valid || output_slot_available) && !abort;
+                             stage_slot_available && !abort;
     wire numerator_handshake = numerator_valid && numerator_ready;
     assign busy = active;
 
-    // Return {saturated, signed_code}.  The reciprocal code represents
+    // Return {negative, rounded_magnitude}.  The reciprocal code represents
     // round_even((2^exponent / denominator) * 2^12), so shifting the signed
     // product by exponent+12 plus the input/output fractional-bit delta
     // produces the common signed Q*.8 output code.
-    function [OUT_WIDTH:0] normalize_product;
+    function [PRODUCT_WIDTH+1:0] round_product;
         input signed [PRODUCT_WIDTH-1:0] product_input;
         input [4:0] exponent;
         reg signed [PRODUCT_WIDTH-1:0] product;
@@ -81,8 +89,6 @@ module kv_v03_av_normalizer #(
         reg [PRODUCT_WIDTH-1:0] half;
         reg [PRODUCT_WIDTH:0] rounded_magnitude;
         reg round_up;
-        reg saturated_value;
-        reg signed [OUT_WIDTH-1:0] result;
         integer shift_bits;
         begin
             product = product_input;
@@ -106,31 +112,48 @@ module kv_v03_av_normalizer #(
                            ((remainder == half) && quotient[0]);
             end
             rounded_magnitude = {1'b0, quotient} + round_up;
-            saturated_value = 1'b0;
-            if (!product[PRODUCT_WIDTH-1]) begin
-                if (rounded_magnitude >
-                    (({{PRODUCT_WIDTH{1'b0}}, 1'b1} <<
-                      (OUT_WIDTH-1)) - 1'b1)) begin
-                    result = {1'b0, {(OUT_WIDTH-1){1'b1}}};
-                    saturated_value = 1'b1;
-                end else begin
-                    result = rounded_magnitude[OUT_WIDTH-1:0];
-                end
-            end else begin
-                if (rounded_magnitude >
-                    ({{PRODUCT_WIDTH{1'b0}}, 1'b1} << (OUT_WIDTH-1))) begin
-                    result = {1'b1, {(OUT_WIDTH-1){1'b0}}};
-                    saturated_value = 1'b1;
-                end else begin
-                    result = -$signed(rounded_magnitude[OUT_WIDTH-1:0]);
-                end
-            end
-            normalize_product = {saturated_value, result};
+            round_product = {product[PRODUCT_WIDTH-1], rounded_magnitude};
         end
     endfunction
 
+    // Registering the rounded magnitude before this final narrow saturation
+    // keeps the two wide carry chains in separate cycles.
+    function [OUT_WIDTH:0] saturate_rounded;
+        input negative;
+        input [PRODUCT_WIDTH:0] magnitude;
+        reg [PRODUCT_WIDTH:0] positive_limit;
+        reg [PRODUCT_WIDTH:0] negative_limit;
+        reg saturated_value;
+        reg signed [OUT_WIDTH-1:0] result;
+        begin
+            positive_limit =
+                ({{PRODUCT_WIDTH{1'b0}}, 1'b1} << (OUT_WIDTH-1)) - 1'b1;
+            negative_limit =
+                ({{PRODUCT_WIDTH{1'b0}}, 1'b1} << (OUT_WIDTH-1));
+            saturated_value = 1'b0;
+            if (!negative) begin
+                if (magnitude > positive_limit) begin
+                    result = {1'b0, {(OUT_WIDTH-1){1'b1}}};
+                    saturated_value = 1'b1;
+                end else begin
+                    result = magnitude[OUT_WIDTH-1:0];
+                end
+            end else begin
+                if (magnitude > negative_limit) begin
+                    result = {1'b1, {(OUT_WIDTH-1){1'b0}}};
+                    saturated_value = 1'b1;
+                end else begin
+                    result = -$signed(magnitude[OUT_WIDTH-1:0]);
+                end
+            end
+            saturate_rounded = {saturated_value, result};
+        end
+    endfunction
+
+    wire [PRODUCT_WIDTH+1:0] rounded =
+        round_product(stage_product, exponent_reg);
     wire [OUT_WIDTH:0] normalized =
-        normalize_product(stage_product, exponent_reg);
+        saturate_rounded(round_negative, round_magnitude);
     wire expected_last = numerator_index == HEAD_DIM-1;
 
     always @(posedge clk) begin
@@ -147,6 +170,12 @@ module kv_v03_av_normalizer #(
             stage_index          <= {INDEX_WIDTH{1'b0}};
             stage_numerator      <= 48'sd0;
             stage_last           <= 1'b0;
+            round_valid          <= 1'b0;
+            round_negative       <= 1'b0;
+            round_magnitude      <= {(PRODUCT_WIDTH+1){1'b0}};
+            round_index          <= {INDEX_WIDTH{1'b0}};
+            round_numerator      <= 48'sd0;
+            round_last           <= 1'b0;
             output_index         <= {INDEX_WIDTH{1'b0}};
             output_numerator     <= 48'sd0;
             output_code          <= {OUT_WIDTH{1'b0}};
@@ -167,6 +196,7 @@ module kv_v03_av_normalizer #(
                 active           <= 1'b0;
                 accepting        <= 1'b0;
                 stage_valid      <= 1'b0;
+                round_valid      <= 1'b0;
                 output_valid_reg <= 1'b0;
                 output_last_reg  <= 1'b0;
             end else if (start) begin
@@ -174,6 +204,7 @@ module kv_v03_av_normalizer #(
                     active           <= 1'b0;
                     accepting        <= 1'b0;
                     stage_valid      <= 1'b0;
+                    round_valid      <= 1'b0;
                     output_valid_reg <= 1'b0;
                     output_last_reg  <= 1'b0;
                     error_valid      <= 1'b1;
@@ -186,6 +217,7 @@ module kv_v03_av_normalizer #(
                     active           <= 1'b1;
                     accepting        <= 1'b1;
                     stage_valid      <= 1'b0;
+                    round_valid      <= 1'b0;
                     output_valid_reg <= 1'b0;
                     output_last_reg  <= 1'b0;
                     expected_index   <= {INDEX_WIDTH{1'b0}};
@@ -206,13 +238,25 @@ module kv_v03_av_normalizer #(
                 end
 
                 if (output_slot_available) begin
-                    output_valid_reg <= stage_valid;
-                    if (stage_valid) begin
-                        output_last_reg  <= stage_last;
-                        output_index     <= stage_index;
-                        output_numerator <= stage_numerator;
+                    output_valid_reg <= round_valid;
+                    if (round_valid) begin
+                        output_last_reg  <= round_last;
+                        output_index     <= round_index;
+                        output_numerator <= round_numerator;
                         output_code      <= normalized[OUT_WIDTH-1:0];
                         output_saturated <= normalized[OUT_WIDTH];
+                    end
+                    round_valid <= 1'b0;
+                end
+
+                if (round_slot_available) begin
+                    round_valid <= stage_valid;
+                    if (stage_valid) begin
+                        round_negative  <= rounded[PRODUCT_WIDTH+1];
+                        round_magnitude <= rounded[PRODUCT_WIDTH:0];
+                        round_index     <= stage_index;
+                        round_numerator <= stage_numerator;
+                        round_last      <= stage_last;
                     end
                     stage_valid <= 1'b0;
                 end
@@ -223,6 +267,7 @@ module kv_v03_av_normalizer #(
                         active           <= 1'b0;
                         accepting        <= 1'b0;
                         stage_valid      <= 1'b0;
+                        round_valid      <= 1'b0;
                         output_valid_reg <= 1'b0;
                         output_last_reg  <= 1'b0;
                         error_valid      <= 1'b1;
