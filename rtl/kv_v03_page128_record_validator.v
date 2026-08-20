@@ -100,6 +100,7 @@ module kv_v03_page128_record_validator #(
     localparam [3:0] ST_HOLD        = 4'd7;
     localparam [3:0] ST_PREFLIGHT   = 4'd8;
     localparam [3:0] ST_START       = 4'd9;
+    localparam [3:0] ST_HEADER_SUBMIT = 4'd10;
 
     localparam [7:0] EXPECTED_SCALE_ID = (SCALE_BITS == 12) ? 8'd1 : 8'd2;
 
@@ -379,10 +380,11 @@ module kv_v03_page128_record_validator #(
             end
         end
     end
-    assign header_input_valid = data_fire && (state == ST_HEADER) &&
-                                (data_next_offset >= 15'd12) &&
-                                header_beat_good;
-    assign header_input_data = header_candidate;
+    // Submit the completed header from a registered state.  This prevents the
+    // byte-offset/framing arithmetic from directly driving every enable in
+    // the page-header parser on the same cycle as the final header beat.
+    assign header_input_valid = state == ST_HEADER_SUBMIT;
+    assign header_input_data = header_buffer;
 
     wire [2:0] scale_bytes = byte_count(scale_byte_valid);
     wire [14:0] scale_next_offset = {1'b0, scale_offset_reg} + scale_bytes;
@@ -567,10 +569,14 @@ module kv_v03_page128_record_validator #(
                                     early_payload_data <= early_payload_candidate;
                                     early_payload_count <=
                                         data_next_offset[2:0] - 3'd4;
-                                    state <= ST_HEADER_WAIT;
+                                    state <= ST_HEADER_SUBMIT;
                                 end
                             end
                         end
+                    end
+
+                    ST_HEADER_SUBMIT: begin
+                        state <= ST_HEADER_WAIT;
                     end
 
                     ST_HEADER_WAIT: begin
