@@ -921,6 +921,7 @@ module axi_kvq_canned_page_diag #(
     end
 
     integer write_slot;
+    integer write_byte;
     integer result_read_index;
     integer result_read_lane;
     integer reset_index;
@@ -1085,15 +1086,21 @@ module axi_kvq_canned_page_diag #(
                     if (awaddr_hold[15:0] >= Q_BASE &&
                         awaddr_hold[15:0] < Q_BASE + 16'h0200) begin
                         write_slot = (awaddr_hold[15:0] - Q_BASE) >> 2;
-                        q_mem[write_slot] <= merge_wstrb(
-                            q_mem[write_slot], wdata_hold, wstrb_hold);
+                        for (write_byte = 0; write_byte < 4;
+                             write_byte = write_byte + 1)
+                            if (wstrb_hold[write_byte])
+                                q_mem[write_slot][write_byte*8 +: 8] <=
+                                    wdata_hold[write_byte*8 +: 8];
                         if (wstrb_hold == 4'hf)
                             q_word_valid[write_slot] <= 1'b1;
                     end else if (awaddr_hold[15:0] >= K_PAGE_BASE &&
                         awaddr_hold[15:0] < K_PAGE_BASE + MAX_PAGE_BYTES) begin
                         write_slot = (awaddr_hold[15:0] - K_PAGE_BASE) >> 2;
-                        k_page_mem[write_slot] <= merge_wstrb(
-                            k_page_mem[write_slot], wdata_hold, wstrb_hold);
+                        for (write_byte = 0; write_byte < 4;
+                             write_byte = write_byte + 1)
+                            if (wstrb_hold[write_byte])
+                                k_page_mem[write_slot][write_byte*8 +: 8] <=
+                                    wdata_hold[write_byte*8 +: 8];
                         if (wstrb_hold == 4'hf) begin
                             k_page_word_valid[write_slot] <= 1'b1;
                             if (!k_page_word_valid[write_slot])
@@ -1103,8 +1110,11 @@ module axi_kvq_canned_page_diag #(
                     end else if (awaddr_hold[15:0] >= V_PAGE_BASE &&
                         awaddr_hold[15:0] < V_PAGE_BASE + MAX_PAGE_BYTES) begin
                         write_slot = (awaddr_hold[15:0] - V_PAGE_BASE) >> 2;
-                        v_page_mem[write_slot] <= merge_wstrb(
-                            v_page_mem[write_slot], wdata_hold, wstrb_hold);
+                        for (write_byte = 0; write_byte < 4;
+                             write_byte = write_byte + 1)
+                            if (wstrb_hold[write_byte])
+                                v_page_mem[write_slot][write_byte*8 +: 8] <=
+                                    wdata_hold[write_byte*8 +: 8];
                         if (wstrb_hold == 4'hf) begin
                             v_page_word_valid[write_slot] <= 1'b1;
                             if (!v_page_word_valid[write_slot])
@@ -1114,8 +1124,11 @@ module axi_kvq_canned_page_diag #(
                     end else if (awaddr_hold[15:0] >= K_SCALE_BASE &&
                         awaddr_hold[15:0] < K_SCALE_BASE + 16'h0100) begin
                         write_slot = (awaddr_hold[15:0] - K_SCALE_BASE) >> 2;
-                        k_scale_mem[write_slot] <= merge_wstrb(
-                            k_scale_mem[write_slot], wdata_hold, wstrb_hold);
+                        for (write_byte = 0; write_byte < 4;
+                             write_byte = write_byte + 1)
+                            if (wstrb_hold[write_byte])
+                                k_scale_mem[write_slot][write_byte*8 +: 8] <=
+                                    wdata_hold[write_byte*8 +: 8];
                         if (wstrb_hold == 4'hf) begin
                             k_scale_word_valid[write_slot] <= 1'b1;
                             if (!k_scale_word_valid[write_slot])
@@ -1125,8 +1138,11 @@ module axi_kvq_canned_page_diag #(
                     end else if (awaddr_hold[15:0] >= V_SCALE_BASE &&
                         awaddr_hold[15:0] < V_SCALE_BASE + 16'h0100) begin
                         write_slot = (awaddr_hold[15:0] - V_SCALE_BASE) >> 2;
-                        v_scale_mem[write_slot] <= merge_wstrb(
-                            v_scale_mem[write_slot], wdata_hold, wstrb_hold);
+                        for (write_byte = 0; write_byte < 4;
+                             write_byte = write_byte + 1)
+                            if (wstrb_hold[write_byte])
+                                v_scale_mem[write_slot][write_byte*8 +: 8] <=
+                                    wdata_hold[write_byte*8 +: 8];
                         if (wstrb_hold == 4'hf) begin
                             v_scale_word_valid[write_slot] <= 1'b1;
                             if (!v_scale_word_valid[write_slot])
