@@ -98,7 +98,8 @@ module kv_v03_page128_record_validator #(
     localparam [3:0] ST_SCALE       = 4'd5;
     localparam [3:0] ST_WAIT        = 4'd6;
     localparam [3:0] ST_HOLD        = 4'd7;
-    localparam [3:0] ST_START       = 4'd8;
+    localparam [3:0] ST_PREFLIGHT   = 4'd8;
+    localparam [3:0] ST_START       = 4'd9;
 
     localparam [7:0] EXPECTED_SCALE_ID = (SCALE_BITS == 12) ? 8'd1 : 8'd2;
 
@@ -109,6 +110,7 @@ module kv_v03_page128_record_validator #(
     reg [12:0] token_base_reg;
     reg [7:0] token_count_reg;
     reg [14:0] expected_symbols_reg;
+    reg [31:0] page_window_cmd_reg;
     reg [13:0] page_window_reg;
     reg [8:0] scale_slice_reg;
     reg stream_is_v_reg;
@@ -168,28 +170,28 @@ module kv_v03_page128_record_validator #(
     endfunction
 
     always @* begin
-        expected_symbol_count = {8'b0, cmd_token_count} << 7;
+        expected_symbol_count = {8'b0, token_count_reg} << 7;
         if (SCALE_BITS == 12)
-            expected_scale_bytes = ((cmd_token_count * 12) + 7) >> 3;
+            expected_scale_bytes = ((token_count_reg * 12) + 7) >> 3;
         else
-            expected_scale_bytes = {2'b0, cmd_token_count} << 1;
-        token_end = {1'b0, cmd_token_base} + {6'b0, cmd_token_count};
+            expected_scale_bytes = {2'b0, token_count_reg} << 1;
+        token_end = {1'b0, token_base_reg} + {6'b0, token_count_reg};
 
         cmd_error = 8'h00;
-        if (cmd_page_count == 0 || cmd_page_count > 32 ||
-            cmd_page_index >= cmd_page_count)
+        if (page_count_reg == 0 || page_count_reg > 32 ||
+            page_index_reg >= page_count_reg)
             cmd_error = ERR_PAGE_DESCRIPTOR;
-        else if (cmd_token_count == 0 || cmd_token_count > 128 ||
-                 cmd_token_base != {1'b0, cmd_page_index, 7'b0} ||
-                 cmd_expected_symbols != expected_symbol_count[14:0] ||
+        else if (token_count_reg == 0 || token_count_reg > 128 ||
+                 token_base_reg != {1'b0, page_index_reg, 7'b0} ||
+                 expected_symbols_reg != expected_symbol_count[14:0] ||
                  token_end > 14'd4096 ||
-                 (({1'b0, cmd_page_index} + 6'd1) < cmd_page_count &&
-                  cmd_token_count != 8'd128))
+                 (({1'b0, page_index_reg} + 6'd1) < page_count_reg &&
+                  token_count_reg != 8'd128))
             cmd_error = ERR_TOKEN_DESCRIPTOR;
-        else if (cmd_page_window_bytes < 12 ||
-                 cmd_page_window_bytes > MAX_PAGE_BYTES)
+        else if (page_window_cmd_reg < 12 ||
+                 page_window_cmd_reg > MAX_PAGE_BYTES)
             cmd_error = ERR_WINDOW_DESCRIPTOR;
-        else if (cmd_scale_slice_bytes != expected_scale_bytes[8:0])
+        else if (scale_slice_reg != expected_scale_bytes[8:0])
             cmd_error = ERR_SCALE_DESCRIPTOR;
     end
 
@@ -213,9 +215,9 @@ module kv_v03_page128_record_validator #(
     assign verified_scale_slice_bytes = scale_slice_reg;
     assign verified_padding_bytes = padding_bytes_reg;
 
-    // Keep command preflight out of the CRC/header state-input cone.  The
-    // accepted descriptor is latched first, then both integrity blocks are
-    // started from this registered state on the following edge.
+    // Latch the complete descriptor before preflight.  This isolates parent
+    // control registers from the descriptor arithmetic and starts the CRC and
+    // header blocks only from a registered state after preflight succeeds.
     wire crc_start = (state == ST_START);
     wire header_start = crc_start;
     wire scale12_start;
@@ -447,6 +449,7 @@ module kv_v03_page128_record_validator #(
             token_base_reg <= 13'b0;
             token_count_reg <= 8'b0;
             expected_symbols_reg <= 15'b0;
+            page_window_cmd_reg <= 32'b0;
             page_window_reg <= 14'b0;
             scale_slice_reg <= 9'b0;
             stream_is_v_reg <= 1'b0;
@@ -497,37 +500,43 @@ module kv_v03_page128_record_validator #(
                 case (state)
                     ST_IDLE: begin
                         if (cmd_fire) begin
-                            if (cmd_error != 0) begin
-                                error_valid <= 1'b1;
-                                error_code <= cmd_error;
-                                error_task_tag <= cmd_task_tag;
-                                error_page_index <= cmd_page_index;
-                                error_stream_is_v <= cmd_stream_is_v;
-                            end else begin
-                                task_tag_reg <= cmd_task_tag;
-                                page_index_reg <= cmd_page_index;
-                                page_count_reg <= cmd_page_count;
-                                token_base_reg <= cmd_token_base;
-                                token_count_reg <= cmd_token_count;
-                                expected_symbols_reg <= cmd_expected_symbols;
-                                page_window_reg <= cmd_page_window_bytes[13:0];
-                                scale_slice_reg <= cmd_scale_slice_bytes;
-                                stream_is_v_reg <= cmd_stream_is_v;
-                                header_buffer <= 96'b0;
-                                early_payload_data <= 32'b0;
-                                early_payload_count <= 3'b0;
-                                early_crc_count <= 3'b0;
-                                data_offset_reg <= 14'b0;
-                                scale_offset_reg <= 14'b0;
-                                raw_mode_reg <= 1'b0;
-                                payload_bytes_reg <= 16'b0;
-                                scale_format_reg <= 8'b0;
-                                record_bytes_reg <= 14'b0;
-                                padding_bytes_reg <= 14'b0;
-                                header_crc_ok <= 1'b0;
-                                scale_ok <= 1'b0;
-                                state <= ST_START;
-                            end
+                            task_tag_reg <= cmd_task_tag;
+                            page_index_reg <= cmd_page_index;
+                            page_count_reg <= cmd_page_count;
+                            token_base_reg <= cmd_token_base;
+                            token_count_reg <= cmd_token_count;
+                            expected_symbols_reg <= cmd_expected_symbols;
+                            page_window_cmd_reg <= cmd_page_window_bytes;
+                            scale_slice_reg <= cmd_scale_slice_bytes;
+                            stream_is_v_reg <= cmd_stream_is_v;
+                            state <= ST_PREFLIGHT;
+                        end
+                    end
+
+                    ST_PREFLIGHT: begin
+                        if (cmd_error != 0) begin
+                            state <= ST_IDLE;
+                            error_valid <= 1'b1;
+                            error_code <= cmd_error;
+                            error_task_tag <= task_tag_reg;
+                            error_page_index <= page_index_reg;
+                            error_stream_is_v <= stream_is_v_reg;
+                        end else begin
+                            page_window_reg <= page_window_cmd_reg[13:0];
+                            header_buffer <= 96'b0;
+                            early_payload_data <= 32'b0;
+                            early_payload_count <= 3'b0;
+                            early_crc_count <= 3'b0;
+                            data_offset_reg <= 14'b0;
+                            scale_offset_reg <= 14'b0;
+                            raw_mode_reg <= 1'b0;
+                            payload_bytes_reg <= 16'b0;
+                            scale_format_reg <= 8'b0;
+                            record_bytes_reg <= 14'b0;
+                            padding_bytes_reg <= 14'b0;
+                            header_crc_ok <= 1'b0;
+                            scale_ok <= 1'b0;
+                            state <= ST_START;
                         end
                     end
 
