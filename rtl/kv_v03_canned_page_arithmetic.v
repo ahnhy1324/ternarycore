@@ -560,6 +560,9 @@ module kv_v03_canned_page_arithmetic #(
     // comparison above is deliberately registered to bound its timing cone.
     reg runtime_fault;
     reg [7:0] runtime_fault_code, runtime_fault_subcode;
+    reg runtime_fault_pending;
+    reg [7:0] runtime_fault_code_pending;
+    reg [7:0] runtime_fault_subcode_pending;
     always @* begin
         runtime_fault = 1'b0;
         runtime_fault_code = 8'b0;
@@ -603,8 +606,26 @@ module kv_v03_canned_page_arithmetic #(
         end
     end
 
+    // Every runtime detector is sampled before it enters the common abort
+    // tree.  Several child datapaths change their status combinationally when
+    // aborted; feeding those live signals back into core_abort creates a
+    // status->abort->status loop even when their sticky error outputs are
+    // registered separately.
+    always @(posedge clk) begin
+        if (!rst_n || state == ST_IDLE || state == ST_FAULT_DRAIN ||
+            state == ST_FAULT) begin
+            runtime_fault_pending <= 1'b0;
+            runtime_fault_code_pending <= 8'd0;
+            runtime_fault_subcode_pending <= 8'd0;
+        end else if (!runtime_fault_pending && runtime_fault) begin
+            runtime_fault_pending <= 1'b1;
+            runtime_fault_code_pending <= runtime_fault_code;
+            runtime_fault_subcode_pending <= runtime_fault_subcode;
+        end
+    end
+
     wire fault_event = descriptor_fault || abort_fault ||
-                       (runtime_fault && ownership_checked);
+                       (runtime_fault_pending && ownership_checked);
     assign core_abort = fault_event;
     assign norm_abort = fault_event;
     assign soft_start = soft_start_normal || (fault_event && soft_busy);
@@ -800,8 +821,8 @@ module kv_v03_canned_page_arithmetic #(
                         sticky_error_subcode <= 8'h01;
                     end
                 end else begin
-                    sticky_error_code <= runtime_fault_code;
-                    sticky_error_subcode <= runtime_fault_subcode;
+                    sticky_error_code <= runtime_fault_code_pending;
+                    sticky_error_subcode <= runtime_fault_subcode_pending;
                 end
                 sticky_k_task_tag <= (state == ST_IDLE) ? k_task_tag : k_tag_reg;
                 sticky_v_task_tag <= (state == ST_IDLE) ? v_task_tag : v_tag_reg;
