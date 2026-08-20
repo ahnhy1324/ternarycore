@@ -766,6 +766,11 @@ if {$synth_progress ne "100%" || ![string match "*Complete*" $synth_status]} {
 }
 
 reset_run impl_1
+set impl_strategy Default
+if {[dict get $identity canned_page_enabled]} {
+    set impl_strategy Performance_ExplorePostRoutePhysOpt
+    set_property strategy $impl_strategy [get_runs impl_1]
+}
 launch_runs impl_1 -to_step write_bitstream -jobs $jobs
 wait_on_run impl_1
 set impl_status [get_property STATUS [get_runs impl_1]]
@@ -856,6 +861,7 @@ set build_result [dict create \
     source_sha256        [dict get $identity source_sha256] \
     part                 [dict get $identity part] \
     board_part           $board_part \
+    implementation_strategy $impl_strategy \
     pl_clock_mhz         $pl_clock_mhz \
     pl_clock_hz          [dict get $identity pl_clock_hz] \
     clock_module         [dict get $identity clock_module] \
