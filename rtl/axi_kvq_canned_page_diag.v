@@ -151,10 +151,12 @@ module axi_kvq_canned_page_diag #(
     reg [C_S_AXI_ADDR_WIDTH-1:0] awaddr_hold;
     reg [31:0] wdata_hold;
     reg [3:0] wstrb_hold;
+    reg score_read_pending, result_read_pending;
     assign s_axi_awready = !aw_hold && !s_axi_bvalid;
     assign s_axi_wready = !w_hold && !s_axi_bvalid;
     assign s_axi_bresp = 2'b00;
-    assign s_axi_arready = !s_axi_rvalid;
+    assign s_axi_arready = !s_axi_rvalid && !score_read_pending &&
+                           !result_read_pending;
     assign s_axi_rresp = 2'b00;
     wire write_commit = aw_hold && w_hold && !s_axi_bvalid;
     wire ctrl_write = write_commit && awaddr_hold[15:0] == REG_CTRL &&
@@ -186,6 +188,10 @@ module axi_kvq_canned_page_diag #(
 
     (* ram_style = "block" *) reg [16:0] score_mem [0:511];
     (* ram_style = "block" *) reg [66:0] result_mem [0:511];
+    reg score_read_visible, result_read_visible;
+    reg [16:0] score_read_data;
+    reg [66:0] result_read_data;
+    reg [3:0] result_read_lane_pending;
     reg [9:0] stored_score_count;
     reg [9:0] stored_result_count;
 
@@ -970,7 +976,6 @@ module axi_kvq_canned_page_diag #(
     integer write_slot;
     integer write_byte;
     integer result_read_index;
-    integer result_read_lane;
     integer reset_index;
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -1004,6 +1009,13 @@ module axi_kvq_canned_page_diag #(
             v_scale_valid_count <= 7'd0;
             stored_score_count <= 10'd0;
             stored_result_count <= 10'd0;
+            score_read_pending <= 1'b0;
+            result_read_pending <= 1'b0;
+            score_read_visible <= 1'b0;
+            result_read_visible <= 1'b0;
+            score_read_data <= 17'd0;
+            result_read_data <= 67'd0;
+            result_read_lane_pending <= 4'd0;
             done_sticky <= 1'b0;
             error_sticky <= 1'b0;
             aborted_sticky <= 1'b0;
@@ -1262,6 +1274,27 @@ module axi_kvq_canned_page_diag #(
 
             if (s_axi_rvalid && s_axi_rready)
                 s_axi_rvalid <= 1'b0;
+            if (score_read_pending) begin
+                score_read_pending <= 1'b0;
+                s_axi_rvalid <= 1'b1;
+                s_axi_rdata <= score_read_visible ?
+                    {15'd0, score_read_data} : 32'd0;
+            end else if (result_read_pending) begin
+                result_read_pending <= 1'b0;
+                s_axi_rvalid <= 1'b1;
+                if (!result_read_visible) begin
+                    s_axi_rdata <= 32'd0;
+                end else begin
+                    case (result_read_lane_pending)
+                        4'd0: s_axi_rdata <= result_read_data[31:0];
+                        4'd4: s_axi_rdata <= {16'd0,
+                            result_read_data[47:32]};
+                        4'd8: s_axi_rdata <= {13'd0,
+                            result_read_data[66], result_read_data[65:48]};
+                        default: s_axi_rdata <= 32'd0;
+                    endcase
+                end
+            end
             if (s_axi_arvalid && s_axi_arready) begin
                 s_axi_rvalid <= 1'b1;
                 s_axi_rdata <= 32'd0;
@@ -1360,27 +1393,20 @@ module axi_kvq_canned_page_diag #(
                             s_axi_araddr[15:0] < SCORE_BASE + 16'h0800) begin
                             result_read_index =
                                 (s_axi_araddr[15:0] - SCORE_BASE) >> 2;
-                            if (result_valid_sticky)
-                                s_axi_rdata <= {15'd0,
-                                    score_mem[result_read_index]};
+                            s_axi_rvalid <= 1'b0;
+                            score_read_pending <= 1'b1;
+                            score_read_visible <= result_valid_sticky;
+                            score_read_data <= score_mem[result_read_index];
                         end else if (s_axi_araddr[15:0] >= RESULT_BASE &&
                             s_axi_araddr[15:0] < RESULT_BASE + 16'h1800) begin
                             result_read_index =
                                 (s_axi_araddr[15:0] - RESULT_BASE) / 12;
-                            result_read_lane =
+                            s_axi_rvalid <= 1'b0;
+                            result_read_pending <= 1'b1;
+                            result_read_visible <= result_valid_sticky;
+                            result_read_data <= result_mem[result_read_index];
+                            result_read_lane_pending <=
                                 (s_axi_araddr[15:0] - RESULT_BASE) % 12;
-                            if (result_valid_sticky) begin
-                                case (result_read_lane)
-                                    0: s_axi_rdata <=
-                                        result_mem[result_read_index][31:0];
-                                    4: s_axi_rdata <= {16'd0,
-                                        result_mem[result_read_index][47:32]};
-                                    8: s_axi_rdata <= {13'd0,
-                                        result_mem[result_read_index][66],
-                                        result_mem[result_read_index][65:48]};
-                                    default: s_axi_rdata <= 32'd0;
-                                endcase
-                            end
                         end
                     end
                 endcase
