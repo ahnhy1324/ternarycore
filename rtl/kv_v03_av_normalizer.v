@@ -50,12 +50,17 @@ module kv_v03_av_normalizer #(
     reg [INDEX_WIDTH-1:0] expected_index;
     reg [12:0] reciprocal_reg;
     reg [4:0] exponent_reg;
+    reg stage_valid;
+    reg signed [PRODUCT_WIDTH-1:0] stage_product;
+    reg [INDEX_WIDTH-1:0] stage_index;
+    reg stage_last;
 
     wire output_handshake = output_valid && output_ready;
     assign output_valid = output_valid_reg && !abort;
     assign output_last = output_last_reg;
+    wire output_slot_available = !output_valid_reg || output_ready;
     assign numerator_ready = active && accepting &&
-                             (!output_valid_reg || output_ready) && !abort;
+                             (!stage_valid || output_slot_available) && !abort;
     wire numerator_handshake = numerator_valid && numerator_ready;
     assign busy = active;
 
@@ -63,9 +68,8 @@ module kv_v03_av_normalizer #(
     // round_even((2^exponent / denominator) * 2^12), so shifting the signed
     // product by exponent+12 plus the input/output fractional-bit delta
     // produces the common signed Q*.8 output code.
-    function [OUT_WIDTH:0] normalize_value;
-        input signed [47:0] value;
-        input [12:0] reciprocal;
+    function [OUT_WIDTH:0] normalize_product;
+        input signed [PRODUCT_WIDTH-1:0] product_input;
         input [4:0] exponent;
         reg signed [PRODUCT_WIDTH-1:0] product;
         reg [PRODUCT_WIDTH-1:0] magnitude;
@@ -79,7 +83,7 @@ module kv_v03_av_normalizer #(
         reg signed [OUT_WIDTH-1:0] result;
         integer shift_bits;
         begin
-            product = value * $signed({1'b0, reciprocal});
+            product = product_input;
             magnitude = product[PRODUCT_WIDTH-1] ?
                         (~product + {{(PRODUCT_WIDTH-1){1'b0}}, 1'b1}) :
                         product;
@@ -119,12 +123,12 @@ module kv_v03_av_normalizer #(
                     result = -$signed(rounded_magnitude[OUT_WIDTH-1:0]);
                 end
             end
-            normalize_value = {saturated_value, result};
+            normalize_product = {saturated_value, result};
         end
     endfunction
 
     wire [OUT_WIDTH:0] normalized =
-        normalize_value(numerator, reciprocal_reg, exponent_reg);
+        normalize_product(stage_product, exponent_reg);
     wire expected_last = numerator_index == HEAD_DIM-1;
 
     always @(posedge clk) begin
@@ -136,6 +140,10 @@ module kv_v03_av_normalizer #(
             expected_index       <= {INDEX_WIDTH{1'b0}};
             reciprocal_reg       <= 13'd0;
             exponent_reg         <= 5'd0;
+            stage_valid          <= 1'b0;
+            stage_product        <= {PRODUCT_WIDTH{1'b0}};
+            stage_index          <= {INDEX_WIDTH{1'b0}};
+            stage_last           <= 1'b0;
             output_index         <= {INDEX_WIDTH{1'b0}};
             output_code          <= {OUT_WIDTH{1'b0}};
             output_saturated     <= 1'b0;
@@ -154,12 +162,14 @@ module kv_v03_av_normalizer #(
                     aborted <= 1'b1;
                 active           <= 1'b0;
                 accepting        <= 1'b0;
+                stage_valid      <= 1'b0;
                 output_valid_reg <= 1'b0;
                 output_last_reg  <= 1'b0;
             end else if (start) begin
                 if (active) begin
                     active           <= 1'b0;
                     accepting        <= 1'b0;
+                    stage_valid      <= 1'b0;
                     output_valid_reg <= 1'b0;
                     output_last_reg  <= 1'b0;
                     error_valid      <= 1'b1;
@@ -171,6 +181,7 @@ module kv_v03_av_normalizer #(
                 end else begin
                     active           <= 1'b1;
                     accepting        <= 1'b1;
+                    stage_valid      <= 1'b0;
                     output_valid_reg <= 1'b0;
                     output_last_reg  <= 1'b0;
                     expected_index   <= {INDEX_WIDTH{1'b0}};
@@ -188,23 +199,35 @@ module kv_v03_av_normalizer #(
                     end
                 end
 
+                if (output_slot_available) begin
+                    output_valid_reg <= stage_valid;
+                    if (stage_valid) begin
+                        output_last_reg  <= stage_last;
+                        output_index     <= stage_index;
+                        output_code      <= normalized[OUT_WIDTH-1:0];
+                        output_saturated <= normalized[OUT_WIDTH];
+                        if (normalized[OUT_WIDTH])
+                            saturation_count <= saturation_count + 1'b1;
+                    end
+                    stage_valid <= 1'b0;
+                end
+
                 if (numerator_handshake) begin
                     if (numerator_index != expected_index ||
                         numerator_last != expected_last) begin
                         active           <= 1'b0;
                         accepting        <= 1'b0;
+                        stage_valid      <= 1'b0;
                         output_valid_reg <= 1'b0;
                         output_last_reg  <= 1'b0;
                         error_valid      <= 1'b1;
                         error_code       <= ERR_FRAMING;
                     end else begin
-                        output_valid_reg <= 1'b1;
-                        output_last_reg  <= expected_last;
-                        output_index     <= numerator_index;
-                        output_code      <= normalized[OUT_WIDTH-1:0];
-                        output_saturated <= normalized[OUT_WIDTH];
-                        if (normalized[OUT_WIDTH])
-                            saturation_count <= saturation_count + 1'b1;
+                        stage_valid   <= 1'b1;
+                        stage_product <= numerator *
+                                         $signed({1'b0, reciprocal_reg});
+                        stage_index   <= numerator_index;
+                        stage_last    <= expected_last;
                         if (expected_last)
                             accepting <= 1'b0;
                         else
