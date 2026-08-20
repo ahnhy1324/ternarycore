@@ -241,6 +241,12 @@ module axi_kvq_canned_page_diag #(
     reg k_validator_scale_word_valid, v_validator_scale_word_valid;
     reg [31:0] k_page_read_data, v_page_read_data;
     reg [31:0] k_scale_read_data, v_scale_read_data;
+    reg [3:0] k_validator_data_keep_reg, v_validator_data_keep_reg;
+    reg [3:0] k_validator_scale_keep_reg, v_validator_scale_keep_reg;
+    reg k_validator_data_last_reg, v_validator_data_last_reg;
+    reg k_validator_scale_last_reg, v_validator_scale_last_reg;
+    reg [13:0] k_validator_data_offset_reg, v_validator_data_offset_reg;
+    reg [13:0] k_validator_scale_offset_reg, v_validator_scale_offset_reg;
     wire k_validator_cmd_ready, v_validator_cmd_ready;
     wire k_validator_busy, v_validator_busy;
     wire k_validator_error, v_validator_error;
@@ -267,18 +273,10 @@ module axi_kvq_canned_page_diag #(
         v_validator_started && v_validator_scale_word_valid;
     wire k_validator_scale_ready, v_validator_scale_ready;
 
-    wire [3:0] k_validator_data_keep =
-        (k_validator_data_index + 1 == k_required_words) ?
-        final_keep(k_window_reg[1:0]) : 4'hf;
-    wire [3:0] v_validator_data_keep =
-        (v_validator_data_index + 1 == v_required_words) ?
-        final_keep(v_window_reg[1:0]) : 4'hf;
-    wire [3:0] k_validator_scale_keep =
-        (k_validator_scale_index + 1 == scale_required_words) ?
-        final_keep(expected_scale_bytes[1:0]) : 4'hf;
-    wire [3:0] v_validator_scale_keep =
-        (v_validator_scale_index + 1 == scale_required_words) ?
-        final_keep(expected_scale_bytes[1:0]) : 4'hf;
+    wire [3:0] k_validator_data_keep = k_validator_data_keep_reg;
+    wire [3:0] v_validator_data_keep = v_validator_data_keep_reg;
+    wire [3:0] k_validator_scale_keep = k_validator_scale_keep_reg;
+    wire [3:0] v_validator_scale_keep = v_validator_scale_keep_reg;
     wire [31:0] k_validator_data_word = k_page_read_data;
     wire [31:0] v_validator_data_word = v_page_read_data;
     wire [31:0] k_validator_scale_word = k_scale_read_data;
@@ -303,16 +301,16 @@ module axi_kvq_canned_page_diag #(
         .data_ready(k_validator_data_ready),
         .data_data(k_validator_data_word),
         .data_byte_valid(k_validator_data_keep),
-        .data_last(k_validator_data_index + 1 == k_required_words),
-        .data_byte_offset({k_validator_data_index, 2'b00}),
+        .data_last(k_validator_data_last_reg),
+        .data_byte_offset(k_validator_data_offset_reg),
         .data_task_tag(k_tag_reg), .data_page_index(page_index_reg),
         .data_stream_is_v(1'b0),
         .scale_valid(k_validator_scale_valid),
         .scale_ready(k_validator_scale_ready),
         .scale_data(k_validator_scale_word),
         .scale_byte_valid(k_validator_scale_keep),
-        .scale_last(k_validator_scale_index + 1 == scale_required_words),
-        .scale_byte_offset({5'd0, k_validator_scale_index, 2'b00}),
+        .scale_last(k_validator_scale_last_reg),
+        .scale_byte_offset(k_validator_scale_offset_reg),
         .scale_task_tag(k_tag_reg), .scale_page_index(page_index_reg),
         .scale_stream_is_v(1'b0), .verified_valid(k_verified_valid),
         .verified_ready(k_verified_ready), .verified_task_tag(),
@@ -351,16 +349,16 @@ module axi_kvq_canned_page_diag #(
         .data_ready(v_validator_data_ready),
         .data_data(v_validator_data_word),
         .data_byte_valid(v_validator_data_keep),
-        .data_last(v_validator_data_index + 1 == v_required_words),
-        .data_byte_offset({v_validator_data_index, 2'b00}),
+        .data_last(v_validator_data_last_reg),
+        .data_byte_offset(v_validator_data_offset_reg),
         .data_task_tag(v_tag_reg), .data_page_index(page_index_reg),
         .data_stream_is_v(1'b1),
         .scale_valid(v_validator_scale_valid),
         .scale_ready(v_validator_scale_ready),
         .scale_data(v_validator_scale_word),
         .scale_byte_valid(v_validator_scale_keep),
-        .scale_last(v_validator_scale_index + 1 == scale_required_words),
-        .scale_byte_offset({5'd0, v_validator_scale_index, 2'b00}),
+        .scale_last(v_validator_scale_last_reg),
+        .scale_byte_offset(v_validator_scale_offset_reg),
         .scale_task_tag(v_tag_reg), .scale_page_index(page_index_reg),
         .scale_stream_is_v(1'b1), .verified_valid(v_verified_valid),
         .verified_ready(v_verified_ready), .verified_task_tag(),
@@ -816,6 +814,18 @@ module axi_kvq_canned_page_diag #(
             v_page_read_data <= 32'd0;
             k_scale_read_data <= 32'd0;
             v_scale_read_data <= 32'd0;
+            k_validator_data_keep_reg <= 4'd0;
+            v_validator_data_keep_reg <= 4'd0;
+            k_validator_scale_keep_reg <= 4'd0;
+            v_validator_scale_keep_reg <= 4'd0;
+            k_validator_data_last_reg <= 1'b0;
+            v_validator_data_last_reg <= 1'b0;
+            k_validator_scale_last_reg <= 1'b0;
+            v_validator_scale_last_reg <= 1'b0;
+            k_validator_data_offset_reg <= 14'd0;
+            v_validator_data_offset_reg <= 14'd0;
+            k_validator_scale_offset_reg <= 14'd0;
+            v_validator_scale_offset_reg <= 14'd0;
         end else begin
             k_lane_data_rd_valid <= 1'b0;
             v_lane_data_rd_valid <= 1'b0;
@@ -841,6 +851,44 @@ module axi_kvq_canned_page_diag #(
                 k_scale_read_data <= k_scale_mem[k_scale_read_addr];
             if (v_scale_read_en)
                 v_scale_read_data <= v_scale_mem[v_scale_read_addr];
+            if (k_validator_data_fetch) begin
+                k_validator_data_keep_reg <=
+                    (k_validator_data_fetch_addr + 1 == k_required_words) ?
+                    final_keep(k_window_reg[1:0]) : 4'hf;
+                k_validator_data_last_reg <=
+                    k_validator_data_fetch_addr + 1 == k_required_words;
+                k_validator_data_offset_reg <=
+                    {k_validator_data_fetch_addr, 2'b00};
+            end
+            if (v_validator_data_fetch) begin
+                v_validator_data_keep_reg <=
+                    (v_validator_data_fetch_addr + 1 == v_required_words) ?
+                    final_keep(v_window_reg[1:0]) : 4'hf;
+                v_validator_data_last_reg <=
+                    v_validator_data_fetch_addr + 1 == v_required_words;
+                v_validator_data_offset_reg <=
+                    {v_validator_data_fetch_addr, 2'b00};
+            end
+            if (k_validator_scale_fetch) begin
+                k_validator_scale_keep_reg <=
+                    (k_validator_scale_fetch_addr + 1 ==
+                     scale_required_words) ?
+                    final_keep(expected_scale_bytes[1:0]) : 4'hf;
+                k_validator_scale_last_reg <=
+                    k_validator_scale_fetch_addr + 1 == scale_required_words;
+                k_validator_scale_offset_reg <=
+                    {5'd0, k_validator_scale_fetch_addr, 2'b00};
+            end
+            if (v_validator_scale_fetch) begin
+                v_validator_scale_keep_reg <=
+                    (v_validator_scale_fetch_addr + 1 ==
+                     scale_required_words) ?
+                    final_keep(expected_scale_bytes[1:0]) : 4'hf;
+                v_validator_scale_last_reg <=
+                    v_validator_scale_fetch_addr + 1 == scale_required_words;
+                v_validator_scale_offset_reg <=
+                    {5'd0, v_validator_scale_fetch_addr, 2'b00};
+            end
             if (state == ST_VALIDATE) begin
                 if (!k_validator_started) begin
                     k_validator_data_word_valid <= 1'b0;
