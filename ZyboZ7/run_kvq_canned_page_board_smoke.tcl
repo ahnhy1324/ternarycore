@@ -9,6 +9,8 @@
 
 set BASE                 0x43c20000
 set BRAM_BASE            0x43c00000
+set PROJECTION_BASE      0x43c30000
+set WEIGHT_BASE          0x44000000
 set CONTEXT              128
 set RESULT_COUNT         512
 set CHUNK_WORDS          64
@@ -64,6 +66,17 @@ set GOOD_V_TAG_HI        0x00030007
 set EXPECTED_ID          0x4b560304
 set EXPECTED_GEOMETRY    0x04808010
 
+set PROJ_REG_CTRL        0x00
+set PROJ_REG_STATUS      0x04
+set PROJ_REG_ACT_WR      0x08
+set PROJ_REG_CT          0x0c
+set PROJ_REG_DEPTH       0x10
+set PROJ_REG_RIDX        0x14
+set PROJ_REG_RDATA       0x18
+set PROJ_REG_ID          0x1c
+set PROJ_REG_CYCLES      0x20
+set PROJ_EXPECTED_ID     0x7c0de002
+
 set SCRIPT_DIR [file dirname [file normalize [info script]]]
 set REPO_ROOT [file dirname $SCRIPT_DIR]
 
@@ -73,6 +86,12 @@ proc fail {message} {
 
 proc hex32 {value} {
     return [format "0x%08X" [expr {$value & 0xffffffff}]]
+}
+
+proc signed_bits {value width} {
+    set modulus [expr {1 << $width}]
+    set masked [expr {$value & ($modulus - 1)}]
+    return [expr {$masked >= ($modulus >> 1) ? $masked - $modulus : $masked}]
 }
 
 proc require_equal {label observed expected} {
@@ -208,10 +227,13 @@ proc require_build_identity {build_root} {
         schema_version kv_smoke_enabled av_diag_enabled raw_full_enabled
         canned_page_enabled canned_page_ip_repo
         canned_page_component_sha256 canned_page_scale_bits
+        canned_page_decode_lanes
         canned_page_qk_mult_style canned_page_av_mult_style
         canned_page_profile canned_page_compiled_profile_id
         canned_page_compiled_k_codebook_id
         canned_page_compiled_v_codebook_id
+        raw_e2e_enabled raw_e2e_ip_repo
+        raw_e2e_projection_component_sha256 raw_e2e_weight_component_sha256
     } "build identity"
     if {[dict get $identity schema_version] != 2} {
         fail "canned-page smoke requires identity schema 2"
@@ -224,12 +246,29 @@ proc require_build_identity {build_root} {
     if {![dict get $identity canned_page_enabled]} {
         fail "build identity says canned-page diagnostic is disabled"
     }
+    set projection_enabled [dict get $identity raw_e2e_enabled]
+    if {$projection_enabled} {
+        set projection_repo [file normalize [dict get $identity raw_e2e_ip_repo]]
+        foreach {relative key label} {
+            axi_gemm_stream/component.xml raw_e2e_projection_component_sha256 projection
+            weight_bram128/component.xml raw_e2e_weight_component_sha256 weight
+        } {
+            set component [file join $projection_repo {*}[split $relative /]]
+            set expected [dict get $identity $key]
+            if {![regexp {^[0-9A-F]{64}$} $expected] ||
+                [sha256_file $component "Tier2 $label component"] ne $expected} {
+                fail "Tier2 $label component/hash mismatch"
+            }
+        }
+    }
     set scale [dict get $identity canned_page_scale_bits]
+    set lanes [dict get $identity canned_page_decode_lanes]
     set qk [dict get $identity canned_page_qk_mult_style]
     set av [dict get $identity canned_page_av_mult_style]
     set profile [dict get $identity canned_page_profile]
-    if {$scale ni {12 16} || $qk != 2 || $av ni {1 2}} {
-        fail "invalid canned-page scale/styles: scale=$scale QK=$qk AV=$av"
+    if {$scale ni {12 16} || $lanes ni {2 4} ||
+        $qk != 2 || $av ni {1 2}} {
+        fail "invalid canned-page lanes/scale/styles: lanes=$lanes scale=$scale QK=$qk AV=$av"
     }
     set expected_profile [expr {$av == 1 ? "LUT_RELIEF" : "BALANCED"}]
     if {$profile ne $expected_profile} {
@@ -276,7 +315,7 @@ proc require_build_identity {build_root} {
         rtl/kv_v03_av_normalizer.v
     }
     set keys {
-        flow vivado_version part clock_hz scale_bits qk_mult_style
+        flow vivado_version part clock_hz scale_bits decode_lanes qk_mult_style
         av_mult_style canned_page_profile compiled_profile_id
         compiled_k_codebook_id compiled_v_codebook_id ip_vlnv repo_root
     }
@@ -287,7 +326,8 @@ proc require_build_identity {build_root} {
     foreach {key expected} [list \
         flow axi_kvq_canned_page_diag_portable_package \
         vivado_version 2025.1 part xc7z020clg400-1 \
-        scale_bits $scale qk_mult_style $qk av_mult_style $av \
+        scale_bits $scale decode_lanes $lanes \
+        qk_mult_style $qk av_mult_style $av \
         canned_page_profile $profile compiled_profile_id 51 \
         compiled_k_codebook_id 1 compiled_v_codebook_id 2 \
         ip_vlnv shepherdscientific.com:user:axi_kvq_canned_page_diag:1.0] {
@@ -306,8 +346,9 @@ proc require_build_identity {build_root} {
         }
     }
     return [dict create identity $identity package $package package_repo $repo \
-        component_hash $component_hash scale $scale qk $qk av $av \
-        profile $profile]
+        component_hash $component_hash scale $scale lanes $lanes \
+        qk $qk av $av \
+        profile $profile projection_enabled $projection_enabled]
 }
 
 proc require_build_result {build_root artifacts identity_info} {
@@ -320,8 +361,11 @@ proc require_build_result {build_root artifacts identity_info} {
     require_keys $result {
         schema_version part board_part pl_clock_hz kv_smoke_enabled
         av_diag_enabled raw_full_enabled canned_page_enabled
+        raw_e2e_enabled raw_e2e_ip_repo
+        raw_e2e_projection_component_sha256 raw_e2e_weight_component_sha256
         canned_page_ip_repo canned_page_component_sha256
-        canned_page_scale_bits canned_page_qk_mult_style
+        canned_page_scale_bits canned_page_decode_lanes
+        canned_page_qk_mult_style
         canned_page_av_mult_style canned_page_profile
         canned_page_compiled_profile_id
         canned_page_compiled_k_codebook_id
@@ -345,9 +389,12 @@ proc require_build_result {build_root artifacts identity_info} {
     }
     set identity [dict get $identity_info identity]
     foreach key {
-        canned_page_scale_bits canned_page_qk_mult_style
+        canned_page_scale_bits canned_page_decode_lanes
+        canned_page_qk_mult_style
         canned_page_av_mult_style canned_page_profile
         canned_page_component_sha256
+        raw_e2e_enabled raw_e2e_ip_repo
+        raw_e2e_projection_component_sha256 raw_e2e_weight_component_sha256
     } {
         if {[dict get $result $key] ne [dict get $identity $key]} {
             fail "build result $key differs from platform identity"
@@ -527,16 +574,21 @@ proc make_case {scale_width raw_mode {truncate_k 0} \
 }
 
 proc bytes_to_words {bytes} {
-    if {[llength $bytes] % 4 != 0} {
-        fail "byte list is not word aligned"
+    # The AXI-Lite fixture writes whole 32-bit words, while a legal packed
+    # scale slice (for example context 7 at UQ4.8) can end after 11 bytes.
+    # Zero-fill only the physical tail word; the descriptor still carries the
+    # exact logical slice length, so validator CRC/keep semantics are unchanged.
+    set padded $bytes
+    while {[llength $padded] % 4 != 0} {
+        lappend padded 0
     }
     set words {}
-    for {set n 0} {$n < [llength $bytes]} {incr n 4} {
+    for {set n 0} {$n < [llength $padded]} {incr n 4} {
         lappend words [expr {
-            [lindex $bytes $n] |
-            ([lindex $bytes [expr {$n+1}]] << 8) |
-            ([lindex $bytes [expr {$n+2}]] << 16) |
-            ([lindex $bytes [expr {$n+3}]] << 24)}]
+            [lindex $padded $n] |
+            ([lindex $padded [expr {$n+1}]] << 8) |
+            ([lindex $padded [expr {$n+2}]] << 16) |
+            ([lindex $padded [expr {$n+3}]] << 24)}]
     }
     return $words
 }
@@ -549,6 +601,179 @@ proc make_query_words {} {
         }
     }
     return [bytes_to_words $bytes]
+}
+
+proc round_even_div {numerator denominator} {
+    set quotient [expr {$numerator / $denominator}]
+    set remainder [expr {$numerator % $denominator}]
+    if {$remainder * 2 > $denominator ||
+        ($remainder * 2 == $denominator && ($quotient & 1))} {
+        incr quotient
+    }
+    return $quotient
+}
+
+proc pack_lsb_codes {codes width} {
+    set bytes {}
+    set buffer 0
+    set count 0
+    set mask [expr {(1 << $width) - 1}]
+    foreach code $codes {
+        set buffer [expr {$buffer | (($code & $mask) << $count)}]
+        incr count $width
+        while {$count >= 8} {
+            lappend bytes [expr {$buffer & 0xff}]
+            set buffer [expr {$buffer >> 8}]
+            incr count -8
+        }
+    }
+    if {$count > 0} { lappend bytes [expr {$buffer & 0xff}] }
+    return $bytes
+}
+
+proc prefix_code {stream_is_v symbol} {
+    if {!$stream_is_v} {
+        set table [dict create 0 00 2 010 -2 011 3 1000 7 1001000 \
+            -7 1001001 6 1001010 -6 1001011 4 10011 -3 1010 \
+            5 101100 -5 101101 -4 10111 1 110 -1 111]
+    } else {
+        set table [dict create 5 0000 -10 000100 10 000101 15 0001100 \
+            12 0001101 -15 0001110 -12 0001111 4 0010 7 00110 \
+            -7 00111 -4 0100 9 010100 -14 01010100 14 01010101 \
+            11 0101011 -9 010110 -11 0101110 13 01011110 \
+            -13 01011111 0 011 3 1000 -3 1001 -6 10100 6 10101 \
+            2 1011 -2 1100 -1 1101 1 1110 8 111100 -8 111101 \
+            -5 11111]
+    }
+    if {![dict exists $table $symbol]} {
+        fail "no frozen prefix for stream_is_v=$stream_is_v symbol=$symbol"
+    }
+    return [dict get $table $symbol]
+}
+
+proc pack_prefix_codes {codes stream_is_v} {
+    set bytes {}
+    set current 0
+    set used 0
+    foreach symbol $codes {
+        foreach bit [split [prefix_code $stream_is_v $symbol] ""] {
+            if {$bit eq ""} { continue }
+            set current [expr {$current | (($bit eq "1") << (7 - $used))}]
+            incr used
+            if {$used == 8} {
+                lappend bytes $current
+                set current 0
+                set used 0
+            }
+        }
+    }
+    if {$used != 0} { lappend bytes $current }
+    return $bytes
+}
+
+proc make_accepted_raw_oracle {} {
+    set context 7
+    set q_values {}
+    foreach multiplier {1 2 -1 -2} {
+        for {set dim 0} {$dim < 128} {incr dim} {
+            lappend q_values [expr {($dim & 1) ? -$multiplier : $multiplier}]
+        }
+    }
+    set k_codes {}
+    set v_codes {}
+    set k_scales {}
+    set v_scales {}
+    set pattern {1 -1 2 -2 3 -3 7}
+    for {set token 0} {$token < $context} {incr token} {
+        set k_code [lindex $pattern $token]
+        lappend k_scales 256
+        lappend v_scales [expr {256 + $token * 5}]
+        for {set dim 0} {$dim < 128} {incr dim} {
+            lappend k_codes [expr {$k_code - ($dim == 1 ? 1 : 0)}]
+            lappend v_codes [expr {(($token * 11 + $dim * 7) % 31) - 15}]
+        }
+    }
+    set scores {}
+    foreach multiplier {1 2 -1 -2} {
+        for {set token 0} {$token < $context} {incr token} {
+            lappend scores [expr {$multiplier * 256}]
+        }
+    }
+    set denominators [lrepeat 4 [expr {$context * 32768}]]
+    set reciprocals {}
+    set reciprocal_exponents {}
+    for {set head 0} {$head < 4} {incr head} {
+        set denominator [lindex $denominators $head]
+        set exponent 0
+        for {set scan $denominator} {$scan > 1} {set scan [expr {$scan >> 1}]} {
+            incr exponent
+        }
+        lappend reciprocals [round_even_div [expr {1 << ($exponent + 12)}] $denominator]
+        lappend reciprocal_exponents $exponent
+    }
+    set numerators {}
+    set normalized {}
+    set saturation {}
+    for {set head 0} {$head < 4} {incr head} {
+        for {set dim 0} {$dim < 128} {incr dim} {
+            set numerator 0
+            for {set token 0} {$token < $context} {incr token} {
+                set v [lindex $v_codes [expr {$token * 128 + $dim}]]
+                set numerator [expr {$numerator + 32768 *
+                    [lindex $v_scales $token] * $v}]
+            }
+            set product [expr {$numerator * [lindex $reciprocals $head]}]
+            set negative [expr {$product < 0}]
+            set magnitude [expr {$negative ? -$product : $product}]
+            set shift [expr {[lindex $reciprocal_exponents $head] + 12}]
+            set rounded [round_even_div $magnitude [expr {1 << $shift}]]
+            set sat 0
+            if {!$negative && $rounded > 131071} { set value 131071; set sat 1
+            } elseif {$negative && $rounded > 131072} { set value -131072; set sat 1
+            } else { set value [expr {$negative ? -$rounded : $rounded}] }
+            lappend numerators $numerator
+            lappend normalized $value
+            lappend saturation $sat
+        }
+    }
+    return [dict create context $context q_values $q_values k_codes $k_codes \
+        v_codes $v_codes k_scales $k_scales v_scales $v_scales \
+        scores $scores denominators $denominators reciprocals $reciprocals \
+        reciprocal_exponents $reciprocal_exponents numerators $numerators \
+        normalized $normalized saturation $saturation]
+}
+
+proc make_accepted_page_case {oracle raw_mode} {
+    set context [dict get $oracle context]
+    set k_scale [pack_lsb_codes [dict get $oracle k_scales] 12]
+    set v_scale [pack_lsb_codes [dict get $oracle v_scales] 12]
+    if {$raw_mode} {
+        set k_payload [pack_lsb_codes [dict get $oracle k_codes] 4]
+        set v_payload [pack_lsb_codes [dict get $oracle v_codes] 5]
+    } else {
+        set k_payload [pack_prefix_codes [dict get $oracle k_codes] 0]
+        set v_payload [pack_prefix_codes [dict get $oracle v_codes] 1]
+    }
+    set k_bytes [llength $k_payload]
+    set v_bytes [llength $v_payload]
+    set k_header [list 3 0xc3 [expr {$raw_mode ? 1 : 0}] \
+        [expr {$context - 1}] [expr {$k_bytes & 0xff}] \
+        [expr {($k_bytes >> 8) & 0xff}] 1 1 0 0 0 0]
+    set v_header [list 3 0xc3 [expr {$raw_mode ? 3 : 2}] \
+        [expr {$context - 1}] [expr {$v_bytes & 0xff}] \
+        [expr {($v_bytes >> 8) & 0xff}] 2 1 0 0 0 0]
+    lassign [stamp_crc [concat $k_header $k_payload] $k_bytes $k_scale] k k_crc
+    lassign [stamp_crc [concat $v_header $v_payload] $v_bytes $v_scale] v v_crc
+    set k_window [expr {(([llength $k] + 15) / 16) * 16}]
+    set v_window [expr {(([llength $v] + 15) / 16) * 16}]
+    set k [concat $k [zero_bytes [expr {$k_window - [llength $k]}]]]
+    set v [concat $v [zero_bytes [expr {$v_window - [llength $v]}]]]
+    set q_bytes {}
+    foreach value [dict get $oracle q_values] { lappend q_bytes [expr {$value & 0xff}] }
+    return [dict create raw $raw_mode context $context k $k v $v \
+        k_scale $k_scale v_scale $v_scale k_window $k_window \
+        v_window $v_window k_crc $k_crc v_crc $v_crc \
+        q_words [bytes_to_words $q_bytes] oracle $oracle]
 }
 
 proc self_test_case {scale_width} {
@@ -605,6 +830,73 @@ proc write32 {address value} {
     mwr -force -size w [hex32 $address] [hex32 $value]
 }
 
+proc make_projection_data {} {
+    set activations {}
+    set expected [lrepeat 64 0]
+    set weight_rows {}
+    for {set k 0} {$k < 1024} {incr k} {
+        set activation [expr {(($k * 7) % 11) - 5}]
+        lappend activations $activation
+        set words [lrepeat 4 0]
+        for {set c 0} {$c < 64} {incr c} {
+            set weight [expr {(($k * 5 + $c * 7 + ($c >> 2)) % 3) - 1}]
+            set code [expr {$weight < 0 ? 2 : ($weight > 0 ? 1 : 0)}]
+            set wi [expr {$c >> 4}]
+            set shift [expr {($c & 15) * 2}]
+            lset words $wi [expr {([lindex $words $wi] | ($code << $shift)) & 0xffffffff}]
+            lset expected $c [expr {[lindex $expected $c] + $activation * $weight}]
+        }
+        lappend weight_rows $words
+    }
+    return [dict create activations $activations weight_rows $weight_rows expected $expected]
+}
+
+proc run_projection {projection} {
+    global PROJECTION_BASE WEIGHT_BASE PROJ_REG_CTRL PROJ_REG_STATUS
+    global PROJ_REG_ACT_WR PROJ_REG_CT PROJ_REG_DEPTH PROJ_REG_RIDX
+    global PROJ_REG_RDATA PROJ_REG_ID PROJ_REG_CYCLES PROJ_EXPECTED_ID
+    require_equal "projection ID" \
+        [read32 [expr {$PROJECTION_BASE + $PROJ_REG_ID}]] $PROJ_EXPECTED_ID
+    set rows [dict get $projection weight_rows]
+    for {set k 0} {$k < 1024} {incr k} {
+        set address [expr {$WEIGHT_BASE + (($k << 4) * 16)}]
+        set encoded {}
+        foreach word [lindex $rows $k] { lappend encoded [hex32 $word] }
+        mwr -force -size w [hex32 $address] $encoded
+    }
+    write32 [expr {$PROJECTION_BASE + $PROJ_REG_CTRL}] 4
+    foreach activation [dict get $projection activations] {
+        write32 [expr {$PROJECTION_BASE + $PROJ_REG_ACT_WR}] \
+            [expr {$activation & 0xff}]
+    }
+    write32 [expr {$PROJECTION_BASE + $PROJ_REG_CT}] 0
+    write32 [expr {$PROJECTION_BASE + $PROJ_REG_DEPTH}] 1024
+    # CTRL[3] is intentionally asserted; ENABLE_INT8=0 must make it inert.
+    write32 [expr {$PROJECTION_BASE + $PROJ_REG_CTRL}] 9
+    set status 0
+    for {set poll 0} {$poll < 2000} {incr poll} {
+        set status [read32 [expr {$PROJECTION_BASE + $PROJ_REG_STATUS}]]
+        if {$status & 2} { break }
+        after 1
+    }
+    require_equal "projection status" $status 2
+    set cycles [read32 [expr {$PROJECTION_BASE + $PROJ_REG_CYCLES}]]
+    require_equal "Tier2 projection cycles" $cycles 1031
+    set observed {}
+    set expected [dict get $projection expected]
+    for {set c 0} {$c < 64} {incr c} {
+        write32 [expr {$PROJECTION_BASE + $PROJ_REG_RIDX}] $c
+        set value [signed_bits \
+            [read32 [expr {$PROJECTION_BASE + $PROJ_REG_RDATA}]] 32]
+        lappend observed $value
+        if {$value != [lindex $expected $c]} {
+            fail "projection mismatch column=$c got=$value expected=[lindex $expected $c]"
+        }
+    }
+    puts "COMPRESSED_E2E_PROJECTION_BOARD_PASS outputs=64 depth=1024 cycles=$cycles legacy_int8_disabled=1"
+    return [dict create cycles $cycles expected $expected observed $observed]
+}
+
 proc write_words {address words label} {
     global CHUNK_WORDS
     set count [llength $words]
@@ -619,11 +911,11 @@ proc write_words {address words label} {
     puts "KVQ_CANNED_PAGE_LOAD_PASS label={$label} base=[hex32 $address] words=$count"
 }
 
-proc configure_common {} {
+proc configure_common {{context 128}} {
     global BASE REG_CONTEXT REG_PAGE_DESC REG_EPOCH
     global REG_K_TAG_LO REG_K_TAG_HI REG_V_TAG_LO REG_V_TAG_HI
     global GOOD_K_TAG_LO GOOD_K_TAG_HI GOOD_V_TAG_LO GOOD_V_TAG_HI
-    write32 [expr {$BASE + $REG_CONTEXT}] 128
+    write32 [expr {$BASE + $REG_CONTEXT}] $context
     write32 [expr {$BASE + $REG_PAGE_DESC}] 0x100
     write32 [expr {$BASE + $REG_EPOCH}] 0x1234
     write32 [expr {$BASE + $REG_K_TAG_LO}] $GOOD_K_TAG_LO
@@ -639,7 +931,12 @@ proc load_case {case_data} {
     write32 [expr {$BASE + $REG_V_WINDOW}] [dict get $case_data v_window]
     write32 [expr {$BASE + $REG_PAGE_MODES}] \
         [expr {[dict get $case_data raw] ? 3 : 0}]
-    write_words [expr {$BASE + $Q_BASE}] [make_query_words] queries
+    if {[dict exists $case_data q_words]} {
+        set q_words [dict get $case_data q_words]
+    } else {
+        set q_words [make_query_words]
+    }
+    write_words [expr {$BASE + $Q_BASE}] $q_words queries
     write_words [expr {$BASE + $K_PAGE_BASE}] \
         [bytes_to_words [dict get $case_data k]] K_page
     write_words [expr {$BASE + $V_PAGE_BASE}] \
@@ -747,6 +1044,41 @@ proc capture_results {label} {
     return [dict create scores $scores results $results denom $denom recip $recip]
 }
 
+proc compare_snapshot_to_oracle {snapshot oracle label} {
+    set context [dict get $oracle context]
+    set expected_scores [lrepeat 512 0]
+    for {set head 0} {$head < 4} {incr head} {
+        for {set token 0} {$token < $context} {incr token} {
+            set score [lindex [dict get $oracle scores] \
+                [expr {$head * $context + $token}]]
+            lset expected_scores [expr {$token * 4 + $head}] \
+                [expr {$score & 0xffff}]
+        }
+    }
+    compare_lists "$label scores" [dict get $snapshot scores] $expected_scores
+    set expected_results {}
+    for {set index 0} {$index < 512} {incr index} {
+        set numerator [lindex [dict get $oracle numerators] $index]
+        set normalized [lindex [dict get $oracle normalized] $index]
+        set saturated [lindex [dict get $oracle saturation] $index]
+        lappend expected_results [expr {$numerator & 0xffffffff}]
+        lappend expected_results [expr {($numerator >> 32) & 0xffff}]
+        lappend expected_results \
+            [expr {(($saturated & 1) << 18) | ($normalized & 0x3ffff)}]
+    }
+    compare_lists "$label results" [dict get $snapshot results] $expected_results
+    compare_lists "$label denominators" [dict get $snapshot denom] \
+        [dict get $oracle denominators]
+    set expected_recip {}
+    for {set head 0} {$head < 4} {incr head} {
+        lappend expected_recip [expr {
+            ([lindex [dict get $oracle reciprocal_exponents] $head] << 13) |
+            [lindex [dict get $oracle reciprocals] $head]}]
+    }
+    compare_lists "$label reciprocals" [dict get $snapshot recip] $expected_recip
+    puts "COMPRESSED_E2E_ACCEPTED_VECTOR_PASS label={$label} context=$context scores=512 numerators=512 normalized=512"
+}
+
 proc compare_lists {label observed expected} {
     if {[llength $observed] != [llength $expected]} {
         fail "$label length mismatch"
@@ -765,7 +1097,69 @@ proc compare_results {observed expected label} {
     puts "KVQ_CANNED_PAGE_AB_EQUAL_PASS label={$label} scores=512 numerators=512 normalized=512"
 }
 
-proc check_counters {raw_mode label} {
+proc write_machine_evidence {evidence_root projection raw compressed} {
+    set vector_path [file join [file normalize $evidence_root] \
+        combined_board_vectors.csv]
+    set counter_path [file join [file normalize $evidence_root] \
+        combined_board_counters.csv]
+    set vector_file [open $vector_path {WRONLY CREAT EXCL}]
+    try {
+        puts $vector_file "domain,index,raw_value,compressed_value,expected_value,equal"
+        if {$projection ne ""} {
+            for {set n 0} {$n < 64} {incr n} {
+                set observed [lindex [dict get $projection observed] $n]
+                set expected [lindex [dict get $projection expected] $n]
+                puts $vector_file \
+                    "projection,$n,$observed,$observed,$expected,[expr {$observed == $expected}]"
+            }
+        }
+        for {set n 0} {$n < 512} {incr n} {
+            set raw_score [lindex [dict get $raw scores] $n]
+            set compressed_score [lindex [dict get $compressed scores] $n]
+            puts $vector_file \
+                "score_word,$n,$raw_score,$compressed_score,$raw_score,[expr {$raw_score == $compressed_score}]"
+            set base [expr {$n * 3}]
+            set raw_lo [lindex [dict get $raw results] $base]
+            set raw_hi [lindex [dict get $raw results] [expr {$base + 1}]]
+            set compressed_lo [lindex [dict get $compressed results] $base]
+            set compressed_hi [lindex [dict get $compressed results] [expr {$base + 1}]]
+            set raw_num [expr {($raw_lo & 0xffffffff) | (($raw_hi & 0xffff) << 32)}]
+            set compressed_num [expr {($compressed_lo & 0xffffffff) | (($compressed_hi & 0xffff) << 32)}]
+            puts $vector_file \
+                "numerator_s48,$n,$raw_num,$compressed_num,$raw_num,[expr {$raw_num == $compressed_num}]"
+            set raw_norm [lindex [dict get $raw results] [expr {$base + 2}]]
+            set compressed_norm [lindex [dict get $compressed results] [expr {$base + 2}]]
+            puts $vector_file \
+                "normalized_word,$n,$raw_norm,$compressed_norm,$raw_norm,[expr {$raw_norm == $compressed_norm}]"
+        }
+        foreach domain {denom recip} {
+            for {set n 0} {$n < 4} {incr n} {
+                set raw_value [lindex [dict get $raw $domain] $n]
+                set compressed_value [lindex [dict get $compressed $domain] $n]
+                puts $vector_file \
+                    "$domain,$n,$raw_value,$compressed_value,$raw_value,[expr {$raw_value == $compressed_value}]"
+            }
+        }
+    } finally {
+        close $vector_file
+    }
+    set counter_file [open $counter_path {WRONLY CREAT EXCL}]
+    try {
+        puts $counter_file "counter,raw,compressed"
+        if {$projection ne ""} {
+            puts $counter_file \
+                "tier2_projection_cycles,[dict get $projection cycles],[dict get $projection cycles]"
+        }
+        foreach name [lsort [dict keys [dict get $raw counters]]] {
+            puts $counter_file "$name,[dict get $raw counters $name],[dict get $compressed counters $name]"
+        }
+    } finally {
+        close $counter_file
+    }
+    puts "COMPRESSED_E2E_MACHINE_EVIDENCE_PASS vectors=$vector_path counters=$counter_path"
+}
+
+proc check_counters {raw_mode label {context 128}} {
     global BASE REG_K_VALID_DATA_REQ REG_V_VALID_DATA_REQ
     global REG_K_COPY_DATA_REQ REG_V_COPY_DATA_REQ REG_K_P16_REQ REG_V_P16_REQ
     global REG_K_SCALE_REQ REG_V_SCALE_REQ REG_K_STARVE REG_V_STARVE
@@ -787,10 +1181,10 @@ proc check_counters {raw_mode label} {
             fail "$label counter $name is zero"
         }
     }
-    foreach {name expected} {
-        k_p16 4096 v_p16 4096 k_scale 128 v_scale 128
-        score_count 512 result_count 512
-    } {
+    foreach {name expected} [list \
+        k_p16 [expr {$context * 32}] v_p16 [expr {$context * 32}] \
+        k_scale $context v_scale $context \
+        score_count [expr {$context * 4}] result_count 512] {
         if {[dict get $counters $name] != $expected} {
             fail "$label counter $name=[dict get $counters $name] expected=$expected"
         }
@@ -800,6 +1194,7 @@ proc check_counters {raw_mode label} {
         fail "$label raw_pages=[dict get $counters raw_pages] expected=$expected_raw"
     }
     puts "KVQ_CANNED_PAGE_COUNTERS_PASS label={$label} counters={$counters}"
+    return $counters
 }
 
 proc run_success {case_data label {reference ""}} {
@@ -808,7 +1203,10 @@ proc run_success {case_data label {reference ""}} {
     write32 [expr {$BASE + $REG_CTRL}] 1
     wait_success $label
     set snapshot [capture_results $label]
-    check_counters [dict get $case_data raw] $label
+    set context [expr {[dict exists $case_data context] ?
+        [dict get $case_data context] : 128}]
+    dict set snapshot counters \
+        [check_counters [dict get $case_data raw] $label $context]
     if {$reference ne ""} {
         compare_results $snapshot $reference $label
     }
@@ -874,12 +1272,15 @@ proc run_board {build_root evidence_root expected_serial} {
     set artifacts [dict get $preflight artifacts]
     set identity_info [dict get $preflight identity]
     set scale [dict get $identity_info scale]
+    set projection_enabled [dict get $identity_info projection_enabled]
     set raw [make_case $scale 1]
     set compressed [make_case $scale 0]
     self_test_case $scale
 
     puts "KVQ_CANNED_PAGE_ARTIFACT bit=[dict get $artifacts bit]"
-    puts "KVQ_CANNED_PAGE_IDENTITY scale=$scale profile=[dict get $identity_info profile] qk_style=[dict get $identity_info qk] av_style=[dict get $identity_info av] component_sha256=[dict get $identity_info component_hash]"
+    set EXPECTED_GEOMETRY [expr {([dict get $identity_info lanes] << 24) |
+        0x00808010}]
+    puts "KVQ_CANNED_PAGE_IDENTITY lanes=[dict get $identity_info lanes] scale=$scale profile=[dict get $identity_info profile] qk_style=[dict get $identity_info qk] av_style=[dict get $identity_info av] component_sha256=[dict get $identity_info component_hash]"
 
     connect -url tcp:127.0.0.1:3121
     set targets_info [discover_unique_zybo_targets $expected_serial]
@@ -904,9 +1305,14 @@ proc run_board {build_root evidence_root expected_serial} {
     puts "KVQ_CANNED_PAGE_PS_INIT_PASS silicon_version=[ps_version] post_config=2_0"
     puts "KVQ_CANNED_PAGE_BRAM_PROBE_PASS base=[hex32 $BRAM_BASE] value=[hex32 [read32 $BRAM_BASE]]"
 
+    set projection_snapshot ""
+    if {$projection_enabled} {
+        set projection_snapshot [run_projection [make_projection_data]]
+    }
+
     require_equal "canned-page ID" [read32 [expr {$BASE + $REG_ID}]] 0x4b560304
     require_equal "canned-page geometry" \
-        [read32 [expr {$BASE + $REG_GEOMETRY}]] 0x04808010
+        [read32 [expr {$BASE + $REG_GEOMETRY}]] $EXPECTED_GEOMETRY
     set scale_format [expr {$scale == 12 ? 0x000c0801 : 0x00100802}]
     require_equal "canned-page scale format" \
         [read32 [expr {$BASE + $REG_SCALE_FORMAT}]] $scale_format
@@ -973,8 +1379,40 @@ proc run_board {build_root evidence_root expected_serial} {
     set restart [run_success $compressed NO_RESET_RESTART $raw_reference]
     compare_results $restart $compressed_snapshot "restart vs first compressed"
 
+    set machine_raw $raw_reference
+    set machine_compressed $compressed_snapshot
+    if {$projection_enabled} {
+        # Reuse the exact context-7 Q/K/V/scales from the accepted RAW
+        # combined fixture, then prove both the page RAW fallback and the
+        # compressed prefix path against its independent integer oracle.
+        clear_status
+        set accepted_oracle [make_accepted_raw_oracle]
+        set accepted_raw [make_accepted_page_case $accepted_oracle 1]
+        set accepted_compressed [make_accepted_page_case $accepted_oracle 0]
+        configure_common 7
+        load_case $accepted_raw
+        set accepted_raw_snapshot [run_success $accepted_raw ACCEPTED_RAW]
+        compare_snapshot_to_oracle $accepted_raw_snapshot $accepted_oracle \
+            "accepted RAW fixture"
+        clear_status
+        load_case $accepted_compressed
+        set accepted_compressed_snapshot \
+            [run_success $accepted_compressed ACCEPTED_COMPRESSED \
+                $accepted_raw_snapshot]
+        compare_snapshot_to_oracle $accepted_compressed_snapshot \
+            $accepted_oracle "accepted compressed fixture"
+        set machine_raw $accepted_raw_snapshot
+        set machine_compressed $accepted_compressed_snapshot
+    }
+
+    write_machine_evidence $evidence_root $projection_snapshot \
+        $machine_raw $machine_compressed
+
     set result [dict get $identity_info result]
     puts "KVQ_CANNED_PAGE_BOARD_SMOKE_PASS board={Zybo Z7-20 Rev D} clock_hz=[dict get $result pl_clock_hz] scale_width=$scale profile=[dict get $identity_info profile] qk_style=[dict get $identity_info qk] av_style=[dict get $identity_info av] raw_compressed_equal=512_scores+512_numerators+512_normalized faults={profile codebook crc decoder abort} no_reset_restart=pass"
+    if {$projection_enabled} {
+        puts "COMPRESSED_E2E_BOARD_PASS projection_outputs=64 tier2_cycles=[dict get $projection_snapshot cycles] accepted_raw_fixture_context=7 compressed_lanes=[dict get $identity_info lanes] scale_width=$scale profile=[dict get $identity_info profile] raw_compressed_equal=512_scores+512_numerators+512_normalized physical_hp64=1 legacy_int8_disabled=1"
+    }
 }
 
 set self_test 0
@@ -999,6 +1437,12 @@ set rc [catch {
         set scales [expr {$requested_scale eq "" ? {12 16} : [list $requested_scale]}]
         foreach scale $scales {
             self_test_case $scale
+        }
+        if {12 in $scales} {
+            set accepted [make_accepted_raw_oracle]
+            set accepted_raw [make_accepted_page_case $accepted 1]
+            set accepted_compressed [make_accepted_page_case $accepted 0]
+            puts "COMPRESSED_E2E_ACCEPTED_ORACLE_PASS context=7 raw_windows={[dict get $accepted_raw k_window] [dict get $accepted_raw v_window]} compressed_windows={[dict get $accepted_compressed k_window] [dict get $accepted_compressed v_window]} scores=28 numerators=512 normalized=512"
         }
         puts "KVQ_CANNED_PAGE_STATIC_ORACLE_PASS scales={$scales} context=128 raw_compressed=prepared"
     } else {

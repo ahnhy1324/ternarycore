@@ -11,6 +11,7 @@ module axi_kvq_canned_page_diag #(
     parameter integer COMPILED_V_CODEBOOK_ID = 2,
     parameter integer QK_MULT_STYLE = 2,
     parameter integer AV_MULT_STYLE = 2,
+    parameter integer DECODE_LANES = 4,
     parameter integer C_S_AXI_DATA_WIDTH = 32,
     parameter integer C_S_AXI_ADDR_WIDTH = 16
 ) (
@@ -268,25 +269,91 @@ module axi_kvq_canned_page_diag #(
     wire [7:0] k_verified_scale_format, v_verified_scale_format;
     wire validator_abort;
 
-    wire k_validator_data_valid = state == ST_VALIDATE &&
+    wire k_validator_data_source_valid = state == ST_VALIDATE &&
         k_validator_started && k_validator_data_word_valid;
-    wire v_validator_data_valid = state == ST_VALIDATE &&
+    wire v_validator_data_source_valid = state == ST_VALIDATE &&
         v_validator_started && v_validator_data_word_valid;
+    wire k_validator_data_valid, v_validator_data_valid;
     wire k_validator_data_ready, v_validator_data_ready;
-    wire k_validator_scale_valid = state == ST_VALIDATE &&
+    wire k_validator_data_source_ready, v_validator_data_source_ready;
+    wire k_validator_scale_source_valid = state == ST_VALIDATE &&
         k_validator_started && k_validator_scale_word_valid;
-    wire v_validator_scale_valid = state == ST_VALIDATE &&
+    wire v_validator_scale_source_valid = state == ST_VALIDATE &&
         v_validator_started && v_validator_scale_word_valid;
+    wire k_validator_scale_valid, v_validator_scale_valid;
     wire k_validator_scale_ready, v_validator_scale_ready;
+    wire k_validator_scale_source_ready, v_validator_scale_source_ready;
 
-    wire [3:0] k_validator_data_keep = k_validator_data_keep_reg;
-    wire [3:0] v_validator_data_keep = v_validator_data_keep_reg;
-    wire [3:0] k_validator_scale_keep = k_validator_scale_keep_reg;
-    wire [3:0] v_validator_scale_keep = v_validator_scale_keep_reg;
-    wire [31:0] k_validator_data_word = k_page_read_data;
-    wire [31:0] v_validator_data_word = v_page_read_data;
-    wire [31:0] k_validator_scale_word = k_scale_read_data;
-    wire [31:0] v_validator_scale_word = v_scale_read_data;
+    wire [3:0] k_validator_data_keep, v_validator_data_keep;
+    wire [3:0] k_validator_scale_keep, v_validator_scale_keep;
+    wire [31:0] k_validator_data_word, v_validator_data_word;
+    wire [31:0] k_validator_scale_word, v_validator_scale_word;
+    wire k_validator_data_last, v_validator_data_last;
+    wire k_validator_scale_last, v_validator_scale_last;
+    wire [13:0] k_validator_data_offset, v_validator_data_offset;
+    wire [13:0] k_validator_scale_offset, v_validator_scale_offset;
+    wire validator_pipe_clear = state != ST_VALIDATE || validator_abort;
+
+    kv_v03_crc_input_pipe u_k_data_crc_pipe (
+        .clk(clk), .rst_n(rst_n), .clear(validator_pipe_clear),
+        .in_valid(k_validator_data_source_valid),
+        .in_ready(k_validator_data_source_ready),
+        .in_data(k_page_read_data),
+        .in_byte_valid(k_validator_data_keep_reg),
+        .in_last(k_validator_data_last_reg),
+        .in_byte_offset(k_validator_data_offset_reg),
+        .out_valid(k_validator_data_valid),
+        .out_ready(k_validator_data_ready),
+        .out_data(k_validator_data_word),
+        .out_byte_valid(k_validator_data_keep),
+        .out_last(k_validator_data_last),
+        .out_byte_offset(k_validator_data_offset)
+    );
+    kv_v03_crc_input_pipe u_v_data_crc_pipe (
+        .clk(clk), .rst_n(rst_n), .clear(validator_pipe_clear),
+        .in_valid(v_validator_data_source_valid),
+        .in_ready(v_validator_data_source_ready),
+        .in_data(v_page_read_data),
+        .in_byte_valid(v_validator_data_keep_reg),
+        .in_last(v_validator_data_last_reg),
+        .in_byte_offset(v_validator_data_offset_reg),
+        .out_valid(v_validator_data_valid),
+        .out_ready(v_validator_data_ready),
+        .out_data(v_validator_data_word),
+        .out_byte_valid(v_validator_data_keep),
+        .out_last(v_validator_data_last),
+        .out_byte_offset(v_validator_data_offset)
+    );
+    kv_v03_crc_input_pipe u_k_scale_crc_pipe (
+        .clk(clk), .rst_n(rst_n), .clear(validator_pipe_clear),
+        .in_valid(k_validator_scale_source_valid),
+        .in_ready(k_validator_scale_source_ready),
+        .in_data(k_scale_read_data),
+        .in_byte_valid(k_validator_scale_keep_reg),
+        .in_last(k_validator_scale_last_reg),
+        .in_byte_offset(k_validator_scale_offset_reg),
+        .out_valid(k_validator_scale_valid),
+        .out_ready(k_validator_scale_ready),
+        .out_data(k_validator_scale_word),
+        .out_byte_valid(k_validator_scale_keep),
+        .out_last(k_validator_scale_last),
+        .out_byte_offset(k_validator_scale_offset)
+    );
+    kv_v03_crc_input_pipe u_v_scale_crc_pipe (
+        .clk(clk), .rst_n(rst_n), .clear(validator_pipe_clear),
+        .in_valid(v_validator_scale_source_valid),
+        .in_ready(v_validator_scale_source_ready),
+        .in_data(v_scale_read_data),
+        .in_byte_valid(v_validator_scale_keep_reg),
+        .in_last(v_validator_scale_last_reg),
+        .in_byte_offset(v_validator_scale_offset_reg),
+        .out_valid(v_validator_scale_valid),
+        .out_ready(v_validator_scale_ready),
+        .out_data(v_validator_scale_word),
+        .out_byte_valid(v_validator_scale_keep),
+        .out_last(v_validator_scale_last),
+        .out_byte_offset(v_validator_scale_offset)
+    );
 
     kv_v03_page128_record_validator #(
         .TAG_WIDTH(64), .SCALE_BITS(SCALE_BITS),
@@ -307,16 +374,16 @@ module axi_kvq_canned_page_diag #(
         .data_ready(k_validator_data_ready),
         .data_data(k_validator_data_word),
         .data_byte_valid(k_validator_data_keep),
-        .data_last(k_validator_data_last_reg),
-        .data_byte_offset(k_validator_data_offset_reg),
+        .data_last(k_validator_data_last),
+        .data_byte_offset(k_validator_data_offset),
         .data_task_tag(k_tag_reg), .data_page_index(page_index_reg),
         .data_stream_is_v(1'b0),
         .scale_valid(k_validator_scale_valid),
         .scale_ready(k_validator_scale_ready),
         .scale_data(k_validator_scale_word),
         .scale_byte_valid(k_validator_scale_keep),
-        .scale_last(k_validator_scale_last_reg),
-        .scale_byte_offset(k_validator_scale_offset_reg),
+        .scale_last(k_validator_scale_last),
+        .scale_byte_offset(k_validator_scale_offset),
         .scale_task_tag(k_tag_reg), .scale_page_index(page_index_reg),
         .scale_stream_is_v(1'b0), .verified_valid(k_verified_valid),
         .verified_ready(k_verified_ready), .verified_task_tag(),
@@ -355,16 +422,16 @@ module axi_kvq_canned_page_diag #(
         .data_ready(v_validator_data_ready),
         .data_data(v_validator_data_word),
         .data_byte_valid(v_validator_data_keep),
-        .data_last(v_validator_data_last_reg),
-        .data_byte_offset(v_validator_data_offset_reg),
+        .data_last(v_validator_data_last),
+        .data_byte_offset(v_validator_data_offset),
         .data_task_tag(v_tag_reg), .data_page_index(page_index_reg),
         .data_stream_is_v(1'b1),
         .scale_valid(v_validator_scale_valid),
         .scale_ready(v_validator_scale_ready),
         .scale_data(v_validator_scale_word),
         .scale_byte_valid(v_validator_scale_keep),
-        .scale_last(v_validator_scale_last_reg),
-        .scale_byte_offset(v_validator_scale_offset_reg),
+        .scale_last(v_validator_scale_last),
+        .scale_byte_offset(v_validator_scale_offset),
         .scale_task_tag(v_tag_reg), .scale_page_index(page_index_reg),
         .scale_stream_is_v(1'b1), .verified_valid(v_verified_valid),
         .verified_ready(v_verified_ready), .verified_task_tag(),
@@ -397,6 +464,7 @@ module axi_kvq_canned_page_diag #(
     wire [14:0] k_lane_symbols, v_lane_symbols;
     wire [7:0] k_lane_tokens, v_lane_tokens;
     wire [8:0] k_lane_scale_bytes, v_lane_scale_bytes;
+    wire [1:0] k_lane_selected, v_lane_selected;
     wire k_lane_busy, v_lane_busy, k_lane_draining, v_lane_draining;
     wire k_lane_sticky, v_lane_sticky;
     wire [7:0] k_lane_error_code, v_lane_error_code;
@@ -456,14 +524,14 @@ module axi_kvq_canned_page_diag #(
     (* DONT_TOUCH = "yes" *)
     reg [7:0] k_tokens_latched, v_tokens_latched;
 
-    wire k_validator_data_advance = k_validator_data_word_valid &&
-        k_validator_data_ready;
-    wire v_validator_data_advance = v_validator_data_word_valid &&
-        v_validator_data_ready;
-    wire k_validator_scale_advance = k_validator_scale_word_valid &&
-        k_validator_scale_ready;
-    wire v_validator_scale_advance = v_validator_scale_word_valid &&
-        v_validator_scale_ready;
+    wire k_validator_data_advance = k_validator_data_source_valid &&
+        k_validator_data_source_ready;
+    wire v_validator_data_advance = v_validator_data_source_valid &&
+        v_validator_data_source_ready;
+    wire k_validator_scale_advance = k_validator_scale_source_valid &&
+        k_validator_scale_source_ready;
+    wire v_validator_scale_advance = v_validator_scale_source_valid &&
+        v_validator_scale_source_ready;
     wire k_validator_data_fetch = state == ST_VALIDATE &&
         k_validator_started &&
         ((!k_validator_data_word_valid &&
@@ -530,6 +598,7 @@ module axi_kvq_canned_page_diag #(
 
     kv_v03_typed_decode_lane_bank_4x1 #(
         .SCALE_BITS(SCALE_BITS),
+        .LANE_COUNT(DECODE_LANES),
         .COMPILED_PROFILE_ID(COMPILED_PROFILE_ID),
         .COMPILED_K_CODEBOOK_ID(COMPILED_K_CODEBOOK_ID),
         .COMPILED_V_CODEBOOK_ID(COMPILED_V_CODEBOOK_ID)
@@ -574,6 +643,7 @@ module axi_kvq_canned_page_diag #(
         .published_expected_symbols(k_lane_symbols),
         .published_token_count(k_lane_tokens),
         .published_scale_slice_bytes(k_lane_scale_bytes),
+        .published_lane(k_lane_selected),
         .p16_rd_en(arith_k_p16_en), .p16_rd_addr(arith_k_p16_addr),
         .p16_rd_valid(k_lane_p16_raw_valid),
         .p16_rd_codes(k_lane_p16_raw_codes),
@@ -592,6 +662,7 @@ module axi_kvq_canned_page_diag #(
 
     kv_v03_typed_decode_lane_bank_4x1 #(
         .SCALE_BITS(SCALE_BITS),
+        .LANE_COUNT(DECODE_LANES),
         .COMPILED_PROFILE_ID(COMPILED_PROFILE_ID),
         .COMPILED_K_CODEBOOK_ID(COMPILED_K_CODEBOOK_ID),
         .COMPILED_V_CODEBOOK_ID(COMPILED_V_CODEBOOK_ID)
@@ -636,6 +707,7 @@ module axi_kvq_canned_page_diag #(
         .published_expected_symbols(v_lane_symbols),
         .published_token_count(v_lane_tokens),
         .published_scale_slice_bytes(v_lane_scale_bytes),
+        .published_lane(v_lane_selected),
         .p16_rd_en(arith_v_p16_en), .p16_rd_addr(arith_v_p16_addr),
         .p16_rd_valid(v_lane_p16_raw_valid),
         .p16_rd_codes(v_lane_p16_raw_codes),
@@ -655,8 +727,26 @@ module axi_kvq_canned_page_diag #(
     assign k_lane_publish_ready = state == ST_DECODE &&
         k_lane_publish_valid && v_lane_publish_valid;
     assign v_lane_publish_ready = k_lane_publish_ready;
+    wire lane_publish_pair_fire = k_lane_publish_valid &&
+        v_lane_publish_valid && k_lane_publish_ready &&
+        v_lane_publish_ready;
 
     // Arithmetic core ------------------------------------------------------
+    // The complete page ownership context is captured at the pair publish
+    // handshake.  Arithmetic control never depends on the live queue head.
+    reg [12:0] arith_context_reg;
+    reg [1:0] k_arith_lane_reg, v_arith_lane_reg;
+    reg [63:0] k_arith_tag_reg, v_arith_tag_reg;
+    reg [15:0] k_arith_epoch_reg, v_arith_epoch_reg;
+    reg [4:0] k_arith_page_reg, v_arith_page_reg;
+    reg k_arith_stream_reg, v_arith_stream_reg;
+    reg k_arith_raw_reg, v_arith_raw_reg;
+    reg [15:0] k_arith_payload_reg, v_arith_payload_reg;
+    reg [14:0] k_arith_symbols_reg, v_arith_symbols_reg;
+    reg [7:0] k_arith_tokens_reg, v_arith_tokens_reg;
+    reg [8:0] k_arith_scale_bytes_reg, v_arith_scale_bytes_reg;
+    reg [15:0] k_arith_profile_reg, v_arith_profile_reg;
+    reg [7:0] k_arith_codebook_reg, v_arith_codebook_reg;
     reg [9:0] q_load_index;
     wire arith_start_ready, arith_clear_ready, arith_busy, arith_draining;
     wire arith_done, arith_aborted, arith_sticky, arith_row_abort;
@@ -705,18 +795,20 @@ module axi_kvq_canned_page_diag #(
     ) u_arithmetic (
         .clk(clk), .rst_n(rst_n),
         .start_valid(state == ST_ARITH_START),
-        .start_ready(arith_start_ready), .context_len(context_reg),
+        .start_ready(arith_start_ready), .context_len(arith_context_reg),
         .abort(arith_abort), .clear_fault(arith_clear),
         .clear_ready(arith_clear_ready),
         .clear_counters(arith_clear_counters_reg),
         .q_wr_en(state == ST_Q_LOAD), .q_wr_row(q_load_index[8:7]),
         .q_wr_addr(q_load_index[6:0]), .q_wr_data(q_load_byte),
         .queries_ready(), .k_page_active(k_lane_page_active),
-        .k_task_tag(k_lane_tag), .k_epoch(k_lane_epoch),
-        .k_page_index(k_lane_page), .k_stream_is_v(k_lane_stream),
-        .k_raw_mode(k_lane_raw), .k_expected_symbols(k_lane_symbols),
-        .k_token_count(k_lane_tokens),
-        .k_scale_slice_bytes(k_lane_scale_bytes),
+        .k_task_tag(k_arith_tag_reg), .k_epoch(k_arith_epoch_reg),
+        .k_page_index(k_arith_page_reg),
+        .k_stream_is_v(k_arith_stream_reg),
+        .k_raw_mode(k_arith_raw_reg),
+        .k_expected_symbols(k_arith_symbols_reg),
+        .k_token_count(k_arith_tokens_reg),
+        .k_scale_slice_bytes(k_arith_scale_bytes_reg),
         .k_p16_rd_en(arith_k_p16_en), .k_p16_rd_addr(arith_k_p16_addr),
         .k_p16_rd_valid(k_lane_p16_valid),
         .k_p16_rd_codes(k_lane_p16_codes),
@@ -725,11 +817,13 @@ module axi_kvq_canned_page_diag #(
         .k_scale_rd_valid(k_lane_token_scale_valid),
         .k_scale_rd_data(k_lane_token_scale),
         .k_page_release(arith_k_page_release),
-        .v_page_active(v_lane_page_active), .v_task_tag(v_lane_tag),
-        .v_epoch(v_lane_epoch), .v_page_index(v_lane_page),
-        .v_stream_is_v(v_lane_stream), .v_raw_mode(v_lane_raw),
-        .v_expected_symbols(v_lane_symbols), .v_token_count(v_lane_tokens),
-        .v_scale_slice_bytes(v_lane_scale_bytes),
+        .v_page_active(v_lane_page_active), .v_task_tag(v_arith_tag_reg),
+        .v_epoch(v_arith_epoch_reg), .v_page_index(v_arith_page_reg),
+        .v_stream_is_v(v_arith_stream_reg),
+        .v_raw_mode(v_arith_raw_reg),
+        .v_expected_symbols(v_arith_symbols_reg),
+        .v_token_count(v_arith_tokens_reg),
+        .v_scale_slice_bytes(v_arith_scale_bytes_reg),
         .v_p16_rd_en(arith_v_p16_en), .v_p16_rd_addr(arith_v_p16_addr),
         .v_p16_rd_valid(v_lane_p16_valid),
         .v_p16_rd_codes(v_lane_p16_codes),
@@ -910,8 +1004,7 @@ module axi_kvq_canned_page_diag #(
                     k_validator_data_word_valid <= 1'b0;
                     k_validator_scale_word_valid <= 1'b0;
                 end else begin
-                    if (k_validator_data_word_valid &&
-                        k_validator_data_ready) begin
+                    if (k_validator_data_advance) begin
                         if (k_validator_data_index + 1 < k_required_words) begin
                             k_validator_data_word_valid <= 1'b1;
                         end else begin
@@ -921,8 +1014,7 @@ module axi_kvq_canned_page_diag #(
                                  k_validator_data_index < k_required_words) begin
                         k_validator_data_word_valid <= 1'b1;
                     end
-                    if (k_validator_scale_word_valid &&
-                        k_validator_scale_ready) begin
+                    if (k_validator_scale_advance) begin
                         if (k_validator_scale_index + 1 <
                             scale_required_words) begin
                             k_validator_scale_word_valid <= 1'b1;
@@ -939,8 +1031,7 @@ module axi_kvq_canned_page_diag #(
                     v_validator_data_word_valid <= 1'b0;
                     v_validator_scale_word_valid <= 1'b0;
                 end else begin
-                    if (v_validator_data_word_valid &&
-                        v_validator_data_ready) begin
+                    if (v_validator_data_advance) begin
                         if (v_validator_data_index + 1 < v_required_words) begin
                             v_validator_data_word_valid <= 1'b1;
                         end else begin
@@ -950,8 +1041,7 @@ module axi_kvq_canned_page_diag #(
                                  v_validator_data_index < v_required_words) begin
                         v_validator_data_word_valid <= 1'b1;
                     end
-                    if (v_validator_scale_word_valid &&
-                        v_validator_scale_ready) begin
+                    if (v_validator_scale_advance) begin
                         if (v_validator_scale_index + 1 <
                             scale_required_words) begin
                             v_validator_scale_word_valid <= 1'b1;
@@ -1135,9 +1225,62 @@ module axi_kvq_canned_page_diag #(
             q_load_index <= 10'd0;
             abort_children <= 1'b0;
             arith_clear_counters_reg <= 1'b0;
+            arith_context_reg <= 13'd0;
+            k_arith_lane_reg <= 2'd0;
+            v_arith_lane_reg <= 2'd0;
+            k_arith_tag_reg <= 64'd0;
+            v_arith_tag_reg <= 64'd0;
+            k_arith_epoch_reg <= 16'd0;
+            v_arith_epoch_reg <= 16'd0;
+            k_arith_page_reg <= 5'd0;
+            v_arith_page_reg <= 5'd0;
+            k_arith_stream_reg <= 1'b0;
+            v_arith_stream_reg <= 1'b0;
+            k_arith_raw_reg <= 1'b0;
+            v_arith_raw_reg <= 1'b0;
+            k_arith_payload_reg <= 16'd0;
+            v_arith_payload_reg <= 16'd0;
+            k_arith_symbols_reg <= 15'd0;
+            v_arith_symbols_reg <= 15'd0;
+            k_arith_tokens_reg <= 8'd0;
+            v_arith_tokens_reg <= 8'd0;
+            k_arith_scale_bytes_reg <= 9'd0;
+            v_arith_scale_bytes_reg <= 9'd0;
+            k_arith_profile_reg <= 16'd0;
+            v_arith_profile_reg <= 16'd0;
+            k_arith_codebook_reg <= 8'd0;
+            v_arith_codebook_reg <= 8'd0;
         end else begin
             abort_children <= 1'b0;
             arith_clear_counters_reg <= 1'b0;
+
+            if (lane_publish_pair_fire) begin
+                arith_context_reg <= context_reg;
+                k_arith_lane_reg <= k_lane_selected;
+                v_arith_lane_reg <= v_lane_selected;
+                k_arith_tag_reg <= k_lane_tag;
+                v_arith_tag_reg <= v_lane_tag;
+                k_arith_epoch_reg <= k_lane_epoch;
+                v_arith_epoch_reg <= v_lane_epoch;
+                k_arith_page_reg <= k_lane_page;
+                v_arith_page_reg <= v_lane_page;
+                k_arith_stream_reg <= k_lane_stream;
+                v_arith_stream_reg <= v_lane_stream;
+                k_arith_raw_reg <= k_lane_raw;
+                v_arith_raw_reg <= v_lane_raw;
+                k_arith_payload_reg <= k_lane_payload;
+                v_arith_payload_reg <= v_lane_payload;
+                k_arith_symbols_reg <= k_lane_symbols;
+                v_arith_symbols_reg <= v_lane_symbols;
+                k_arith_tokens_reg <= k_lane_tokens;
+                v_arith_tokens_reg <= v_lane_tokens;
+                k_arith_scale_bytes_reg <= k_lane_scale_bytes;
+                v_arith_scale_bytes_reg <= v_lane_scale_bytes;
+                k_arith_profile_reg <= k_lane_tag[31:16];
+                v_arith_profile_reg <= v_lane_tag[31:16];
+                k_arith_codebook_reg <= k_lane_tag[15:8];
+                v_arith_codebook_reg <= v_lane_tag[15:8];
+            end
 
             if (fault_entry) begin
                 child_fault_pending <= 1'b0;
@@ -1458,7 +1601,7 @@ module axi_kvq_canned_page_diag #(
                         {11'd0, error_epoch_reg, error_page_reg};
                     REG_ID: s_axi_rdata <= CORE_ID;
                     REG_GEOMETRY: s_axi_rdata <=
-                        {8'd4, 8'd128, 8'd128, 8'd16};
+                        {DECODE_LANES[7:0], 8'd128, 8'd128, 8'd16};
                     REG_SCALE_FORMAT: s_axi_rdata <=
                         {8'd0, SCALE_BITS[7:0], 8'd8,
                          (SCALE_BITS == 12) ? 8'd1 : 8'd2};
@@ -1529,7 +1672,12 @@ module axi_kvq_canned_page_diag #(
                                 (s_axi_araddr[15:0] - SCORE_BASE) >> 2;
                             s_axi_rvalid <= 1'b0;
                             score_read_pending <= 1'b1;
-                            score_read_visible <= result_valid_sticky;
+                            // Only the active context's four score rows are
+                            // committed.  Hide the tail of score_mem so a
+                            // shorter run cannot expose entries left by an
+                            // earlier, longer context.
+                            score_read_visible <= result_valid_sticky &&
+                                (result_read_index < stored_score_count);
                             score_read_data <= score_mem[result_read_index];
                         end else if (s_axi_araddr[15:0] >= RESULT_BASE &&
                             s_axi_araddr[15:0] < RESULT_BASE + 16'h1800) begin
@@ -1590,16 +1738,16 @@ module axi_kvq_canned_page_diag #(
                             k_validator_started <= 1'b1;
                         if (!v_validator_started && v_validator_cmd_ready)
                             v_validator_started <= 1'b1;
-                        if (k_validator_data_valid && k_validator_data_ready)
+                        if (k_validator_data_advance)
                             k_validator_data_index <=
                                 k_validator_data_index + 1'b1;
-                        if (v_validator_data_valid && v_validator_data_ready)
+                        if (v_validator_data_advance)
                             v_validator_data_index <=
                                 v_validator_data_index + 1'b1;
-                        if (k_validator_scale_valid && k_validator_scale_ready)
+                        if (k_validator_scale_advance)
                             k_validator_scale_index <=
                                 k_validator_scale_index + 1'b1;
-                        if (v_validator_scale_valid && v_validator_scale_ready)
+                        if (v_validator_scale_advance)
                             v_validator_scale_index <=
                                 v_validator_scale_index + 1'b1;
                         if (validators_pair_accept) begin
@@ -1633,7 +1781,7 @@ module axi_kvq_canned_page_diag #(
                     end
                     ST_ARITH_RUN: begin
                         if (arith_done) begin
-                            if (stored_score_count != context_reg*4 ||
+                            if (stored_score_count != arith_context_reg*4 ||
                                 stored_result_count != 512) begin
                                 result_valid_sticky <= 1'b0;
                                 error_sticky <= 1'b1;
@@ -1671,7 +1819,11 @@ module axi_kvq_canned_page_diag #(
     wire unused_axi_prot = ^s_axi_awprot ^ ^s_axi_arprot;
     wire unused_child_status = k_lane_draining ^ v_lane_draining ^
         arith_aborted ^ ^arith_error_subcode ^ ^arith_perf_cycles ^
-        ^stored_score_count ^ ^stored_result_count;
+        ^stored_score_count ^ ^stored_result_count ^
+        ^k_arith_lane_reg ^ ^v_arith_lane_reg ^
+        ^k_arith_payload_reg ^ ^v_arith_payload_reg ^
+        ^k_arith_profile_reg ^ ^v_arith_profile_reg ^
+        ^k_arith_codebook_reg ^ ^v_arith_codebook_reg;
 
 `ifndef SYNTHESIS
     initial begin
@@ -1685,8 +1837,57 @@ module axi_kvq_canned_page_diag #(
             $error("axi_kvq_canned_page_diag QK_MULT_STYLE must be 0..2");
         if (AV_MULT_STYLE < 0 || AV_MULT_STYLE > 2)
             $error("axi_kvq_canned_page_diag AV_MULT_STYLE must be 0..2");
+        if (DECODE_LANES != 2 && DECODE_LANES != 4)
+            $error("axi_kvq_canned_page_diag DECODE_LANES must be 2 or 4");
     end
 `endif
+endmodule
+
+// One-entry elastic register between synchronous page/scale BRAM responses
+// and the record validator CRC path.  It preserves framing metadata exactly
+// while removing the BRAM response from the CRC state-update timing cone.
+module kv_v03_crc_input_pipe (
+    input  wire        clk,
+    input  wire        rst_n,
+    input  wire        clear,
+    input  wire        in_valid,
+    output wire        in_ready,
+    input  wire [31:0] in_data,
+    input  wire [3:0]  in_byte_valid,
+    input  wire        in_last,
+    input  wire [13:0] in_byte_offset,
+    output reg         out_valid,
+    input  wire        out_ready,
+    output reg  [31:0] out_data,
+    output reg  [3:0]  out_byte_valid,
+    output reg         out_last,
+    output reg  [13:0] out_byte_offset
+);
+    assign in_ready = !out_valid || out_ready;
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            out_valid <= 1'b0;
+            out_data <= 32'd0;
+            out_byte_valid <= 4'd0;
+            out_last <= 1'b0;
+            out_byte_offset <= 14'd0;
+        end else if (clear) begin
+            out_valid <= 1'b0;
+            out_data <= 32'd0;
+            out_byte_valid <= 4'd0;
+            out_last <= 1'b0;
+            out_byte_offset <= 14'd0;
+        end else if (in_ready) begin
+            out_valid <= in_valid;
+            if (in_valid) begin
+                out_data <= in_data;
+                out_byte_valid <= in_byte_valid;
+                out_last <= in_last;
+                out_byte_offset <= in_byte_offset;
+            end
+        end
+    end
 endmodule
 
 `default_nettype wire

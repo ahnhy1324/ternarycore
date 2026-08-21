@@ -42,7 +42,8 @@ module kv_v03_decoder_cluster_4x1 #(
                 .SYMBOLS_PER_CYCLE(1),
                 .MAX_SYMBOLS(MAX_SYMBOLS)
             ) u_decoder (
-                .clk(clk), .rst_n(rst_n), .start(start[engine]),
+                .clk(clk), .rst_n(rst_n), .clear(1'b0),
+                .start(start[engine]),
                 .integrity_passed(integrity_passed[engine]),
                 .stream_is_v(stream_is_v[engine]),
                 .raw_mode(raw_mode[engine]),

@@ -25,6 +25,9 @@ param(
     [ValidateSet(12, 16)]
     [int] $CannedPageScaleBits = 12,
 
+    [ValidateSet(2, 4)]
+    [int] $CannedPageDecodeLanes = 2,
+
     [ValidateSet('BALANCED', 'LUT_RELIEF')]
     [string] $CannedPageProfile = 'BALANCED',
 
@@ -642,13 +645,6 @@ $rawE2eRepositoryPath = $null
 $rawE2eProjectionIdentity = $null
 $rawE2eWeightIdentity = $null
 if (-not [string]::IsNullOrWhiteSpace($env:TERNARYCORE_RAW_E2E_IP_REPO)) {
-    if ($null -eq $rawFullRepositoryPath -or $RawFullAxiWidth -ne 64 -or
-        $RawFullScaleWidth -ne 12 -or $rawFullProfileName -cne 'LUT_RELIEF') {
-        throw 'RAW-E2E requires RAW_FULL HP64/SCALE12/LUT_RELIEF (QK AUTO, AV DSP)'
-    }
-    if (-not [string]::IsNullOrWhiteSpace($env:TERNARYCORE_CANNED_PAGE_IP_REPO)) {
-        throw 'RAW-E2E cannot coexist with the compressed/canned frontend'
-    }
     $rawE2eRepositoryPath = Resolve-RequiredDirectory `
         -Path $env:TERNARYCORE_RAW_E2E_IP_REPO -Label 'RAW-E2E IP repository'
     $rawE2eProjectionPath = Resolve-RequiredFile -Path (
@@ -678,8 +674,7 @@ if (-not [string]::IsNullOrWhiteSpace(
         'TERNARYCORE_KV_IP_REPO',
         'TERNARYCORE_KV_TRANSPORT',
         'TERNARYCORE_AV_DIAG_IP_REPO',
-        'TERNARYCORE_RAW_FULL_IP_REPO',
-        'TERNARYCORE_RAW_E2E_IP_REPO'
+        'TERNARYCORE_RAW_FULL_IP_REPO'
     )) {
         if (-not [string]::IsNullOrWhiteSpace(
                 [Environment]::GetEnvironmentVariable(
@@ -714,18 +709,41 @@ if (-not [string]::IsNullOrWhiteSpace(
     }
     $env:TERNARYCORE_CANNED_PAGE_IP_REPO = $cannedPageRepositoryPath
     $env:TERNARYCORE_CANNED_PAGE_SCALE_BITS = [string]$CannedPageScaleBits
+    $env:TERNARYCORE_CANNED_PAGE_DECODE_LANES =
+        [string]$CannedPageDecodeLanes
     $env:TERNARYCORE_CANNED_PAGE_PROFILE = $cannedPageProfileName
     $cannedPageComponentIdentity = [pscustomobject](
         Get-FileIdentity -Path $cannedPageComponentPath
     )
 } elseif ($PSBoundParameters.ContainsKey('CannedPageScaleBits') -or
+          $PSBoundParameters.ContainsKey('CannedPageDecodeLanes') -or
           $PSBoundParameters.ContainsKey('CannedPageProfile')) {
-    throw '-CannedPageScaleBits and -CannedPageProfile require TERNARYCORE_CANNED_PAGE_IP_REPO'
+    throw '-CannedPageScaleBits, -CannedPageDecodeLanes, and -CannedPageProfile require TERNARYCORE_CANNED_PAGE_IP_REPO'
 } elseif (-not [string]::IsNullOrWhiteSpace(
              $env:TERNARYCORE_CANNED_PAGE_SCALE_BITS) -or
           -not [string]::IsNullOrWhiteSpace(
-             $env:TERNARYCORE_CANNED_PAGE_PROFILE)) {
-    throw 'TERNARYCORE_CANNED_PAGE_SCALE_BITS and TERNARYCORE_CANNED_PAGE_PROFILE require TERNARYCORE_CANNED_PAGE_IP_REPO'
+             $env:TERNARYCORE_CANNED_PAGE_PROFILE) -or
+          -not [string]::IsNullOrWhiteSpace(
+             $env:TERNARYCORE_CANNED_PAGE_DECODE_LANES)) {
+    throw 'TERNARYCORE_CANNED_PAGE_SCALE_BITS, TERNARYCORE_CANNED_PAGE_DECODE_LANES, and TERNARYCORE_CANNED_PAGE_PROFILE require TERNARYCORE_CANNED_PAGE_IP_REPO'
+}
+
+if ($null -ne $rawE2eRepositoryPath) {
+    $rawCombinedProfile =
+        $null -ne $rawFullRepositoryPath -and
+        $null -eq $cannedPageRepositoryPath -and
+        $RawFullAxiWidth -eq 64 -and
+        $RawFullScaleWidth -eq 12 -and
+        $rawFullProfileName -ceq 'LUT_RELIEF'
+    $compressedCombinedProfile =
+        $null -eq $rawFullRepositoryPath -and
+        $null -ne $cannedPageRepositoryPath -and
+        $CannedPageScaleBits -eq 12 -and
+        $CannedPageDecodeLanes -eq 2 -and
+        $cannedPageProfileName -ceq 'LUT_RELIEF'
+    if (-not ($rawCombinedProfile -xor $compressedCombinedProfile)) {
+        throw 'Tier2 projection requires exactly one accepted KVQ profile: RAW_FULL HP64/SCALE12/LUT_RELIEF or CANNED_PAGE 2x1/SCALE12/LUT_RELIEF'
+    }
 }
 
 $gitPath = Find-GitExecutable
@@ -868,6 +886,7 @@ $runInputs = [ordered]@{
         canned_page_ip_repository = $cannedPageRepositoryPath
         canned_page_component = $cannedPageComponentIdentity
         canned_page_scale_bits = if ($null -eq $cannedPageRepositoryPath) { 0 } else { $CannedPageScaleBits }
+        canned_page_decode_lanes = if ($null -eq $cannedPageRepositoryPath) { 0 } else { $CannedPageDecodeLanes }
         canned_page_qk_mult_style = $cannedPageQkMultStyle
         canned_page_av_mult_style = $cannedPageAvMultStyle
         canned_page_profile = if ($null -eq $cannedPageRepositoryPath) { 'NONE' } else { $cannedPageProfileName }
@@ -966,6 +985,9 @@ try {
         (Join-Path $outputPath 'reports\utilization.rpt'),
         (Join-Path $outputPath 'reports\hierarchical_utilization.rpt'),
         (Join-Path $outputPath 'reports\critical_paths.rpt'),
+        (Join-Path $outputPath 'reports\hold_critical_paths.rpt'),
+        (Join-Path $outputPath 'reports\control_sets.rpt'),
+        (Join-Path $outputPath 'reports\high_fanout_nets.rpt'),
         (Join-Path $outputPath 'reports\clock_utilization.rpt'),
         (Join-Path $outputPath 'reports\drc.rpt'),
         (Join-Path $outputPath 'reports\methodology.rpt'),

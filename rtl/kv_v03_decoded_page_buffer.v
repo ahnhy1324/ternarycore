@@ -240,7 +240,7 @@ module kv_v03_decoded_page_buffer #(
         .SYMBOLS_PER_CYCLE(1),
         .MAX_SYMBOLS(MAX_SYMBOLS)
     ) u_decoder (
-        .clk(clk), .rst_n(rst_n), .start(decoder_start),
+        .clk(clk), .rst_n(rst_n), .clear(1'b0), .start(decoder_start),
         .integrity_passed(1'b1), .stream_is_v(stream_is_v_reg),
         .raw_mode(raw_mode_reg), .expected_symbols(expected_symbols_reg),
         .in_valid(decoder_in_valid), .in_ready(decoder_in_ready),

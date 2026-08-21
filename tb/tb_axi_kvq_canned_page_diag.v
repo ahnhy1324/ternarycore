@@ -10,11 +10,15 @@
 `ifndef AV_MULT_STYLE_VAL
 `define AV_MULT_STYLE_VAL 2
 `endif
+`ifndef DECODE_LANES_VAL
+`define DECODE_LANES_VAL 4
+`endif
 
 module tb_axi_kvq_canned_page_diag;
     localparam integer SCALE_BITS = `SCALE_BITS_VAL;
     localparam integer QK_MULT_STYLE = `QK_MULT_STYLE_VAL;
     localparam integer AV_MULT_STYLE = `AV_MULT_STYLE_VAL;
+    localparam integer DECODE_LANES = `DECODE_LANES_VAL;
     localparam [15:0] REG_CTRL       = 16'h0000;
     localparam [15:0] REG_STATUS     = 16'h0004;
     localparam [15:0] REG_CONTEXT    = 16'h0008;
@@ -89,6 +93,7 @@ module tb_axi_kvq_canned_page_diag;
         .COMPILED_K_CODEBOOK_ID(1), .COMPILED_V_CODEBOOK_ID(2),
         .QK_MULT_STYLE(QK_MULT_STYLE),
         .AV_MULT_STYLE(AV_MULT_STYLE),
+        .DECODE_LANES(DECODE_LANES),
         .C_S_AXI_DATA_WIDTH(32), .C_S_AXI_ADDR_WIDTH(16)
     ) dut (
         .clk(clk), .rst_n(rst_n), .s_axi_awaddr(s_axi_awaddr),
@@ -442,6 +447,7 @@ module tb_axi_kvq_canned_page_diag;
     reg [27:0] denominator_reference [0:3];
     reg [17:0] reciprocal_reference [0:3];
     integer nonzero_scores, nonzero_numerators;
+    integer late_av_abort_watchdog;
 
     task collect_or_compare_results;
         input integer compare_mode;
@@ -638,12 +644,67 @@ module tb_axi_kvq_canned_page_diag;
         collect_or_compare_results(1);
         check_counters(0);
 
+        // Reproduce the late arithmetic abort window observed through XSDB
+        // on Zybo.  This exercises wrapper + both lane banks + arithmetic
+        // ownership together, rather than the earlier decode-only abort.
+        clear_diag();
+        build_pages(0, 0, 0, 0);
+        load_current_images(0);
+        axi_write(REG_CTRL, 32'h1);
+        late_av_abort_watchdog = 0;
+        while ((dut.state != 5 || dut.arith_progress_state != 17 ||
+                dut.arith_progress_token != 48 ||
+                dut.arith_progress_head != 3 ||
+                dut.arith_progress_group != 7) &&
+               late_av_abort_watchdog < 3000000) begin
+            @(posedge clk);
+            late_av_abort_watchdog = late_av_abort_watchdog + 1;
+        end
+        if (late_av_abort_watchdog == 3000000)
+            $fatal(1, "late wrapper AV abort window timeout top=%0d arith=%0d token=%0d head=%0d group=%0d",
+                   dut.state, dut.arith_progress_state,
+                   dut.arith_progress_token, dut.arith_progress_head,
+                   dut.arith_progress_group);
+        // Hit the same edge that accepts the synchronous lane scratch read.
+        // A normal AXI write cannot deterministically select this one-cycle
+        // window in simulation, so force only the decoded control pulse.
+        @(negedge clk);
+        force dut.ctrl_abort = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        release dut.ctrl_abort;
+        wait_fault(8'h05);
+        axi_read(RESULT_BASE, read_value);
+        if (read_value != 0)
+            $fatal(1, "late arithmetic abort exposed result");
+        clear_diag();
+        axi_write(REG_CTRL, 32'h8);
+        axi_write(REG_CTRL, 32'h1);
+        wait_success();
+        collect_or_compare_results(1);
+        check_counters(0);
+
+        // A shorter context commits fewer than 512 score entries.  Prove the
+        // score window hides every stale tail entry even when the backing
+        // BRAM still contains a value from this preceding context128 run.
+        // The physical-board context7 fixture exercises the same boundary at
+        // index 28; forcing only the committed count isolates the MMIO rule.
+        @(negedge clk);
+        force dut.stored_score_count = 10'd28;
+        axi_read(SCORE_BASE + 28*4, read_value);
+        if (read_value != 0)
+            $fatal(1, "short-context score tail exposed value=%08x",
+                   read_value);
+        release dut.stored_score_count;
+
         if (SCALE_BITS == 12)
             $display("AXI_KVQ_CANNED_PAGE_DIAG_SCALE12_PASS");
         else
             $display("AXI_KVQ_CANNED_PAGE_DIAG_SCALE16_PASS");
         $display("AXI_KVQ_CANNED_PAGE_DIAG_PROFILE_PASS QK=%0d AV=%0d",
                  QK_MULT_STYLE, AV_MULT_STYLE);
+        $display("AXI_KVQ_CANNED_PAGE_DIAG_LANES_PASS LANES=%0d",
+                 DECODE_LANES);
         $finish;
     end
 

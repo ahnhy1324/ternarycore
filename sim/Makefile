@@ -219,15 +219,25 @@ KV_V03_TYPED_DECODE_LANE_BANK_RTL = \
 
 tb_kv_v03_typed_decode_lane_bank_4x1: \
 	tb_kv_v03_typed_decode_lane_bank_4x1_12 \
-	tb_kv_v03_typed_decode_lane_bank_4x1_16
+	tb_kv_v03_typed_decode_lane_bank_4x1_16 \
+	tb_kv_v03_typed_decode_lane_bank_2x1_12 \
+	tb_kv_v03_typed_decode_lane_bank_2x1_16
 
 tb_kv_v03_typed_decode_lane_bank_4x1_12: ../tb/tb_kv_v03_typed_decode_lane_bank_4x1.v $(KV_V03_TYPED_DECODE_LANE_BANK_RTL)
-	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=12 -o $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_4x1_12 $^
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=12 -DDECODE_LANES_VAL=4 -o $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_4x1_12 $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_4x1_12
 
 tb_kv_v03_typed_decode_lane_bank_4x1_16: ../tb/tb_kv_v03_typed_decode_lane_bank_4x1.v $(KV_V03_TYPED_DECODE_LANE_BANK_RTL)
-	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=16 -o $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_4x1_16 $^
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=16 -DDECODE_LANES_VAL=4 -o $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_4x1_16 $^
 	$(VVP) $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_4x1_16
+
+tb_kv_v03_typed_decode_lane_bank_2x1_12: ../tb/tb_kv_v03_typed_decode_lane_bank_4x1.v $(KV_V03_TYPED_DECODE_LANE_BANK_RTL)
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=12 -DDECODE_LANES_VAL=2 -o $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_2x1_12 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_2x1_12
+
+tb_kv_v03_typed_decode_lane_bank_2x1_16: ../tb/tb_kv_v03_typed_decode_lane_bank_4x1.v $(KV_V03_TYPED_DECODE_LANE_BANK_RTL)
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=16 -DDECODE_LANES_VAL=2 -o $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_2x1_16 $^
+	$(VVP) $(SIMDIR)/sim_kv_v03_typed_decode_lane_bank_2x1_16
 
 tb_kv_v03_decoders: ../tb/tb_kv_v03_decoders.v ../rtl/kv_v03_symbol_decoder.v ../rtl/kv_v03_k4_decoder.v ../rtl/kv_v03_v5_decoder.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_decoders $^
@@ -314,15 +324,25 @@ AXI_KVQ_CANNED_PAGE_DIAG_RTL = \
 
 tb_axi_kvq_canned_page_diag: \
 	tb_axi_kvq_canned_page_diag_12 \
-	tb_axi_kvq_canned_page_diag_16
+	tb_axi_kvq_canned_page_diag_16 \
+	tb_axi_kvq_canned_page_diag_2x1_12 \
+	tb_axi_kvq_canned_page_diag_2x1_16
 
 tb_axi_kvq_canned_page_diag_12: ../tb/tb_axi_kvq_canned_page_diag.v $(AXI_KVQ_CANNED_PAGE_DIAG_RTL)
-	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=12 -o $(SIMDIR)/sim_axi_kvq_canned_page_diag_12 $^
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=12 -DDECODE_LANES_VAL=4 -o $(SIMDIR)/sim_axi_kvq_canned_page_diag_12 $^
 	$(VVP) $(SIMDIR)/sim_axi_kvq_canned_page_diag_12
 
 tb_axi_kvq_canned_page_diag_16: ../tb/tb_axi_kvq_canned_page_diag.v $(AXI_KVQ_CANNED_PAGE_DIAG_RTL)
-	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=16 -o $(SIMDIR)/sim_axi_kvq_canned_page_diag_16 $^
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=16 -DDECODE_LANES_VAL=4 -o $(SIMDIR)/sim_axi_kvq_canned_page_diag_16 $^
 	$(VVP) $(SIMDIR)/sim_axi_kvq_canned_page_diag_16
+
+tb_axi_kvq_canned_page_diag_2x1_12: ../tb/tb_axi_kvq_canned_page_diag.v $(AXI_KVQ_CANNED_PAGE_DIAG_RTL)
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=12 -DDECODE_LANES_VAL=2 -o $(SIMDIR)/sim_axi_kvq_canned_page_diag_2x1_12 $^
+	$(VVP) $(SIMDIR)/sim_axi_kvq_canned_page_diag_2x1_12
+
+tb_axi_kvq_canned_page_diag_2x1_16: ../tb/tb_axi_kvq_canned_page_diag.v $(AXI_KVQ_CANNED_PAGE_DIAG_RTL)
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DSCALE_BITS_VAL=16 -DDECODE_LANES_VAL=2 -o $(SIMDIR)/sim_axi_kvq_canned_page_diag_2x1_16 $^
+	$(VVP) $(SIMDIR)/sim_axi_kvq_canned_page_diag_2x1_16
 
 tb_kv_v03_softmax: ../tb/tb_kv_v03_softmax.v ../rtl/kv_v03_softmax_engine.v ../rtl/kv_v03_score_store.v ../rtl/kv_v03_exp_lut.v ../rtl/kv_v03_reciprocal.v ../rtl/kv_v03_softmax.v
 	$(IVERILOG) -g2012 -o $(SIMDIR)/sim_kv_v03_softmax $^

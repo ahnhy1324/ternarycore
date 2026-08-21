@@ -121,6 +121,7 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
         {expected_raw_av_mult_style 0} \
         {expected_raw_profile NONE} \
         {expected_canned_scale_bits 0} \
+        {expected_canned_decode_lanes 0} \
         {expected_canned_qk_mult_style 0} \
         {expected_canned_av_mult_style 0} \
         {expected_canned_profile NONE} \
@@ -273,11 +274,19 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
         ::zybo_bringup::fail "RAW-E2E projection and weight cells must be one matched pair"
     }
     set raw_e2e_enabled [expr {[llength $projection_cells] == 1}]
-    if {$raw_e2e_enabled && (!$raw_full_enabled || $canned_page_enabled ||
-        $expected_raw_data_width != 64 || $expected_raw_scale_width != 12 ||
-        $expected_raw_qk_mult_style != 2 || $expected_raw_av_mult_style != 1 ||
-        $expected_raw_profile ne "LUT_RELIEF")} {
-        ::zybo_bringup::fail "RAW-E2E requires RAW_FULL HP64/SCALE12/LUT_RELIEF QK=2 AV=1"
+    set raw_combined_profile [expr {$raw_full_enabled && !$canned_page_enabled &&
+        $expected_raw_data_width == 64 && $expected_raw_scale_width == 12 &&
+        $expected_raw_qk_mult_style == 2 && $expected_raw_av_mult_style == 1 &&
+        $expected_raw_profile eq "LUT_RELIEF"}]
+    set compressed_combined_profile [expr {!$raw_full_enabled &&
+        $canned_page_enabled && $expected_canned_scale_bits == 12 &&
+        $expected_canned_decode_lanes == 2 &&
+        $expected_canned_qk_mult_style == 2 &&
+        $expected_canned_av_mult_style == 1 &&
+        $expected_canned_profile eq "LUT_RELIEF"}]
+    if {$raw_e2e_enabled &&
+        $raw_combined_profile == $compressed_combined_profile} {
+        ::zybo_bringup::fail "Tier2 projection requires exactly one accepted KVQ profile: RAW_FULL HP64/SCALE12/LUT_RELIEF or CANNED_PAGE 2x1/SCALE12/LUT_RELIEF"
     }
     ::zybo_bringup::require_equal [get_property CONFIG.NUM_MI [get_bd_cells ctrl_sc]] \
         [expr {$raw_e2e_enabled ? 5 : (($raw_full_enabled || $canned_page_enabled) ? 3 : \
@@ -524,6 +533,8 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
                 CONFIG.MAX_CONTEXT 128 "canned-page maximum context" \
                 CONFIG.SCALE_BITS $expected_canned_scale_bits \
                     "canned-page scale bits" \
+                CONFIG.DECODE_LANES $expected_canned_decode_lanes \
+                    "canned-page decode lanes" \
                 CONFIG.COMPILED_PROFILE_ID \
                     $expected_canned_compiled_profile_id \
                     "canned-page compiled profile ID" \
@@ -633,6 +644,6 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
         [expr {$kv_smoke_enabled ? "/KV" : ""}] \
         [expr {$av_diag_enabled ? "/AV-DIAG" : ""}] \
         [expr {$raw_full_enabled ? "/RAW-FULL-$expected_raw_scale_width-$expected_raw_profile" : ""}] \
-        [expr {$canned_page_enabled ? "/CANNED-PAGE-$expected_canned_scale_bits-$expected_canned_profile" : ""}] \
+        [expr {$canned_page_enabled ? "/CANNED-PAGE-${expected_canned_decode_lanes}X1-$expected_canned_scale_bits-$expected_canned_profile" : ""}] \
         [expr {$raw_e2e_enabled ? "/TIER2-COLS64-PROJECTION" : ""}]]
 }

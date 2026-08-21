@@ -12,7 +12,7 @@
 #     -log D:/tc-logs/axi-kvq-canned-page-package.log \
 #     -journal D:/tc-logs/axi-kvq-canned-page-package.jou \
 #     -source ip/package_axi_kvq_canned_page_diag_portable.tcl \
-#     -tclargs REPO_ROOT OUTPUT_ROOT PART CLOCK_HZ SCALE_BITS QK_MULT_STYLE AV_MULT_STYLE
+#     -tclargs REPO_ROOT OUTPUT_ROOT PART CLOCK_HZ SCALE_BITS DECODE_LANES QK_MULT_STYLE AV_MULT_STYLE
 
 proc portable_compare_path {path} {
     set normalized [string trimright \
@@ -278,8 +278,8 @@ proc portable_require_safe_output {output_path repo_root label} {
     }
 }
 
-if {$argc != 7} {
-    error "usage: package_axi_kvq_canned_page_diag_portable.tcl REPO_ROOT OUTPUT_ROOT PART CLOCK_HZ SCALE_BITS QK_MULT_STYLE AV_MULT_STYLE"
+if {$argc != 8} {
+    error "usage: package_axi_kvq_canned_page_diag_portable.tcl REPO_ROOT OUTPUT_ROOT PART CLOCK_HZ SCALE_BITS DECODE_LANES QK_MULT_STYLE AV_MULT_STYLE"
 }
 if {[file pathtype [lindex $argv 0]] ne "absolute" ||
     [file pathtype [lindex $argv 1]] ne "absolute"} {
@@ -291,8 +291,9 @@ set output_root [file normalize [lindex $argv 1]]
 set requested_part [string trim [lindex $argv 2]]
 set clock_hz [string trim [lindex $argv 3]]
 set scale_bits [string trim [lindex $argv 4]]
-set qk_mult_style [string trim [lindex $argv 5]]
-set av_mult_style [string trim [lindex $argv 6]]
+set decode_lanes [string trim [lindex $argv 5]]
+set qk_mult_style [string trim [lindex $argv 6]]
+set av_mult_style [string trim [lindex $argv 7]]
 
 if {![file isdirectory $repo_root]} {
     error "repository root does not exist: $repo_root"
@@ -307,6 +308,10 @@ if {![string is integer -strict $clock_hz] ||
 if {![string is integer -strict $scale_bits] ||
     $scale_bits ni {12 16}} {
     error "SCALE_BITS must be exactly 12 or 16; got '$scale_bits'"
+}
+if {![string is integer -strict $decode_lanes] ||
+    $decode_lanes ni {2 4}} {
+    error "DECODE_LANES must be exactly 2 or 4; got '$decode_lanes'"
 }
 if {![string is integer -strict $qk_mult_style] || $qk_mult_style != 2} {
     error "QK_MULT_STYLE must be exactly 2 (AUTO) for the Zybo canned-page profiles; got '$qk_mult_style'"
@@ -403,6 +408,7 @@ append identity "vivado_full_version=[portable_identity_escape $vivado_full_vers
 append identity "part=$part\n"
 append identity "clock_hz=$clock_hz\n"
 append identity "scale_bits=$scale_bits\n"
+append identity "decode_lanes=$decode_lanes\n"
 append identity "qk_mult_style=$qk_mult_style\n"
 append identity "av_mult_style=$av_mult_style\n"
 append identity "canned_page_profile=$canned_page_profile\n"
@@ -476,6 +482,7 @@ set_property supported_families $supported_families $core
 set parameter_names {
     MAX_CONTEXT
     SCALE_BITS
+    DECODE_LANES
     COMPILED_PROFILE_ID
     COMPILED_K_CODEBOOK_ID
     COMPILED_V_CODEBOOK_ID
@@ -496,6 +503,7 @@ foreach parameter_name $parameter_names {
 foreach {parameter_name value} [list \
     MAX_CONTEXT 128 \
     SCALE_BITS $scale_bits \
+    DECODE_LANES $decode_lanes \
     COMPILED_PROFILE_ID 51 \
     COMPILED_K_CODEBOOK_ID 1 \
     COMPILED_V_CODEBOOK_ID 2 \
@@ -576,6 +584,7 @@ append catalog_result \
 append catalog_result "ip_vlnv=$ip_vlnv\n"
 append catalog_result "clock_hz=$clock_hz\n"
 append catalog_result "scale_bits=$scale_bits\n"
+append catalog_result "decode_lanes=$decode_lanes\n"
 append catalog_result "qk_mult_style=$qk_mult_style\n"
 append catalog_result "av_mult_style=$av_mult_style\n"
 append catalog_result "canned_page_profile=$canned_page_profile\n"
@@ -595,4 +604,4 @@ foreach smoke_part $catalog_smoke_parts {
 append catalog_result "status=PASS\n"
 portable_write_file [file join $output_root catalog_smoke.txt] $catalog_result
 
-puts "PORTABLE_IP_PACKAGE_PASS vlnv=$ip_vlnv part=$part clock_hz=$clock_hz scale_bits=$scale_bits qk_mult_style=$qk_mult_style av_mult_style=$av_mult_style canned_page_profile=$canned_page_profile compiled_profile_id=51 k_codebook_id=1 v_codebook_id=2 root=$package_root"
+puts "PORTABLE_IP_PACKAGE_PASS vlnv=$ip_vlnv part=$part clock_hz=$clock_hz scale_bits=$scale_bits decode_lanes=$decode_lanes qk_mult_style=$qk_mult_style av_mult_style=$av_mult_style canned_page_profile=$canned_page_profile compiled_profile_id=51 k_codebook_id=1 v_codebook_id=2 root=$package_root"

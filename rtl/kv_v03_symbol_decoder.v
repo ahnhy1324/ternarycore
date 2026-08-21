@@ -14,6 +14,7 @@ module kv_v03_symbol_decoder #(
 ) (
     input  wire         clk,
     input  wire         rst_n,
+    input  wire         clear,
     input  wire         start,
     input  wire         integrity_passed,
     input  wire         stream_is_v,
@@ -305,6 +306,18 @@ module kv_v03_symbol_decoder #(
 
     always @(posedge clk) begin
         if (!rst_n) begin
+            active          <= 1'b0;
+            mode_raw        <= 1'b0;
+            mode_stream_is_v <= STREAM_IS_V;
+            expected_reg    <= 15'b0;
+            emitted_symbols <= 15'b0;
+            reservoir       <= 64'b0;
+            bit_count       <= 7'b0;
+            saw_last        <= 1'b0;
+            done            <= 1'b0;
+            error_valid     <= 1'b0;
+            error_code      <= 8'b0;
+        end else if (clear) begin
             active          <= 1'b0;
             mode_raw        <= 1'b0;
             mode_stream_is_v <= STREAM_IS_V;

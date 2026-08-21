@@ -313,6 +313,7 @@ set canned_page_enabled 0
 set canned_page_repo ""
 set canned_page_component_sha256 ""
 set canned_page_scale_bits 0
+set canned_page_decode_lanes 0
 set canned_page_qk_mult_style 0
 set canned_page_av_mult_style 0
 set canned_page_profile "NONE"
@@ -334,6 +335,7 @@ if {$canned_page_env_enabled} {
         [bringup_sha256 $canned_page_component]
     set canned_page_enabled 1
     set canned_page_scale_bits 12
+    set canned_page_decode_lanes 2
     set canned_page_profile "BALANCED"
     set canned_page_compiled_profile_id 51
     set canned_page_compiled_k_codebook_id 1
@@ -345,6 +347,14 @@ if {$canned_page_env_enabled} {
     }
     if {$canned_page_scale_bits ni {12 16}} {
         error "TERNARYCORE_CANNED_PAGE_SCALE_BITS must be exactly 12 or 16; got '$canned_page_scale_bits'"
+    }
+    if {[info exists ::env(TERNARYCORE_CANNED_PAGE_DECODE_LANES)] &&
+        [string trim $::env(TERNARYCORE_CANNED_PAGE_DECODE_LANES)] ne ""} {
+        set canned_page_decode_lanes \
+            [string trim $::env(TERNARYCORE_CANNED_PAGE_DECODE_LANES)]
+    }
+    if {$canned_page_decode_lanes ni {2 4}} {
+        error "TERNARYCORE_CANNED_PAGE_DECODE_LANES must be exactly 2 or 4; got '$canned_page_decode_lanes'"
     }
     if {[info exists ::env(TERNARYCORE_CANNED_PAGE_PROFILE)] &&
         [string trim $::env(TERNARYCORE_CANNED_PAGE_PROFILE)] ne ""} {
@@ -366,9 +376,11 @@ if {$canned_page_env_enabled} {
     }
 } elseif {([info exists ::env(TERNARYCORE_CANNED_PAGE_SCALE_BITS)] &&
            [string trim $::env(TERNARYCORE_CANNED_PAGE_SCALE_BITS)] ne "") ||
+          ([info exists ::env(TERNARYCORE_CANNED_PAGE_DECODE_LANES)] &&
+           [string trim $::env(TERNARYCORE_CANNED_PAGE_DECODE_LANES)] ne "") ||
           ([info exists ::env(TERNARYCORE_CANNED_PAGE_PROFILE)] &&
            [string trim $::env(TERNARYCORE_CANNED_PAGE_PROFILE)] ne "")} {
-    error "TERNARYCORE_CANNED_PAGE_SCALE_BITS and TERNARYCORE_CANNED_PAGE_PROFILE require TERNARYCORE_CANNED_PAGE_IP_REPO"
+    error "TERNARYCORE_CANNED_PAGE_SCALE_BITS, TERNARYCORE_CANNED_PAGE_DECODE_LANES, and TERNARYCORE_CANNED_PAGE_PROFILE require TERNARYCORE_CANNED_PAGE_IP_REPO"
 }
 set raw_e2e_enabled 0
 set raw_e2e_repo ""
@@ -376,17 +388,23 @@ set raw_e2e_projection_component_sha256 ""
 set raw_e2e_weight_component_sha256 ""
 if {[info exists ::env(TERNARYCORE_RAW_E2E_IP_REPO)] &&
     [string trim $::env(TERNARYCORE_RAW_E2E_IP_REPO)] ne ""} {
-    if {!$raw_full_enabled || $canned_page_enabled ||
-        $raw_full_m_axi_data_width != 64 || $raw_full_scale_width != 12 ||
-        $raw_full_qk_mult_style != 2 || $raw_full_av_mult_style != 1 ||
-        $raw_full_profile ne "LUT_RELIEF"} {
-        error "RAW E2E requires RAW_FULL HP64/SCALE12/LUT_RELIEF (QK=2, AV=1) and no canned frontend"
+    set raw_combined_profile [expr {$raw_full_enabled && !$canned_page_enabled &&
+        $raw_full_m_axi_data_width == 64 && $raw_full_scale_width == 12 &&
+        $raw_full_qk_mult_style == 2 && $raw_full_av_mult_style == 1 &&
+        $raw_full_profile eq "LUT_RELIEF"}]
+    set compressed_combined_profile [expr {!$raw_full_enabled &&
+        $canned_page_enabled && $canned_page_scale_bits == 12 &&
+        $canned_page_decode_lanes == 2 && $canned_page_qk_mult_style == 2 &&
+        $canned_page_av_mult_style == 1 &&
+        $canned_page_profile eq "LUT_RELIEF"}]
+    if {$raw_combined_profile == $compressed_combined_profile} {
+        error "Tier2 projection requires exactly one accepted KVQ profile: RAW_FULL HP64/SCALE12/LUT_RELIEF or CANNED_PAGE 2x1/SCALE12/LUT_RELIEF"
     }
     set raw_e2e_repo [file normalize $::env(TERNARYCORE_RAW_E2E_IP_REPO)]
     set projection_component [file join $raw_e2e_repo axi_gemm_stream component.xml]
     set weight_component [file join $raw_e2e_repo weight_bram128 component.xml]
     foreach {component label} [list $projection_component projection $weight_component weight] {
-        if {![file isfile $component]} { error "RAW-E2E repo has no $label component: $component" }
+        if {![file isfile $component]} { error "Tier2 projection repo has no $label component: $component" }
     }
     set raw_e2e_projection_component_sha256 [bringup_sha256 $projection_component]
     set raw_e2e_weight_component_sha256 [bringup_sha256 $weight_component]
@@ -473,6 +491,7 @@ set identity [dict create \
     canned_page_ip_repo  $canned_page_repo \
     canned_page_component_sha256 $canned_page_component_sha256 \
     canned_page_scale_bits $canned_page_scale_bits \
+    canned_page_decode_lanes $canned_page_decode_lanes \
     canned_page_qk_mult_style $canned_page_qk_mult_style \
     canned_page_av_mult_style $canned_page_av_mult_style \
     canned_page_profile  $canned_page_profile \
@@ -525,6 +544,7 @@ bringup_write_exclusive [file join $identity_dir identity.txt] \
         "canned_page_ip_repo=$canned_page_repo" \
         "canned_page_component_sha256=$canned_page_component_sha256" \
         "canned_page_scale_bits=$canned_page_scale_bits" \
+        "canned_page_decode_lanes=$canned_page_decode_lanes" \
         "canned_page_qk_mult_style=$canned_page_qk_mult_style" \
         "canned_page_av_mult_style=$canned_page_av_mult_style" \
         "canned_page_profile=$canned_page_profile" \
@@ -705,6 +725,7 @@ if {$canned_page_enabled} {
     set_property -dict [list \
         CONFIG.MAX_CONTEXT            {128} \
         CONFIG.SCALE_BITS             $canned_page_scale_bits \
+        CONFIG.DECODE_LANES           $canned_page_decode_lanes \
         CONFIG.COMPILED_PROFILE_ID     $canned_page_compiled_profile_id \
         CONFIG.COMPILED_K_CODEBOOK_ID  $canned_page_compiled_k_codebook_id \
         CONFIG.COMPILED_V_CODEBOOK_ID  $canned_page_compiled_v_codebook_id \
@@ -984,7 +1005,8 @@ if {[catch {assert_bringup_platform $pl_clock_mhz $kv_m_axi_data_width \
         $av_m_axi_data_width $raw_full_m_axi_data_width \
         $raw_full_scale_width $raw_full_qk_mult_style \
         $raw_full_av_mult_style $raw_full_profile \
-        $canned_page_scale_bits $canned_page_qk_mult_style \
+        $canned_page_scale_bits $canned_page_decode_lanes \
+        $canned_page_qk_mult_style \
         $canned_page_av_mult_style $canned_page_profile \
         $canned_page_compiled_profile_id \
         $canned_page_compiled_k_codebook_id \

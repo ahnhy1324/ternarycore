@@ -8,9 +8,13 @@
 `ifndef SCALE_BITS_VAL
 `define SCALE_BITS_VAL 12
 `endif
+`ifndef DECODE_LANES_VAL
+`define DECODE_LANES_VAL 4
+`endif
 
 module tb_kv_v03_typed_decode_lane_bank_4x1;
     localparam integer SCALE_BITS = `SCALE_BITS_VAL;
+    localparam integer LANE_COUNT = `DECODE_LANES_VAL;
     localparam [15:0] PROFILE_ID = 16'h1234;
     localparam [7:0] K_CODEBOOK_ID = 8'h4b;
     localparam [7:0] V_CODEBOOK_ID = 8'h56;
@@ -98,6 +102,7 @@ module tb_kv_v03_typed_decode_lane_bank_4x1;
 
     kv_v03_typed_decode_lane_bank_4x1 #(
         .SCALE_BITS(SCALE_BITS),
+        .LANE_COUNT(LANE_COUNT),
         .COMPILED_PROFILE_ID(PROFILE_ID),
         .COMPILED_K_CODEBOOK_ID(K_CODEBOOK_ID),
         .COMPILED_V_CODEBOOK_ID(V_CODEBOOK_ID)
@@ -596,8 +601,12 @@ module tb_kv_v03_typed_decode_lane_bank_4x1;
                 timeout = timeout + 1;
             end
             if (!clear_ready)
-                $fatal(1, "clear boundary timeout drain=%0d busy=%0d",
-                       draining, busy);
+                $fatal(1, "clear boundary timeout drain=%0d busy=%0d lane_busy=%b clear_pending=%b clear_pulse=%b p16_pending=%0d scale_pending=%0d p16_valid=%b scale_valid=%b",
+                       draining, busy, dut.lane_busy_i,
+                       dut.lane_clear_pending_reg, dut.lane_clear_reg,
+                       dut.p16_response_pending,
+                       dut.scale_response_pending,
+                       dut.lane_p16_valid_i, dut.lane_scale_valid_i);
             @(negedge clk);
             clear_fault = 1'b1;
             @(posedge clk);
@@ -690,32 +699,44 @@ module tb_kv_v03_typed_decode_lane_bank_4x1;
         build_k_zero(8, 0);
         issue_page_and_wait_copy(order_tags[0], 16'h0100, 5'd0,
                                  0, 0, 0, 8, source_payload_len);
-        build_k_zero(4, 0);
+        if (LANE_COUNT == 4)
+            build_k_zero(4, 0);
+        else
+            build_k_zero(1, 0);
         issue_page_and_wait_copy(order_tags[1], 16'h0100, 5'd1,
-                                 0, 0, 0, 4, source_payload_len);
-        build_k_zero(2, 0);
-        issue_page_and_wait_copy(order_tags[2], 16'h0100, 5'd2,
-                                 0, 0, 0, 2, source_payload_len);
-        build_k_zero(1, 0);
-        issue_page_and_wait_copy(order_tags[3], 16'h0100, 5'd3,
-                                 0, 0, 0, 1, source_payload_len);
+                                 0, 0, 0,
+                                 (LANE_COUNT == 4) ? 4 : 1,
+                                 source_payload_len);
+        if (LANE_COUNT == 4) begin
+            build_k_zero(2, 0);
+            issue_page_and_wait_copy(order_tags[2], 16'h0100, 5'd2,
+                                     0, 0, 0, 2, source_payload_len);
+            build_k_zero(1, 0);
+            issue_page_and_wait_copy(order_tags[3], 16'h0100, 5'd3,
+                                     0, 0, 0, 1, source_payload_len);
+        end
 
         timeout = 0;
-        while (complete_count < 4 && timeout < 300000) begin
+        while (complete_count < LANE_COUNT && timeout < 300000) begin
             @(posedge clk);
             timeout = timeout + 1;
         end
         record_completions = 1'b0;
-        if (complete_count != 4 ||
-            complete_order[0] != 3 || complete_order[1] != 2 ||
-            complete_order[2] != 1 || complete_order[3] != 0) begin
+        if ((LANE_COUNT == 4 &&
+             (complete_count != 4 || complete_order[0] != 3 ||
+              complete_order[1] != 2 || complete_order[2] != 1 ||
+              complete_order[3] != 0)) ||
+            (LANE_COUNT == 2 &&
+             (complete_count != 2 || complete_order[0] != 1 ||
+              complete_order[1] != 0))) begin
             $display("FAIL lane completion order count=%0d order=%0d,%0d,%0d,%0d",
                      complete_count, complete_order[0], complete_order[1],
                      complete_order[2], complete_order[3]);
             errors = errors + 1;
         end
-        if (lane_occupied != 4'hf) begin
-            $display("FAIL four-lane occupancy=%b", lane_occupied);
+        if (lane_occupied != ((1 << LANE_COUNT) - 1)) begin
+            $display("FAIL lane occupancy lanes=%0d value=%b",
+                     LANE_COUNT, lane_occupied);
             errors = errors + 1;
         end
 
@@ -724,21 +745,27 @@ module tb_kv_v03_typed_decode_lane_bank_4x1;
         accept_publish();
         verify_constant_page(0, 8);
         release_published_page();
-        build_k_zero(4, 0);
-        wait_publish(order_tags[1], 16'h0100, 5'd1, 0, 0, 4);
+        if (LANE_COUNT == 4)
+            build_k_zero(4, 0);
+        else
+            build_k_zero(1, 0);
+        wait_publish(order_tags[1], 16'h0100, 5'd1, 0, 0,
+                     (LANE_COUNT == 4) ? 4 : 1);
         accept_publish();
-        verify_constant_page(0, 4);
+        verify_constant_page(0, (LANE_COUNT == 4) ? 4 : 1);
         release_published_page();
-        build_k_zero(2, 0);
-        wait_publish(order_tags[2], 16'h0100, 5'd2, 0, 0, 2);
-        accept_publish();
-        verify_constant_page(0, 2);
-        release_published_page();
-        build_k_zero(1, 0);
-        wait_publish(order_tags[3], 16'h0100, 5'd3, 0, 0, 1);
-        accept_publish();
-        verify_constant_page(0, 1);
-        release_published_page();
+        if (LANE_COUNT == 4) begin
+            build_k_zero(2, 0);
+            wait_publish(order_tags[2], 16'h0100, 5'd2, 0, 0, 2);
+            accept_publish();
+            verify_constant_page(0, 2);
+            release_published_page();
+            build_k_zero(1, 0);
+            wait_publish(order_tags[3], 16'h0100, 5'd3, 0, 0, 1);
+            accept_publish();
+            verify_constant_page(0, 1);
+            release_published_page();
+        end
 
         // 3. Raw and compressed K pages expose exactly the same P16 beats and
         // scales.  Repeat independently for V.
@@ -981,8 +1008,8 @@ module tb_kv_v03_typed_decode_lane_bank_4x1;
         end
 
         if (errors == 0)
-            $display("KV_V03_TYPED_DECODE_LANE_BANK_4X1_SCALE%0d_PASS",
-                     SCALE_BITS);
+            $display("KV_V03_TYPED_DECODE_LANE_BANK_SCALE%0d_LANES%0d_PASS",
+                     SCALE_BITS, LANE_COUNT);
         else
             $fatal(1,
                 "KV_V03_TYPED_DECODE_LANE_BANK_4X1_SCALE%0d_FAIL errors=%0d",

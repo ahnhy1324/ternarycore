@@ -151,13 +151,16 @@ $env:TERNARYCORE_CANNED_PAGE_IP_REPO = `
     -EvidenceDirectory $evidence `
     -ClockMHz 75 `
     -CannedPageScaleBits 12 `
+    -CannedPageDecodeLanes 2 `
     -CannedPageProfile BALANCED `
     -Jobs 4
 ```
 
-The scale is exactly `12` or `16`. `BALANCED` records QK/AV styles `2/2`;
-`LUT_RELIEF` records `2/1`. Both the platform identity and build result also
-pin compiled profile ID `51`, K codebook ID `1`, V codebook ID `2`, and the
+The scale is exactly `12` or `16`. The decode-lane count is a compile-time
+choice of `2` (production candidate) or `4` (retained reference); it is not a
+runtime mux. `BALANCED` records QK/AV styles `2/2`; `LUT_RELIEF` records
+`2/1`. Both the platform identity and build result also pin the lane count,
+compiled profile ID `51`, K codebook ID `1`, V codebook ID `2`, and the
 packaged `component.xml` SHA-256.
 
 Package this IP into a brand-new external `D:` output before enabling the
@@ -170,11 +173,12 @@ mode:
     -source D:\Xilinx_LLM\wt-kv-v03\ip\package_axi_kvq_canned_page_diag_portable.tcl `
     -tclargs D:\Xilinx_LLM\wt-kv-v03 `
         D:\tc-work\canned-page-pkg-<unique-id> `
-        xc7z020clg400-1 75000000 12 2 2
+        xc7z020clg400-1 75000000 12 2 2 2
 ```
 
-The last three values are `SCALE_BITS`, QK style, and AV style. The accepted
-tuples are `12|16 2 2` and `12|16 2 1`; all other tuples fail closed.
+The last four values are `SCALE_BITS`, `DECODE_LANES`, QK style, and AV
+style. The accepted lane count is `2` or `4`; QK style is `2`, and AV style
+is `2` or `1`. All other tuples fail closed.
 
 The scripts require Git so they can enumerate every worktree and require the
 clean Digilent board-repository commit

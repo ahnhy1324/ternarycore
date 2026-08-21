@@ -890,14 +890,17 @@ foreach ($decodedPageScaleBits in 12, 16) {
         "rtl/kv_v03_scale12_reader.v") -PassPattern (
              "(?m)^KV_V03_DECODED_PAGE_BUFFER_SCALE${decodedPageScaleBits}_PASS\s*$")
 }
-foreach ($typedLaneScaleBits in 12, 16) {
-    Invoke-IverilogTest (
-        "sim_kv_v03_typed_decode_lane_bank_4x1_s${typedLaneScaleBits}") @(
-        "SCALE_BITS_VAL=$typedLaneScaleBits") @(
-        "tb/tb_kv_v03_typed_decode_lane_bank_4x1.v",
-        "rtl/kv_v03_typed_decode_lane_bank_4x1.v",
-        "rtl/kv_v03_symbol_decoder.v") -PassPattern (
-            "(?m)^KV_V03_TYPED_DECODE_LANE_BANK_4X1_SCALE${typedLaneScaleBits}_PASS\s*$")
+foreach ($typedLaneCount in 4, 2) {
+    foreach ($typedLaneScaleBits in 12, 16) {
+        Invoke-IverilogTest (
+            "sim_kv_v03_typed_decode_lane_bank_${typedLaneCount}x1_s${typedLaneScaleBits}") @(
+            "SCALE_BITS_VAL=$typedLaneScaleBits",
+            "DECODE_LANES_VAL=$typedLaneCount") @(
+            "tb/tb_kv_v03_typed_decode_lane_bank_4x1.v",
+            "rtl/kv_v03_typed_decode_lane_bank_4x1.v",
+            "rtl/kv_v03_symbol_decoder.v") -PassPattern (
+                "(?m)^KV_V03_TYPED_DECODE_LANE_BANK_SCALE${typedLaneScaleBits}_LANES${typedLaneCount}_PASS\s*$")
+    }
 }
 $decoderGoldenRoot = (Join-Path $repo (
     "analysis/kv_validation/v0_3/codec/decoder_goldens")).Replace("\", "/")
@@ -963,31 +966,34 @@ foreach ($cannedArithmeticScaleBits in 12, 16) {
         "rtl/kv_v03_av_normalizer.v") -PassPattern (
         "(?m)^KV_V03_CANNED_PAGE_ARITHMETIC_SCALE${cannedArithmeticScaleBits}_PASS\s*$")
 }
-foreach ($cannedPageDiagScaleBits in 12, 16) {
-    Invoke-IverilogTest (
-        "sim_axi_kvq_canned_page_diag_s${cannedPageDiagScaleBits}") @(
-        "SCALE_BITS_VAL=$cannedPageDiagScaleBits") @(
-        "tb/tb_axi_kvq_canned_page_diag.v",
-        "rtl/axi_kvq_canned_page_diag.v",
-        "rtl/kv_v03_typed_decode_lane_bank_4x1.v",
-        "rtl/kv_v03_symbol_decoder.v",
-        "rtl/kv_v03_scale12_reader.v",
-        "rtl/kv_v03_page128_record_validator.v",
-        "rtl/kv_v03_page_header.v",
-        "rtl/kv_v03_crc32.v",
-        "rtl/kv_v03_canned_page_arithmetic.v",
-        "rtl/qk_group_dot.v",
-        "rtl/kv_v03_qk_score_quantizer.v",
-        "rtl/kv_v03_score_row_commit_guard.v",
-        "rtl/kv_v03_softmax_engine.v",
-        "rtl/kv_v03_score_store.v",
-        "rtl/kv_v03_exp_lut.v",
-        "rtl/kv_v03_reciprocal.v",
-        "rtl/kv_v03_softmax.v",
-        "rtl/kv_v03_av_accumulator.v",
-        "rtl/kv_v03_v5_weight_mul.v",
-        "rtl/kv_v03_av_normalizer.v") -PassPattern (
-        "(?m)^AXI_KVQ_CANNED_PAGE_DIAG_SCALE${cannedPageDiagScaleBits}_PASS\s*$")
+foreach ($cannedPageDiagLaneCount in 4, 2) {
+    foreach ($cannedPageDiagScaleBits in 12, 16) {
+        Invoke-IverilogTest (
+            "sim_axi_kvq_canned_page_diag_${cannedPageDiagLaneCount}x1_s${cannedPageDiagScaleBits}") @(
+            "SCALE_BITS_VAL=$cannedPageDiagScaleBits",
+            "DECODE_LANES_VAL=$cannedPageDiagLaneCount") @(
+            "tb/tb_axi_kvq_canned_page_diag.v",
+            "rtl/axi_kvq_canned_page_diag.v",
+            "rtl/kv_v03_typed_decode_lane_bank_4x1.v",
+            "rtl/kv_v03_symbol_decoder.v",
+            "rtl/kv_v03_scale12_reader.v",
+            "rtl/kv_v03_page128_record_validator.v",
+            "rtl/kv_v03_page_header.v",
+            "rtl/kv_v03_crc32.v",
+            "rtl/kv_v03_canned_page_arithmetic.v",
+            "rtl/qk_group_dot.v",
+            "rtl/kv_v03_qk_score_quantizer.v",
+            "rtl/kv_v03_score_row_commit_guard.v",
+            "rtl/kv_v03_softmax_engine.v",
+            "rtl/kv_v03_score_store.v",
+            "rtl/kv_v03_exp_lut.v",
+            "rtl/kv_v03_reciprocal.v",
+            "rtl/kv_v03_softmax.v",
+            "rtl/kv_v03_av_accumulator.v",
+            "rtl/kv_v03_v5_weight_mul.v",
+            "rtl/kv_v03_av_normalizer.v") -PassPattern (
+            "(?m)^AXI_KVQ_CANNED_PAGE_DIAG_LANES_PASS LANES=${cannedPageDiagLaneCount}\s*$")
+    }
 }
 Invoke-IverilogTest "sim_kv_v03_softmax" @() @(
     "tb/tb_kv_v03_softmax.v", "rtl/kv_v03_softmax_engine.v",

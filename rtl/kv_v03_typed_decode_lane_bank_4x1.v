@@ -1,6 +1,7 @@
 // kv_v03_typed_decode_lane_bank_4x1.v
 //
-// Four independent whole-page decode lanes behind one AXI-free, synchronous
+// Two or four independent whole-page decode lanes behind one AXI-free,
+// synchronous
 // scratch-copy port.  A page is first copied into lane-local payload/scale
 // RAM, allowing the upstream ping-pong owner to be released before prefix
 // decode completes.  Completed pages are published strictly in issue order.
@@ -19,6 +20,7 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     parameter integer MAX_SYMBOLS = 16384,
     parameter integer MAX_PAYLOAD_BYTES = 10240,
     parameter integer MAX_SCALE_BYTES = 256,
+    parameter integer LANE_COUNT = 4,
     parameter integer COMPILED_PROFILE_ID = 0,
     parameter integer COMPILED_K_CODEBOOK_ID = 1,
     parameter integer COMPILED_V_CODEBOOK_ID = 2
@@ -88,6 +90,7 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     output wire [14:0]             published_expected_symbols,
     output wire [7:0]              published_token_count,
     output wire [8:0]              published_scale_slice_bytes,
+    output wire [1:0]              published_lane,
 
     // P16 arithmetic-facing synchronous reads.  Code i occupies
     // p16_rd_codes[(i*5)+:5].  All K4 values are sign-extended to five bits.
@@ -151,6 +154,7 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     reg [2:0] queue_count;
     reg [1:0] queue_lane0, queue_lane1, queue_lane2, queue_lane3;
     reg head_presented;
+    reg [1:0] owner_lane;
 
     reg capture_active;
     reg [1:0] capture_lane;
@@ -173,6 +177,31 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     reg draining_reg;
     reg release_pending;
 
+    // Descriptor acceptance is deliberately split into capture, registered
+    // validation, and action cycles.  Wide identity/geometry comparisons do
+    // not drive lane allocation or functional clear in the input handshake
+    // cycle.
+    reg descriptor_capture_valid;
+    reg descriptor_decision_valid;
+    reg descriptor_ok_reg;
+    reg [7:0] descriptor_error_code_reg;
+    reg [63:0] descriptor_task_tag_reg;
+    reg [15:0] descriptor_epoch_reg;
+    reg [4:0] descriptor_page_index_reg;
+    reg descriptor_stream_is_v_reg;
+    reg descriptor_expected_stream_is_v_reg;
+    reg descriptor_raw_mode_reg;
+    reg [15:0] descriptor_payload_bytes_reg;
+    reg [14:0] descriptor_expected_symbols_reg;
+    reg [7:0] descriptor_token_count_reg;
+    reg [8:0] descriptor_scale_slice_bytes_reg;
+    reg [3:0] lane_clear_reg;
+    reg [3:0] lane_clear_pending_reg;
+    reg p16_response_pending;
+    reg [1:0] p16_response_lane;
+    reg scale_response_pending;
+    reg [1:0] scale_response_lane;
+
     reg [63:0] lane_task_tag [0:3];
     reg [15:0] lane_epoch [0:3];
     reg [4:0] lane_page_index [0:3];
@@ -183,7 +212,9 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     reg [7:0] lane_token_count [0:3];
     reg [8:0] lane_scale_slice_bytes [0:3];
 
-    wire [3:0] free_mask = ~occupied_reg;
+    localparam [3:0] LANE_MASK =
+        (LANE_COUNT == 2) ? 4'b0011 : 4'b1111;
+    wire [3:0] free_mask = (~occupied_reg) & LANE_MASK;
     reg [1:0] allocation_lane;
     always @* begin
         casex (free_mask)
@@ -194,38 +225,41 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
         endcase
     end
 
-    wire [15:0] descriptor_profile = page_task_tag[31:16];
-    wire [7:0] descriptor_codebook = page_task_tag[15:8];
-    wire [7:0] expected_codebook = page_expected_stream_is_v ?
+    wire [15:0] descriptor_profile = descriptor_task_tag_reg[31:16];
+    wire [7:0] descriptor_codebook = descriptor_task_tag_reg[15:8];
+    wire [7:0] expected_codebook = descriptor_expected_stream_is_v_reg ?
         COMPILED_V_CODEBOOK_ID[7:0] : COMPILED_K_CODEBOOK_ID[7:0];
-    wire [7:0] opposite_codebook = page_expected_stream_is_v ?
-        COMPILED_K_CODEBOOK_ID[7:0] : COMPILED_V_CODEBOOK_ID[7:0];
-    wire [14:0] descriptor_symbol_count = {page_token_count, 7'b0};
-    wire [19:0] descriptor_raw_bits = page_expected_symbols *
-        (page_stream_is_v ? 20'd5 : 20'd4);
+    wire [14:0] descriptor_symbol_count =
+        {descriptor_token_count_reg, 7'b0};
+    wire [19:0] descriptor_raw_bits = descriptor_expected_symbols_reg *
+        (descriptor_stream_is_v_reg ? 20'd5 : 20'd4);
     wire [15:0] descriptor_raw_bytes =
         (descriptor_raw_bits + 20'd7) >> 3;
-    wire [16:0] descriptor_scale_bits = page_token_count * SCALE_BITS;
+    wire [16:0] descriptor_scale_bits =
+        descriptor_token_count_reg * SCALE_BITS;
     wire [8:0] descriptor_scale_bytes =
         (descriptor_scale_bits + 17'd7) >> 3;
 
     wire descriptor_stream_bad =
-        page_stream_is_v != page_expected_stream_is_v;
+        descriptor_stream_is_v_reg != descriptor_expected_stream_is_v_reg;
     wire descriptor_profile_bad =
         descriptor_profile != COMPILED_PROFILE_ID[15:0];
     wire descriptor_codebook_bad = descriptor_codebook != expected_codebook;
     wire descriptor_geometry_bad =
-        (page_token_count == 0) || (page_token_count > 128) ||
-        (page_expected_symbols == 0) ||
-        (page_expected_symbols > MAX_SYMBOLS) ||
-        (page_expected_symbols != descriptor_symbol_count) ||
-        (page_payload_bytes == 0) ||
-        (page_payload_bytes > MAX_PAYLOAD_BYTES) ||
-        (page_scale_slice_bytes == 0) ||
-        (page_scale_slice_bytes > MAX_SCALE_BYTES) ||
-        (page_scale_slice_bytes != descriptor_scale_bytes) ||
-        (page_raw_mode && (page_payload_bytes != descriptor_raw_bytes)) ||
-        (!page_raw_mode && (page_payload_bytes >= descriptor_raw_bytes));
+        (descriptor_token_count_reg == 0) ||
+        (descriptor_token_count_reg > 128) ||
+        (descriptor_expected_symbols_reg == 0) ||
+        (descriptor_expected_symbols_reg > MAX_SYMBOLS) ||
+        (descriptor_expected_symbols_reg != descriptor_symbol_count) ||
+        (descriptor_payload_bytes_reg == 0) ||
+        (descriptor_payload_bytes_reg > MAX_PAYLOAD_BYTES) ||
+        (descriptor_scale_slice_bytes_reg == 0) ||
+        (descriptor_scale_slice_bytes_reg > MAX_SCALE_BYTES) ||
+        (descriptor_scale_slice_bytes_reg != descriptor_scale_bytes) ||
+        (descriptor_raw_mode_reg &&
+         (descriptor_payload_bytes_reg != descriptor_raw_bytes)) ||
+        (!descriptor_raw_mode_reg &&
+         (descriptor_payload_bytes_reg >= descriptor_raw_bytes));
     wire descriptor_bad = descriptor_stream_bad ||
                           descriptor_profile_bad ||
                           descriptor_codebook_bad ||
@@ -261,11 +295,13 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                                (data_rd_valid || scale_rd_valid);
     wire healthy = !sticky_error && !draining_reg && !abort_valid &&
                    !lane_error_any && !unexpected_response;
-    assign page_ready = healthy && !capture_active && (|free_mask) &&
+    assign page_ready = healthy && !capture_active &&
+                        !descriptor_capture_valid &&
+                        !descriptor_decision_valid && (|free_mask) &&
                         !source_release && !data_rd_valid && !scale_rd_valid;
     wire page_fire = page_valid && page_ready;
-    wire good_page_fire = page_fire && !descriptor_bad;
-    wire bad_page_fire = page_fire && descriptor_bad;
+    wire good_page_fire = descriptor_decision_valid && descriptor_ok_reg;
+    wire bad_page_fire = descriptor_decision_valid && !descriptor_ok_reg;
 
     assign data_rd_en = healthy && capture_active &&
                         !data_outstanding && !data_rd_valid &&
@@ -303,47 +339,72 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     wire fault_event = !sticky_error &&
         (abort_valid || bad_page_fire || data_response_bad ||
          scale_response_bad || unexpected_response || lane_error_any);
-    wire [3:0] lane_flush = {4{fault_event}};
+    wire [3:0] lane_flush = lane_clear_reg & LANE_MASK;
     wire [3:0] lane_allocate =
         good_page_fire ? (4'b0001 << allocation_lane) : 4'b0000;
     wire [3:0] lane_decode_start =
         capture_complete_now ? (4'b0001 << capture_lane) : 4'b0000;
 
     wire [1:0] head_lane = queue_lane0;
+    wire [1:0] selected_lane = head_presented ? owner_lane : head_lane;
     assign publish_valid = healthy && (queue_count != 0) &&
                            !head_presented && lane_committed_i[head_lane];
     wire publish_fire = publish_valid && publish_ready;
     assign page_active = healthy && (queue_count != 0) && head_presented &&
-                         lane_committed_i[head_lane];
+                          lane_committed_i[owner_lane];
     wire release_fire = page_active && page_release;
     wire [3:0] lane_release =
-        release_fire ? (4'b0001 << head_lane) : 4'b0000;
+        release_fire ? (4'b0001 << owner_lane) : 4'b0000;
 
-    assign published_task_tag = lane_task_tag[head_lane];
-    assign published_epoch = lane_epoch[head_lane];
-    assign published_page_index = lane_page_index[head_lane];
-    assign published_stream_is_v = lane_stream_is_v[head_lane];
-    assign published_raw_mode = lane_raw_mode[head_lane];
-    assign published_payload_bytes = lane_payload_bytes[head_lane];
-    assign published_expected_symbols = lane_expected_symbols[head_lane];
-    assign published_token_count = lane_token_count[head_lane];
+    assign published_task_tag = lane_task_tag[selected_lane];
+    assign published_epoch = lane_epoch[selected_lane];
+    assign published_page_index = lane_page_index[selected_lane];
+    assign published_stream_is_v = lane_stream_is_v[selected_lane];
+    assign published_raw_mode = lane_raw_mode[selected_lane];
+    assign published_payload_bytes = lane_payload_bytes[selected_lane];
+    assign published_expected_symbols = lane_expected_symbols[selected_lane];
+    assign published_token_count = lane_token_count[selected_lane];
     assign published_scale_slice_bytes =
-        lane_scale_slice_bytes[head_lane];
+        lane_scale_slice_bytes[selected_lane];
+    assign published_lane = selected_lane;
 
     wire [3:0] lane_p16_rd_en =
         (p16_rd_en && page_active && !page_release) ?
-        (4'b0001 << head_lane) : 4'b0000;
+        (4'b0001 << owner_lane) : 4'b0000;
     wire [3:0] lane_token_scale_rd_en =
         (token_scale_rd_en && page_active && !page_release) ?
-        (4'b0001 << head_lane) : 4'b0000;
-    assign p16_rd_valid = page_active && !page_release &&
-                          lane_p16_valid_i[head_lane];
+        (4'b0001 << owner_lane) : 4'b0000;
+    // The functional scratch ports intentionally have no ready signal;
+    // out-of-range diagnostic reads are ignored by the selected lane.  Track
+    // only requests for which that lane is contractually required to return a
+    // response, otherwise a rejected diagnostic probe would look like an
+    // outstanding response forever and block a later clear.
+    wire [10:0] owner_p16_words =
+        lane_expected_symbols[owner_lane] >> 4;
+    wire p16_request_fire = (|lane_p16_rd_en) &&
+        ({1'b0, p16_rd_addr} < owner_p16_words);
+    wire scale_request_fire = (|lane_token_scale_rd_en) &&
+        ({1'b0, token_scale_rd_addr} <
+         {1'b0, lane_token_count[owner_lane]});
+    wire p16_response_fire = p16_response_pending &&
+                             lane_p16_valid_i[p16_response_lane];
+    wire scale_response_fire = scale_response_pending &&
+                               lane_scale_valid_i[scale_response_lane];
+    assign p16_rd_valid = p16_response_fire;
     assign p16_rd_codes =
-        lane_p16_data_i[(head_lane*80) +: 80];
-    assign token_scale_rd_valid = page_active && !page_release &&
-                                  lane_scale_valid_i[head_lane];
+        lane_p16_data_i[(p16_response_lane*80) +: 80];
+    assign token_scale_rd_valid = scale_response_fire;
     assign token_scale_rd_data =
-        lane_scale_data_i[(head_lane*SCALE_BITS) +: SCALE_BITS];
+        lane_scale_data_i[(scale_response_lane*SCALE_BITS) +: SCALE_BITS];
+
+    // Arithmetic-facing scratch reads are synchronous.  An abort may arrive
+    // after a request was accepted but before the one-cycle-later response.
+    // Preserve that single response and defer functional clear until it has
+    // drained; otherwise the arithmetic owner waits forever for an accepted
+    // obligation that the lane bank discarded.
+    wire arithmetic_responses_quiet = !p16_response_pending &&
+        !scale_response_pending && !p16_request_fire && !scale_request_fire &&
+        !(|lane_p16_valid_i) && !(|lane_scale_valid_i);
 
     wire [3:0] lane_payload_wr_en =
         data_response_accept ? (4'b0001 << capture_lane) : 4'b0000;
@@ -353,20 +414,21 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     genvar lane;
     generate
         for (lane = 0; lane < 4; lane = lane + 1) begin : g_lane
-            kv_v03_typed_decode_lane #(
+            if (lane < LANE_COUNT) begin : g_enabled
+                kv_v03_typed_decode_lane #(
                 .SCALE_BITS(SCALE_BITS),
                 .MAX_SYMBOLS(MAX_SYMBOLS),
                 .MAX_PAYLOAD_BYTES(MAX_PAYLOAD_BYTES),
                 .MAX_SCALE_BYTES(MAX_SCALE_BYTES)
-            ) u_lane (
+                ) u_lane (
                 .clk(clk), .rst_n(rst_n),
                 .allocate(lane_allocate[lane]),
-                .alloc_stream_is_v(page_stream_is_v),
-                .alloc_raw_mode(page_raw_mode),
-                .alloc_payload_bytes(page_payload_bytes),
-                .alloc_expected_symbols(page_expected_symbols),
-                .alloc_token_count(page_token_count),
-                .alloc_scale_slice_bytes(page_scale_slice_bytes),
+                .alloc_stream_is_v(descriptor_stream_is_v_reg),
+                .alloc_raw_mode(descriptor_raw_mode_reg),
+                .alloc_payload_bytes(descriptor_payload_bytes_reg),
+                .alloc_expected_symbols(descriptor_expected_symbols_reg),
+                .alloc_token_count(descriptor_token_count_reg),
+                .alloc_scale_slice_bytes(descriptor_scale_slice_bytes_reg),
                 .payload_wr_en(lane_payload_wr_en[lane]),
                 .payload_wr_addr(data_outstanding_index),
                 .payload_wr_data(data_rd_data),
@@ -374,7 +436,7 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                 .scale_wr_addr(scale_outstanding_index[6:0]),
                 .scale_wr_data(scale_rd_data),
                 .decode_start(lane_decode_start[lane]),
-                .flush(lane_flush[lane]),
+                .functional_clear(lane_flush[lane]),
                 .release_lane(lane_release[lane]),
                 .p16_rd_en(lane_p16_rd_en[lane]),
                 .p16_rd_addr(p16_rd_addr),
@@ -391,11 +453,24 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                 .error_valid(lane_error_i[lane]),
                 .error_source(lane_error_source_i[(lane*2) +: 2]),
                 .error_code(lane_error_code_i[(lane*8) +: 8])
-            );
+                );
+            end else begin : g_disabled
+                assign lane_busy_i[lane] = 1'b0;
+                assign lane_committed_i[lane] = 1'b0;
+                assign lane_error_i[lane] = 1'b0;
+                assign lane_error_source_i[(lane*2) +: 2] = 2'd0;
+                assign lane_error_code_i[(lane*8) +: 8] = 8'd0;
+                assign lane_complete_pulse_i[lane] = 1'b0;
+                assign lane_p16_data_i[(lane*80) +: 80] = 80'd0;
+                assign lane_p16_valid_i[lane] = 1'b0;
+                assign lane_scale_data_i[(lane*SCALE_BITS) +: SCALE_BITS] =
+                    {SCALE_BITS{1'b0}};
+                assign lane_scale_valid_i[lane] = 1'b0;
+            end
         end
     endgenerate
 
-    assign lane_occupied = occupied_reg;
+    assign lane_occupied = occupied_reg & LANE_MASK;
     assign lane_decode_busy = lane_busy_i;
     assign lane_complete = lane_complete_pulse_i;
     assign draining = draining_reg;
@@ -415,6 +490,7 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
             queue_lane2 <= 2'd0;
             queue_lane3 <= 2'd0;
             head_presented <= 1'b0;
+            owner_lane <= 2'd0;
             capture_active <= 1'b0;
             capture_lane <= 2'd0;
             data_word_count <= 12'd0;
@@ -435,6 +511,26 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
             scale_copy_done <= 1'b0;
             draining_reg <= 1'b0;
             release_pending <= 1'b0;
+            descriptor_capture_valid <= 1'b0;
+            descriptor_decision_valid <= 1'b0;
+            descriptor_ok_reg <= 1'b0;
+            descriptor_error_code_reg <= 8'd0;
+            descriptor_task_tag_reg <= 64'd0;
+            descriptor_epoch_reg <= 16'd0;
+            descriptor_page_index_reg <= 5'd0;
+            descriptor_stream_is_v_reg <= 1'b0;
+            descriptor_expected_stream_is_v_reg <= 1'b0;
+            descriptor_raw_mode_reg <= 1'b0;
+            descriptor_payload_bytes_reg <= 16'd0;
+            descriptor_expected_symbols_reg <= 15'd0;
+            descriptor_token_count_reg <= 8'd0;
+            descriptor_scale_slice_bytes_reg <= 9'd0;
+            lane_clear_reg <= 4'b0;
+            lane_clear_pending_reg <= 4'b0;
+            p16_response_pending <= 1'b0;
+            p16_response_lane <= 2'd0;
+            scale_response_pending <= 1'b0;
+            scale_response_lane <= 2'd0;
             source_release <= 1'b0;
             sticky_error <= 1'b0;
             sticky_error_code <= 8'd0;
@@ -458,6 +554,25 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
         end else begin
             source_release <= 1'b0;
             row_abort <= 1'b0;
+            lane_clear_reg <= 4'b0;
+
+            if (p16_request_fire) begin
+                p16_response_pending <= 1'b1;
+                p16_response_lane <= owner_lane;
+            end else if (p16_response_fire) begin
+                p16_response_pending <= 1'b0;
+            end
+            if (scale_request_fire) begin
+                scale_response_pending <= 1'b1;
+                scale_response_lane <= owner_lane;
+            end else if (scale_response_fire) begin
+                scale_response_pending <= 1'b0;
+            end
+            if (lane_clear_pending_reg != 0 &&
+                arithmetic_responses_quiet) begin
+                lane_clear_reg <= lane_clear_pending_reg;
+                lane_clear_pending_reg <= 4'b0;
+            end
 
             if (fault_event) begin
                 sticky_error <= 1'b1;
@@ -473,6 +588,9 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                 capture_active <= 1'b0;
                 data_copy_done <= 1'b0;
                 scale_copy_done <= 1'b0;
+                descriptor_capture_valid <= 1'b0;
+                descriptor_decision_valid <= 1'b0;
+                lane_clear_pending_reg <= LANE_MASK;
 
                 if (abort_valid) begin
                     sticky_error_code <= ERR_ABORT;
@@ -481,11 +599,11 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                     sticky_page_index <= abort_page_index;
                     sticky_stream_is_v <= abort_stream_is_v;
                 end else if (bad_page_fire) begin
-                    sticky_error_code <= descriptor_error_code;
-                    sticky_task_tag <= page_task_tag;
-                    sticky_epoch <= page_epoch;
-                    sticky_page_index <= page_index;
-                    sticky_stream_is_v <= page_stream_is_v;
+                    sticky_error_code <= descriptor_error_code_reg;
+                    sticky_task_tag <= descriptor_task_tag_reg;
+                    sticky_epoch <= descriptor_epoch_reg;
+                    sticky_page_index <= descriptor_page_index_reg;
+                    sticky_stream_is_v <= descriptor_stream_is_v_reg;
                 end else if (data_response_bad ||
                              scale_response_bad) begin
                     sticky_error_code <= data_response_bad ?
@@ -545,14 +663,41 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                     release_pending <= 1'b0;
                 end
             end else begin
+                if (descriptor_capture_valid) begin
+                    descriptor_capture_valid <= 1'b0;
+                    descriptor_decision_valid <= 1'b1;
+                    descriptor_ok_reg <= !descriptor_bad;
+                    descriptor_error_code_reg <= descriptor_error_code;
+                end else if (descriptor_decision_valid) begin
+                    descriptor_decision_valid <= 1'b0;
+                end
+
+                if (page_fire) begin
+                    descriptor_capture_valid <= 1'b1;
+                    descriptor_task_tag_reg <= page_task_tag;
+                    descriptor_epoch_reg <= page_epoch;
+                    descriptor_page_index_reg <= page_index;
+                    descriptor_stream_is_v_reg <= page_stream_is_v;
+                    descriptor_expected_stream_is_v_reg <=
+                        page_expected_stream_is_v;
+                    descriptor_raw_mode_reg <= page_raw_mode;
+                    descriptor_payload_bytes_reg <= page_payload_bytes;
+                    descriptor_expected_symbols_reg <= page_expected_symbols;
+                    descriptor_token_count_reg <= page_token_count;
+                    descriptor_scale_slice_bytes_reg <=
+                        page_scale_slice_bytes;
+                end
+
                 if (clear_fault && clear_ready) begin
                     sticky_error <= 1'b0;
                     sticky_error_code <= 8'd0;
                     sticky_error_subcode <= 8'd0;
                 end
 
-                if (publish_fire)
+                if (publish_fire) begin
                     head_presented <= 1'b1;
+                    owner_lane <= head_lane;
+                end
                 if (release_fire)
                     head_presented <= 1'b0;
 
@@ -587,30 +732,32 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
                 endcase
 
                 if (release_fire)
-                    occupied_reg[head_lane] <= 1'b0;
+                    occupied_reg[owner_lane] <= 1'b0;
 
                 if (good_page_fire) begin
                     occupied_reg[allocation_lane] <= 1'b1;
-                    lane_task_tag[allocation_lane] <= page_task_tag;
-                    lane_epoch[allocation_lane] <= page_epoch;
-                    lane_page_index[allocation_lane] <= page_index;
+                    lane_task_tag[allocation_lane] <= descriptor_task_tag_reg;
+                    lane_epoch[allocation_lane] <= descriptor_epoch_reg;
+                    lane_page_index[allocation_lane] <=
+                        descriptor_page_index_reg;
                     lane_stream_is_v[allocation_lane] <=
-                        page_stream_is_v;
-                    lane_raw_mode[allocation_lane] <= page_raw_mode;
+                        descriptor_stream_is_v_reg;
+                    lane_raw_mode[allocation_lane] <= descriptor_raw_mode_reg;
                     lane_payload_bytes[allocation_lane] <=
-                        page_payload_bytes;
+                        descriptor_payload_bytes_reg;
                     lane_expected_symbols[allocation_lane] <=
-                        page_expected_symbols;
-                    lane_token_count[allocation_lane] <= page_token_count;
+                        descriptor_expected_symbols_reg;
+                    lane_token_count[allocation_lane] <=
+                        descriptor_token_count_reg;
                     lane_scale_slice_bytes[allocation_lane] <=
-                        page_scale_slice_bytes;
+                        descriptor_scale_slice_bytes_reg;
 
                     capture_active <= 1'b1;
                     capture_lane <= allocation_lane;
                     data_word_count <=
-                        (page_payload_bytes + 16'd3) >> 2;
+                        (descriptor_payload_bytes_reg + 16'd3) >> 2;
                     scale_word_count <=
-                        (page_scale_slice_bytes + 9'd3) >> 2;
+                        (descriptor_scale_slice_bytes_reg + 9'd3) >> 2;
                     data_request_count <= 12'd0;
                     scale_request_count <= 8'd0;
                     data_outstanding <= 1'b0;
@@ -675,6 +822,8 @@ module kv_v03_typed_decode_lane_bank_4x1 #(
     initial begin
         if (SCALE_BITS != 12 && SCALE_BITS != 16)
             $error("typed decode lane bank SCALE_BITS must be 12 or 16");
+        if (LANE_COUNT != 2 && LANE_COUNT != 4)
+            $error("typed decode lane bank LANE_COUNT must be 2 or 4");
         if (MAX_SYMBOLS < 16384)
             $error("typed decode lane bank must cover page128 symbols");
         if (MAX_PAYLOAD_BYTES < 10240)
@@ -708,7 +857,7 @@ module kv_v03_typed_decode_lane #(
     input  wire [6:0]              scale_wr_addr,
     input  wire [31:0]             scale_wr_data,
     input  wire                    decode_start,
-    input  wire                    flush,
+    input  wire                    functional_clear,
     input  wire                    release_lane,
     input  wire                    p16_rd_en,
     input  wire [9:0]              p16_rd_addr,
@@ -767,7 +916,6 @@ module kv_v03_typed_decode_lane #(
         end
     endfunction
 
-    wire engine_rst_n = rst_n && !flush;
     wire decoder_start = state == ST_LAUNCH;
     wire scale_start = state == ST_LAUNCH;
 
@@ -797,7 +945,8 @@ module kv_v03_typed_decode_lane #(
         .SYMBOLS_PER_CYCLE(1),
         .MAX_SYMBOLS(MAX_SYMBOLS)
     ) u_decoder (
-        .clk(clk), .rst_n(engine_rst_n), .start(decoder_start),
+        .clk(clk), .rst_n(rst_n), .clear(functional_clear),
+        .start(decoder_start),
         .integrity_passed(1'b1), .stream_is_v(stream_is_v_reg),
         .raw_mode(raw_mode_reg), .expected_symbols(expected_symbols_reg),
         .in_valid(decoder_in_valid), .in_ready(decoder_in_ready),
@@ -832,7 +981,8 @@ module kv_v03_typed_decode_lane #(
         .SCALE_BITS(SCALE_BITS),
         .MAX_SCALES(128)
     ) u_scale_unpacker (
-        .clk(clk), .rst_n(engine_rst_n), .start(scale_start),
+        .clk(clk), .rst_n(rst_n), .clear(functional_clear),
+        .start(scale_start),
         .expected_scales({1'b0, token_count_reg}),
         .in_valid(scale_in_valid), .in_ready(scale_in_ready),
         .in_data(scale_pending_data), .in_byte_valid(scale_pending_keep),
@@ -851,7 +1001,41 @@ module kv_v03_typed_decode_lane #(
     assign busy = state != ST_IDLE;
 
     always @(posedge clk) begin
-        if (!rst_n || flush) begin
+        if (!rst_n) begin
+            state <= ST_IDLE;
+            stream_is_v_reg <= 1'b0;
+            raw_mode_reg <= 1'b0;
+            payload_bytes_reg <= 16'd0;
+            expected_symbols_reg <= 15'd0;
+            token_count_reg <= 8'd0;
+            scale_slice_bytes_reg <= 9'd0;
+            payload_word_count_reg <= 12'd0;
+            scale_word_count_reg <= 8'd0;
+            payload_feed_index <= 12'd0;
+            payload_pending_valid <= 1'b0;
+            payload_pending_data <= 32'd0;
+            payload_pending_keep <= 4'd0;
+            payload_pending_last <= 1'b0;
+            scale_feed_index <= 8'd0;
+            scale_pending_valid <= 1'b0;
+            scale_pending_data <= 32'd0;
+            scale_pending_keep <= 4'd0;
+            scale_pending_last <= 1'b0;
+            symbol_write_count <= 15'd0;
+            scale_write_count <= 9'd0;
+            pack_reg <= 80'd0;
+            decoder_done_seen <= 1'b0;
+            scale_done_seen <= 1'b0;
+            committed <= 1'b0;
+            complete_pulse <= 1'b0;
+            error_valid <= 1'b0;
+            error_source <= 2'd0;
+            error_code <= 8'd0;
+            p16_rd_valid <= 1'b0;
+            p16_rd_data <= 80'd0;
+            scale_rd_valid <= 1'b0;
+            scale_rd_data <= {SCALE_BITS{1'b0}};
+        end else if (functional_clear) begin
             state <= ST_IDLE;
             stream_is_v_reg <= 1'b0;
             raw_mode_reg <= 1'b0;
@@ -1095,6 +1279,7 @@ module kv_v03_scale_unpacker_param #(
 ) (
     input  wire                    clk,
     input  wire                    rst_n,
+    input  wire                    clear,
     input  wire                    start,
     input  wire [8:0]              expected_scales,
     input  wire                    in_valid,
@@ -1203,6 +1388,16 @@ module kv_v03_scale_unpacker_param #(
 
     always @(posedge clk) begin
         if (!rst_n) begin
+            active <= 1'b0;
+            reservoir <= 64'd0;
+            bit_count <= 7'd0;
+            emitted_scales <= 9'd0;
+            expected_reg <= 9'd0;
+            saw_last <= 1'b0;
+            done <= 1'b0;
+            error_valid <= 1'b0;
+            error_code <= 8'd0;
+        end else if (clear) begin
             active <= 1'b0;
             reservoir <= 64'd0;
             bit_count <= 7'd0;

@@ -586,6 +586,7 @@ module tb_kv_v03_canned_page_arithmetic;
     endtask
 
     integer t, g, l, r, d;
+    integer late_av_abort_watchdog;
     integer kval, vval, qval;
     reg signed [47:0] held_numerator;
     reg signed [17:0] held_normalized;
@@ -761,6 +762,26 @@ module tb_kv_v03_canned_page_arithmetic;
         start_fault_transaction(2);
         while (progress_state != 19)
             @(posedge clk);
+        pulse_abort_now();
+        wait_for_fault(8'h0a);
+        short_restart();
+
+        // Physical XSDB writes can reach the arithmetic core much later than
+        // the first AV beat.  Reproduce the exact late-AV window observed on
+        // Zybo: token 48, head 3, group 7.  Drain and the immediate no-reset
+        // restart must remain bounded at a full 128-token context.
+        start_fault_transaction(128);
+        late_av_abort_watchdog = 0;
+        while ((progress_state != 19 || progress_token != 48 ||
+                progress_head != 3 || progress_group != 7) &&
+               late_av_abort_watchdog < 2000000) begin
+            @(posedge clk);
+            late_av_abort_watchdog = late_av_abort_watchdog + 1;
+        end
+        if (late_av_abort_watchdog == 2000000)
+            $fatal(1, "late AV abort window timeout state=%0d token=%0d head=%0d group=%0d",
+                   progress_state, progress_token, progress_head,
+                   progress_group);
         pulse_abort_now();
         wait_for_fault(8'h0a);
         short_restart();

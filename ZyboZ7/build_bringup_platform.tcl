@@ -430,6 +430,7 @@ foreach required_key {
     raw_e2e_projection_component_sha256 raw_e2e_weight_component_sha256
     canned_page_enabled canned_page_ip_repo
     canned_page_component_sha256 canned_page_scale_bits
+    canned_page_decode_lanes
     canned_page_qk_mult_style canned_page_av_mult_style
     canned_page_profile canned_page_compiled_profile_id
     canned_page_compiled_k_codebook_id
@@ -525,10 +526,20 @@ set identity_raw_e2e_repo [dict get $identity raw_e2e_ip_repo]
 set identity_raw_e2e_projection_sha [dict get $identity raw_e2e_projection_component_sha256]
 set identity_raw_e2e_weight_sha [dict get $identity raw_e2e_weight_component_sha256]
 if {$identity_raw_e2e_enabled} {
-    if {!$identity_raw_full_enabled || $identity_raw_full_width != 64 ||
-        $identity_raw_full_scale != 12 || $identity_raw_full_qk_style != 2 ||
-        $identity_raw_full_av_style != 1 || $identity_raw_full_profile ne "LUT_RELIEF"} {
-        error "RAW-E2E identity requires RAW_FULL HP64/SCALE12/LUT_RELIEF QK=2 AV=1"
+    set raw_combined_profile [expr {$identity_raw_full_enabled &&
+        ![dict get $identity canned_page_enabled] &&
+        $identity_raw_full_width == 64 && $identity_raw_full_scale == 12 &&
+        $identity_raw_full_qk_style == 2 && $identity_raw_full_av_style == 1 &&
+        $identity_raw_full_profile eq "LUT_RELIEF"}]
+    set compressed_combined_profile [expr {!$identity_raw_full_enabled &&
+        [dict get $identity canned_page_enabled] &&
+        [dict get $identity canned_page_scale_bits] == 12 &&
+        [dict get $identity canned_page_decode_lanes] == 2 &&
+        [dict get $identity canned_page_qk_mult_style] == 2 &&
+        [dict get $identity canned_page_av_mult_style] == 1 &&
+        [dict get $identity canned_page_profile] eq "LUT_RELIEF"}]
+    if {$raw_combined_profile == $compressed_combined_profile} {
+        error "Tier2 projection identity requires exactly one accepted KVQ profile: RAW_FULL HP64/SCALE12/LUT_RELIEF or CANNED_PAGE 2x1/SCALE12/LUT_RELIEF"
     }
     if {[string trim $identity_raw_e2e_repo] eq "" ||
         ![regexp {^[0-9A-F]{64}$} $identity_raw_e2e_projection_sha] ||
@@ -543,6 +554,7 @@ set identity_canned_enabled [dict get $identity canned_page_enabled]
 set identity_canned_repo [dict get $identity canned_page_ip_repo]
 set identity_canned_sha256 [dict get $identity canned_page_component_sha256]
 set identity_canned_scale [dict get $identity canned_page_scale_bits]
+set identity_canned_lanes [dict get $identity canned_page_decode_lanes]
 set identity_canned_qk_style [dict get $identity canned_page_qk_mult_style]
 set identity_canned_av_style [dict get $identity canned_page_av_mult_style]
 set identity_canned_profile [dict get $identity canned_page_profile]
@@ -564,9 +576,10 @@ if {$identity_canned_enabled} {
         error "enabled canned-page identity has an invalid component SHA-256: '$identity_canned_sha256'"
     }
     if {$identity_canned_scale ni {12 16} ||
+        $identity_canned_lanes ni {2 4} ||
         $identity_canned_qk_style != 2 ||
         $identity_canned_av_style ni {1 2}} {
-        error "invalid canned-page scale/styles: scale=$identity_canned_scale QK=$identity_canned_qk_style AV=$identity_canned_av_style"
+        error "invalid canned-page lanes/scale/styles: lanes=$identity_canned_lanes scale=$identity_canned_scale QK=$identity_canned_qk_style AV=$identity_canned_av_style"
     }
     set derived_canned_profile [expr {$identity_canned_av_style == 1 ?
         "LUT_RELIEF" : "BALANCED"}]
@@ -579,7 +592,8 @@ if {$identity_canned_enabled} {
         error "invalid canned-page compiled IDs: profile=$identity_canned_compiled_profile K=$identity_canned_compiled_k_codebook V=$identity_canned_compiled_v_codebook"
     }
 } elseif {$identity_canned_repo ne "" || $identity_canned_sha256 ne "" ||
-          $identity_canned_scale != 0 || $identity_canned_qk_style != 0 ||
+          $identity_canned_scale != 0 || $identity_canned_lanes != 0 ||
+          $identity_canned_qk_style != 0 ||
           $identity_canned_av_style != 0 ||
           $identity_canned_profile ne "NONE" ||
           $identity_canned_compiled_profile != 0 ||
@@ -779,6 +793,7 @@ validate_bd_design
              [dict get $identity raw_full_av_mult_style] \
              [dict get $identity raw_full_profile] \
              [dict get $identity canned_page_scale_bits] \
+             [dict get $identity canned_page_decode_lanes] \
              [dict get $identity canned_page_qk_mult_style] \
              [dict get $identity canned_page_av_mult_style] \
              [dict get $identity canned_page_profile] \
@@ -824,6 +839,9 @@ set timing_report [file join $reports_dir timing_summary.rpt]
 set utilization_report [file join $reports_dir utilization.rpt]
 set hierarchical_utilization_report [file join $reports_dir hierarchical_utilization.rpt]
 set critical_paths_report [file join $reports_dir critical_paths.rpt]
+set hold_critical_paths_report [file join $reports_dir hold_critical_paths.rpt]
+set control_sets_report [file join $reports_dir control_sets.rpt]
+set high_fanout_report [file join $reports_dir high_fanout_nets.rpt]
 set clock_report [file join $reports_dir clock_utilization.rpt]
 set drc_report [file join $reports_dir drc.rpt]
 set methodology_report [file join $reports_dir methodology.rpt]
@@ -832,6 +850,9 @@ report_timing_summary -delay_type min_max -report_unconstrained -max_paths 20 -f
 report_utilization -hierarchical -file $utilization_report
 report_utilization -hierarchical -hierarchical_depth 6 -file $hierarchical_utilization_report
 report_timing -delay_type max -max_paths 100 -nworst 10 -sort_by group -file $critical_paths_report
+report_timing -delay_type min -max_paths 50 -nworst 10 -sort_by group -file $hold_critical_paths_report
+report_control_sets -verbose -file $control_sets_report
+report_high_fanout_nets -timing -load_types -max_nets 100 -file $high_fanout_report
 report_clock_utilization -file $clock_report
 report_drc -file $drc_report
 report_methodology -file $methodology_report
@@ -880,6 +901,9 @@ set evidence_files [dict create \
     "reports/utilization.rpt" $utilization_report \
     "reports/hierarchical_utilization.rpt" $hierarchical_utilization_report \
     "reports/critical_paths.rpt" $critical_paths_report \
+    "reports/hold_critical_paths.rpt" $hold_critical_paths_report \
+    "reports/control_sets.rpt" $control_sets_report \
+    "reports/high_fanout_nets.rpt" $high_fanout_report \
     "reports/clock_utilization.rpt" $clock_report \
     "reports/drc.rpt" $drc_report \
     "reports/methodology.rpt" $methodology_report \
@@ -936,6 +960,7 @@ set build_result [dict create \
     canned_page_ip_repo  [dict get $identity canned_page_ip_repo] \
     canned_page_component_sha256 [dict get $identity canned_page_component_sha256] \
     canned_page_scale_bits [dict get $identity canned_page_scale_bits] \
+    canned_page_decode_lanes [dict get $identity canned_page_decode_lanes] \
     canned_page_qk_mult_style [dict get $identity canned_page_qk_mult_style] \
     canned_page_av_mult_style [dict get $identity canned_page_av_mult_style] \
     canned_page_profile  [dict get $identity canned_page_profile] \
