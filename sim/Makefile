@@ -6,7 +6,7 @@ IVERILOG = iverilog
 VVP      = vvp
 SIMDIR   = .
 
-.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache tb_kv_v03_page128_offset_scheduler tb_kv_v03_hp64_range_reader tb_kv_v03_page128_record_validator tb_kv_v03_page_prefetch_slot tb_kv_v03_page_pingpong tb_kv_v03_kv_page_prefetch tb_kv_v03_decoded_page_buffer tb_kv_v03_typed_decode_lane_bank_4x1 tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_decoder_cluster_4x1 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_qk_score_quantizer tb_kv_v03_score_row_commit_guard tb_kv_v03_raw_k4_qk_engine tb_kv_v03_canned_page_arithmetic tb_axi_kvq_canned_page_diag tb_kv_v03_softmax tb_kv_v03_v5_weight_mul tb_kv_v03_av tb_kv_v03_av_normalizer tb_kv_v03_softmax_av_pipeline tb_axi_kvq_raw_attention_diag tb_axi_kvq_raw_full_diag tb_axi_v5_av_diag clean verify analyze_kv
+.PHONY: all tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_tier2_cols64_projection_only tb_kv_cache tb_kv_v03_page128_offset_scheduler tb_kv_v03_hp64_range_reader tb_kv_v03_page128_record_validator tb_kv_v03_page_prefetch_slot tb_kv_v03_page_pingpong tb_kv_v03_kv_page_prefetch tb_kv_v03_decoded_page_buffer tb_kv_v03_typed_decode_lane_bank_4x1 tb_kv_v03_decoders tb_kv_v03_decoder_cluster_2x2 tb_kv_v03_decoder_cluster_4x1 tb_kv_v03_reciprocal tb_kv_v03_score_store tb_kv_v03_qk_score_quantizer tb_kv_v03_score_row_commit_guard tb_kv_v03_raw_k4_qk_engine tb_kv_v03_canned_page_arithmetic tb_axi_kvq_canned_page_diag tb_kv_v03_softmax tb_kv_v03_v5_weight_mul tb_kv_v03_av tb_kv_v03_av_normalizer tb_kv_v03_softmax_av_pipeline tb_axi_kvq_raw_attention_diag tb_axi_kvq_raw_full_diag tb_axi_v5_av_diag clean verify analyze_kv
 
 all: tb_ternary_mac tb_ternary_dot tb_ternary_gemm tb_axi_gemm_wrapper tb_weight_bram tb_kv_cache
 
@@ -60,6 +60,11 @@ tb_weight_bram_d4: ../tb/tb_weight_bram.v ../rtl/weight_bram.v
 tb_weight_bram_d8: ../tb/tb_weight_bram.v ../rtl/weight_bram.v
 	$(IVERILOG) -g2012 -DADDR_WIDTH_VAL=8 -o $(SIMDIR)/sim_weight_bram_d8 $^
 	$(VVP) $(SIMDIR)/sim_weight_bram_d8
+
+# ── Tier2 COLS64 projection-only (legacy INT8 attention disabled) ───────────
+tb_tier2_cols64_projection_only: ../tb/tb_axi_gemm_stream.v ../rtl/axi_gemm_stream.v ../rtl/weight_bram128.v ../rtl/ternary_gemm.v ../rtl/ternary_dot.v ../rtl/ternary_weight.v
+	$(IVERILOG) -g2012 -Wall -Wimplicit -DENABLE_INT8_VAL=0 -o $(SIMDIR)/sim_tier2_cols64_projection_only $^
+	$(VVP) $(SIMDIR)/sim_tier2_cols64_projection_only
 
 # ── INT4 KV-cache IP ────────────────────────────────────────────────────────
 KV_RTL = ../rtl/kv_addr_gen.v ../rtl/int4_unpack.v ../rtl/kv_dequant.v \

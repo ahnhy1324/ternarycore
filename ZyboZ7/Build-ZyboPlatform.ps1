@@ -638,6 +638,35 @@ if (-not [string]::IsNullOrWhiteSpace($env:TERNARYCORE_RAW_FULL_IP_REPO)) {
     throw '-RawFullAxiWidth, -RawFullScaleWidth, and -RawFullProfile require TERNARYCORE_RAW_FULL_IP_REPO'
 }
 
+$rawE2eRepositoryPath = $null
+$rawE2eProjectionIdentity = $null
+$rawE2eWeightIdentity = $null
+if (-not [string]::IsNullOrWhiteSpace($env:TERNARYCORE_RAW_E2E_IP_REPO)) {
+    if ($null -eq $rawFullRepositoryPath -or $RawFullAxiWidth -ne 64 -or
+        $RawFullScaleWidth -ne 12 -or $rawFullProfileName -cne 'LUT_RELIEF') {
+        throw 'RAW-E2E requires RAW_FULL HP64/SCALE12/LUT_RELIEF (QK AUTO, AV DSP)'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:TERNARYCORE_CANNED_PAGE_IP_REPO)) {
+        throw 'RAW-E2E cannot coexist with the compressed/canned frontend'
+    }
+    $rawE2eRepositoryPath = Resolve-RequiredDirectory `
+        -Path $env:TERNARYCORE_RAW_E2E_IP_REPO -Label 'RAW-E2E IP repository'
+    $rawE2eProjectionPath = Resolve-RequiredFile -Path (
+        Join-Path $rawE2eRepositoryPath 'axi_gemm_stream\component.xml'
+    ) -Label 'RAW-E2E projection component'
+    $rawE2eWeightPath = Resolve-RequiredFile -Path (
+        Join-Path $rawE2eRepositoryPath 'weight_bram128\component.xml'
+    ) -Label 'RAW-E2E weight component'
+    foreach ($pair in @(
+        @($rawE2eRepositoryPath, 'RAW-E2E IP repository'),
+        @($rawE2eProjectionPath, 'RAW-E2E projection component'),
+        @($rawE2eWeightPath, 'RAW-E2E weight component')
+    )) { Assert-CmdSafePath -Path $pair[0] -Label $pair[1] }
+    $env:TERNARYCORE_RAW_E2E_IP_REPO = $rawE2eRepositoryPath
+    $rawE2eProjectionIdentity = [pscustomobject](Get-FileIdentity -Path $rawE2eProjectionPath)
+    $rawE2eWeightIdentity = [pscustomobject](Get-FileIdentity -Path $rawE2eWeightPath)
+}
+
 $cannedPageRepositoryPath = $null
 $cannedPageComponentIdentity = $null
 $cannedPageQkMultStyle = 0
@@ -649,7 +678,8 @@ if (-not [string]::IsNullOrWhiteSpace(
         'TERNARYCORE_KV_IP_REPO',
         'TERNARYCORE_KV_TRANSPORT',
         'TERNARYCORE_AV_DIAG_IP_REPO',
-        'TERNARYCORE_RAW_FULL_IP_REPO'
+        'TERNARYCORE_RAW_FULL_IP_REPO',
+        'TERNARYCORE_RAW_E2E_IP_REPO'
     )) {
         if (-not [string]::IsNullOrWhiteSpace(
                 [Environment]::GetEnvironmentVariable(
@@ -832,6 +862,9 @@ $runInputs = [ordered]@{
         raw_full_qk_mult_style = $rawFullQkMultStyle
         raw_full_av_mult_style = $rawFullAvMultStyle
         raw_full_profile = if ($null -eq $rawFullRepositoryPath) { 'NONE' } else { $rawFullProfileName }
+        raw_e2e_ip_repository = $rawE2eRepositoryPath
+        raw_e2e_projection_component = $rawE2eProjectionIdentity
+        raw_e2e_weight_component = $rawE2eWeightIdentity
         canned_page_ip_repository = $cannedPageRepositoryPath
         canned_page_component = $cannedPageComponentIdentity
         canned_page_scale_bits = if ($null -eq $cannedPageRepositoryPath) { 0 } else { $CannedPageScaleBits }
@@ -931,6 +964,8 @@ try {
         (Join-Path $outputPath 'artifacts\build_result.tcl'),
         (Join-Path $outputPath 'reports\timing_summary.rpt'),
         (Join-Path $outputPath 'reports\utilization.rpt'),
+        (Join-Path $outputPath 'reports\hierarchical_utilization.rpt'),
+        (Join-Path $outputPath 'reports\critical_paths.rpt'),
         (Join-Path $outputPath 'reports\clock_utilization.rpt'),
         (Join-Path $outputPath 'reports\drc.rpt'),
         (Join-Path $outputPath 'reports\methodology.rpt'),
@@ -958,6 +993,14 @@ try {
         ).Hash.ToLowerInvariant()
         if ($currentRawFullComponentHash -cne $rawFullComponentIdentity.sha256) {
             throw 'raw-full diagnostic IP component changed during platform run'
+        }
+    }
+    foreach ($component in @($rawE2eProjectionIdentity, $rawE2eWeightIdentity)) {
+        if ($null -ne $component) {
+            $currentHash = (Get-FileHash -LiteralPath $component.path -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($currentHash -cne $component.sha256) {
+                throw "RAW-E2E component changed during platform run: $($component.path)"
+            }
         }
     }
     if ($null -ne $cannedPageComponentIdentity) {

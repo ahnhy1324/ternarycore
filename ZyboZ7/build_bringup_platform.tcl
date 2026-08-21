@@ -426,6 +426,8 @@ foreach required_key {
     raw_full_enabled raw_full_ip_repo raw_full_component_sha256
     raw_full_m_axi_data_width raw_full_scale_width
     raw_full_qk_mult_style raw_full_av_mult_style raw_full_profile
+    raw_e2e_enabled raw_e2e_ip_repo
+    raw_e2e_projection_component_sha256 raw_e2e_weight_component_sha256
     canned_page_enabled canned_page_ip_repo
     canned_page_component_sha256 canned_page_scale_bits
     canned_page_qk_mult_style canned_page_av_mult_style
@@ -517,6 +519,25 @@ if {$identity_raw_full_enabled} {
           $identity_raw_full_qk_style != 0 || $identity_raw_full_av_style != 0 ||
           $identity_raw_full_profile ne "NONE"} {
     error "disabled raw-full identity must use empty repo/hash, zero width/scale/styles, and profile NONE"
+}
+set identity_raw_e2e_enabled [dict get $identity raw_e2e_enabled]
+set identity_raw_e2e_repo [dict get $identity raw_e2e_ip_repo]
+set identity_raw_e2e_projection_sha [dict get $identity raw_e2e_projection_component_sha256]
+set identity_raw_e2e_weight_sha [dict get $identity raw_e2e_weight_component_sha256]
+if {$identity_raw_e2e_enabled} {
+    if {!$identity_raw_full_enabled || $identity_raw_full_width != 64 ||
+        $identity_raw_full_scale != 12 || $identity_raw_full_qk_style != 2 ||
+        $identity_raw_full_av_style != 1 || $identity_raw_full_profile ne "LUT_RELIEF"} {
+        error "RAW-E2E identity requires RAW_FULL HP64/SCALE12/LUT_RELIEF QK=2 AV=1"
+    }
+    if {[string trim $identity_raw_e2e_repo] eq "" ||
+        ![regexp {^[0-9A-F]{64}$} $identity_raw_e2e_projection_sha] ||
+        ![regexp {^[0-9A-F]{64}$} $identity_raw_e2e_weight_sha]} {
+        error "RAW-E2E identity has an empty repo or invalid component SHA-256"
+    }
+} elseif {$identity_raw_e2e_repo ne "" || $identity_raw_e2e_projection_sha ne "" ||
+          $identity_raw_e2e_weight_sha ne ""} {
+    error "disabled RAW-E2E identity must use empty repo and hashes"
 }
 set identity_canned_enabled [dict get $identity canned_page_enabled]
 set identity_canned_repo [dict get $identity canned_page_ip_repo]
@@ -636,6 +657,17 @@ if {[dict get $identity raw_full_enabled]} {
         error "raw-full IP component changed after create: expected [dict get $identity raw_full_component_sha256], got $actual_raw_full_component_sha256"
     }
 }
+if {[dict get $identity raw_e2e_enabled]} {
+    set raw_e2e_repo [file normalize [dict get $identity raw_e2e_ip_repo]]
+    foreach {relative expected label} [list \
+        {axi_gemm_stream/component.xml} [dict get $identity raw_e2e_projection_component_sha256] projection \
+        {weight_bram128/component.xml} [dict get $identity raw_e2e_weight_component_sha256] weight] {
+        set component [file join $raw_e2e_repo {*}[split $relative /]]
+        if {![file isfile $component]} { error "recorded RAW-E2E $label component absent: $component" }
+        set actual [bringup_sha256 $component]
+        if {$actual ne $expected} { error "RAW-E2E $label component changed: expected $expected got $actual" }
+    }
+}
 if {[dict get $identity canned_page_enabled]} {
     set canned_page_repo \
         [file normalize [dict get $identity canned_page_ip_repo]]
@@ -692,6 +724,9 @@ if {[dict get $identity raw_full_enabled]} {
 if {[dict get $identity canned_page_enabled]} {
     lappend optional_ip_repos [dict get $identity canned_page_ip_repo]
 }
+if {[dict get $identity raw_e2e_enabled]} {
+    lappend optional_ip_repos [dict get $identity raw_e2e_ip_repo]
+}
 if {[llength $optional_ip_repos] > 0} {
     set_property ip_repo_paths $optional_ip_repos [current_project]
     update_ip_catalog -rebuild
@@ -720,6 +755,11 @@ if {[dict get $identity canned_page_enabled]} {
         shepherdscientific.com:user:axi_kvq_canned_page_diag:1.0]
     if {[llength $canned_page_defs] != 1} {
         error "build catalog expected one axi_kvq_canned_page_diag:1.0 definition; got: $canned_page_defs"
+    }
+}
+if {[dict get $identity raw_e2e_enabled]} {
+    foreach vlnv {shepherdscientific.com:user:axi_gemm_stream:1.0 shepherdscientific.com:user:weight_bram128:1.0} {
+        if {[llength [get_ipdefs -quiet $vlnv]] != 1} { error "build catalog missing RAW-E2E IP $vlnv" }
     }
 }
 set bd_file [get_files -quiet zybo_bringup.bd]
@@ -782,12 +822,16 @@ if {$impl_progress ne "100%" || ![string match "*Complete*" $impl_status]} {
 open_run impl_1
 set timing_report [file join $reports_dir timing_summary.rpt]
 set utilization_report [file join $reports_dir utilization.rpt]
+set hierarchical_utilization_report [file join $reports_dir hierarchical_utilization.rpt]
+set critical_paths_report [file join $reports_dir critical_paths.rpt]
 set clock_report [file join $reports_dir clock_utilization.rpt]
 set drc_report [file join $reports_dir drc.rpt]
 set methodology_report [file join $reports_dir methodology.rpt]
 set cdc_report [file join $reports_dir cdc.rpt]
 report_timing_summary -delay_type min_max -report_unconstrained -max_paths 20 -file $timing_report
 report_utilization -hierarchical -file $utilization_report
+report_utilization -hierarchical -hierarchical_depth 6 -file $hierarchical_utilization_report
+report_timing -delay_type max -max_paths 100 -nworst 10 -sort_by group -file $critical_paths_report
 report_clock_utilization -file $clock_report
 report_drc -file $drc_report
 report_methodology -file $methodology_report
@@ -834,6 +878,8 @@ set evidence_files [dict create \
     "artifacts/ps7_init.tcl" $ps7_init_out \
     "reports/timing_summary.rpt" $timing_report \
     "reports/utilization.rpt" $utilization_report \
+    "reports/hierarchical_utilization.rpt" $hierarchical_utilization_report \
+    "reports/critical_paths.rpt" $critical_paths_report \
     "reports/clock_utilization.rpt" $clock_report \
     "reports/drc.rpt" $drc_report \
     "reports/methodology.rpt" $methodology_report \
@@ -882,6 +928,10 @@ set build_result [dict create \
     raw_full_qk_mult_style [dict get $identity raw_full_qk_mult_style] \
     raw_full_av_mult_style [dict get $identity raw_full_av_mult_style] \
     raw_full_profile     [dict get $identity raw_full_profile] \
+    raw_e2e_enabled      [dict get $identity raw_e2e_enabled] \
+    raw_e2e_ip_repo      [dict get $identity raw_e2e_ip_repo] \
+    raw_e2e_projection_component_sha256 [dict get $identity raw_e2e_projection_component_sha256] \
+    raw_e2e_weight_component_sha256 [dict get $identity raw_e2e_weight_component_sha256] \
     canned_page_enabled  [dict get $identity canned_page_enabled] \
     canned_page_ip_repo  [dict get $identity canned_page_ip_repo] \
     canned_page_component_sha256 [dict get $identity canned_page_component_sha256] \

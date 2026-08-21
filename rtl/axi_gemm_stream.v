@@ -28,7 +28,11 @@ module axi_gemm_stream #(
     parameter DEPTH_MAX  = 1024,
     parameter COLS       = 64,
     parameter ACC_WIDTH  = 32,
-    parameter WADDR_W    = 14
+    parameter WADDR_W    = 14,
+    // Existing integrations retain the historical default.  The RAW-E2E
+    // projection-only profile sets this to zero so CTRL[3] is inert and the
+    // legacy INT8 attention bit-slice path is removed during synthesis.
+    parameter ENABLE_INT8 = 1
 ) (
     input  wire         clk,
     input  wire         rst_n,
@@ -158,7 +162,7 @@ module axi_gemm_stream #(
                 S_IDLE: if (start_cmd) begin
                     state <= S_CLR; gemm_clr <= 1; clr_cnt <= 2;
                     done <= 0; k <= 0; v0 <= 0; v1 <= 0; fed <= 0; cycles <= 0; vout_d <= 0;
-                    int8_mode <= int8_cmd;   // same AXI write, so coherent
+                    int8_mode <= (ENABLE_INT8 != 0) && int8_cmd;
                 end
                 S_CLR: begin
                     cycles <= cycles + 1;

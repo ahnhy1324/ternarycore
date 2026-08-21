@@ -266,9 +266,22 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
               $expected_canned_compiled_v_codebook_id != 0} {
         ::zybo_bringup::fail "absent canned-page mode requires scale/styles/compiled IDs 0 and profile NONE"
     }
+    set projection_cells [get_bd_cells -quiet axi_gemm_stream_0]
+    set weight_cells [get_bd_cells -quiet weight_bram128_0]
+    if {[llength $projection_cells] > 1 || [llength $weight_cells] > 1 ||
+        [llength $projection_cells] != [llength $weight_cells]} {
+        ::zybo_bringup::fail "RAW-E2E projection and weight cells must be one matched pair"
+    }
+    set raw_e2e_enabled [expr {[llength $projection_cells] == 1}]
+    if {$raw_e2e_enabled && (!$raw_full_enabled || $canned_page_enabled ||
+        $expected_raw_data_width != 64 || $expected_raw_scale_width != 12 ||
+        $expected_raw_qk_mult_style != 2 || $expected_raw_av_mult_style != 1 ||
+        $expected_raw_profile ne "LUT_RELIEF")} {
+        ::zybo_bringup::fail "RAW-E2E requires RAW_FULL HP64/SCALE12/LUT_RELIEF QK=2 AV=1"
+    }
     ::zybo_bringup::require_equal [get_property CONFIG.NUM_MI [get_bd_cells ctrl_sc]] \
-        [expr {($raw_full_enabled || $canned_page_enabled) ? 3 : \
-            ($av_diag_enabled ? 4 : ($kv_smoke_enabled ? 3 : 2))}] \
+        [expr {$raw_e2e_enabled ? 5 : (($raw_full_enabled || $canned_page_enabled) ? 3 : \
+            ($av_diag_enabled ? 4 : ($kv_smoke_enabled ? 3 : 2)))}] \
         "GP0 interconnect master count"
     ::zybo_bringup::require_equal [get_property CONFIG.NUM_SI [get_bd_cells hp_sc]] \
         [expr {$raw_full_enabled ? 3 : \
@@ -388,6 +401,11 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
             axi_kvq_canned_page_diag_0/clk
             axi_kvq_canned_page_diag_0/rst_n
         } {
+            ::zybo_bringup::require_pin_connected $pin_name
+        }
+    }
+    if {$raw_e2e_enabled} {
+        foreach pin_name {ctrl_sc/M03_ACLK ctrl_sc/M03_ARESETN ctrl_sc/M04_ACLK ctrl_sc/M04_ARESETN axi_gemm_stream_0/clk axi_gemm_stream_0/rst_n weight_bram128_0/clk weight_bram128_0/rst_n} {
             ::zybo_bringup::require_pin_connected $pin_name
         }
     }
@@ -535,6 +553,29 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
                 "canned-page unused HP0 input $unused_hp_input"
         }
     }
+    if {$raw_e2e_enabled} {
+        foreach pin_name {ctrl_sc/M03_AXI axi_gemm_stream_0/s_axi ctrl_sc/M04_AXI weight_bram128_0/s_axi} {
+            ::zybo_bringup::require_intf_connected $pin_name
+        }
+        set projection [get_bd_cells axi_gemm_stream_0]
+        foreach {property expected label} {
+            VLNV shepherdscientific.com:user:axi_gemm_stream:1.0 "projection VLNV"
+            CONFIG.DEPTH_MAX 1024 "projection depth"
+            CONFIG.COLS 64 "projection columns"
+            CONFIG.ACC_WIDTH 32 "projection accumulator width"
+            CONFIG.WADDR_W 14 "projection weight address width"
+            CONFIG.ENABLE_INT8 0 "legacy INT8 attention disabled"
+        } { ::zybo_bringup::require_equal [get_property $property $projection] $expected $label }
+        set weight [get_bd_cells weight_bram128_0]
+        foreach {property expected label} {
+            VLNV shepherdscientific.com:user:weight_bram128:1.0 "weight VLNV"
+            CONFIG.ADDR_WIDTH 18 "weight address width"
+            CONFIG.ID_WIDTH 4 "weight AXI ID width"
+            CONFIG.DATA_WIDTH 32 "weight GP0 width"
+        } { ::zybo_bringup::require_equal [get_property $property $weight] $expected $label }
+        ::zybo_bringup::require_pins_share_net {axi_gemm_stream_0/w_word_addr weight_bram128_0/w_word_addr} "projection weight address"
+        ::zybo_bringup::require_pins_share_net {axi_gemm_stream_0/w_word weight_bram128_0/w_word} "projection weight data"
+    }
 
     ::zybo_bringup::require_equal [get_property CONFIG.C_M_AXI_DATA_WIDTH [get_bd_cells axi_cdma_0]] 64 "CDMA AXI data width"
     ::zybo_bringup::require_equal [get_property CONFIG.C_INCLUDE_SG [get_bd_cells axi_cdma_0]] 0 "CDMA scatter-gather disable"
@@ -582,10 +623,16 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
             "GP0 canned-page control segment"
     }
 
-    puts [format "ZYBO BRING-UP ASSERTIONS PASS: %s, %.3f MHz, GP0 BRAM/CDMA%s%s%s%s, 64-bit HP0" \
+    if {$raw_e2e_enabled} {
+        ::zybo_bringup::require_address ps7_0/Data "*axi_gemm_stream_0*" 0x43C30000 65536 "projection control"
+        ::zybo_bringup::require_address ps7_0/Data "*weight_bram128_0*" 0x44000000 262144 "projection weights"
+    }
+
+    puts [format "ZYBO BRING-UP ASSERTIONS PASS: %s, %.3f MHz, GP0 BRAM/CDMA%s%s%s%s%s, 64-bit HP0" \
         $::zybo_bringup::expected_part $expected_clock_mhz \
         [expr {$kv_smoke_enabled ? "/KV" : ""}] \
         [expr {$av_diag_enabled ? "/AV-DIAG" : ""}] \
         [expr {$raw_full_enabled ? "/RAW-FULL-$expected_raw_scale_width-$expected_raw_profile" : ""}] \
-        [expr {$canned_page_enabled ? "/CANNED-PAGE-$expected_canned_scale_bits-$expected_canned_profile" : ""}]]
+        [expr {$canned_page_enabled ? "/CANNED-PAGE-$expected_canned_scale_bits-$expected_canned_profile" : ""}] \
+        [expr {$raw_e2e_enabled ? "/TIER2-COLS64-PROJECTION" : ""}]]
 }

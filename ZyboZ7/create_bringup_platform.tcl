@@ -370,6 +370,28 @@ if {$canned_page_env_enabled} {
            [string trim $::env(TERNARYCORE_CANNED_PAGE_PROFILE)] ne "")} {
     error "TERNARYCORE_CANNED_PAGE_SCALE_BITS and TERNARYCORE_CANNED_PAGE_PROFILE require TERNARYCORE_CANNED_PAGE_IP_REPO"
 }
+set raw_e2e_enabled 0
+set raw_e2e_repo ""
+set raw_e2e_projection_component_sha256 ""
+set raw_e2e_weight_component_sha256 ""
+if {[info exists ::env(TERNARYCORE_RAW_E2E_IP_REPO)] &&
+    [string trim $::env(TERNARYCORE_RAW_E2E_IP_REPO)] ne ""} {
+    if {!$raw_full_enabled || $canned_page_enabled ||
+        $raw_full_m_axi_data_width != 64 || $raw_full_scale_width != 12 ||
+        $raw_full_qk_mult_style != 2 || $raw_full_av_mult_style != 1 ||
+        $raw_full_profile ne "LUT_RELIEF"} {
+        error "RAW E2E requires RAW_FULL HP64/SCALE12/LUT_RELIEF (QK=2, AV=1) and no canned frontend"
+    }
+    set raw_e2e_repo [file normalize $::env(TERNARYCORE_RAW_E2E_IP_REPO)]
+    set projection_component [file join $raw_e2e_repo axi_gemm_stream component.xml]
+    set weight_component [file join $raw_e2e_repo weight_bram128 component.xml]
+    foreach {component label} [list $projection_component projection $weight_component weight] {
+        if {![file isfile $component]} { error "RAW-E2E repo has no $label component: $component" }
+    }
+    set raw_e2e_projection_component_sha256 [bringup_sha256 $projection_component]
+    set raw_e2e_weight_component_sha256 [bringup_sha256 $weight_component]
+    set raw_e2e_enabled 1
+}
 set project_name "zybo_bringup"
 set bd_name      "zybo_bringup"
 set project_dir  [file join $output_dir project]
@@ -443,6 +465,10 @@ set identity [dict create \
     raw_full_qk_mult_style $raw_full_qk_mult_style \
     raw_full_av_mult_style $raw_full_av_mult_style \
     raw_full_profile     $raw_full_profile \
+    raw_e2e_enabled      $raw_e2e_enabled \
+    raw_e2e_ip_repo      $raw_e2e_repo \
+    raw_e2e_projection_component_sha256 $raw_e2e_projection_component_sha256 \
+    raw_e2e_weight_component_sha256 $raw_e2e_weight_component_sha256 \
     canned_page_enabled  $canned_page_enabled \
     canned_page_ip_repo  $canned_page_repo \
     canned_page_component_sha256 $canned_page_component_sha256 \
@@ -491,6 +517,10 @@ bringup_write_exclusive [file join $identity_dir identity.txt] \
         "raw_full_qk_mult_style=$raw_full_qk_mult_style" \
         "raw_full_av_mult_style=$raw_full_av_mult_style" \
         "raw_full_profile=$raw_full_profile" \
+        "raw_e2e_enabled=$raw_e2e_enabled" \
+        "raw_e2e_ip_repo=$raw_e2e_repo" \
+        "raw_e2e_projection_component_sha256=$raw_e2e_projection_component_sha256" \
+        "raw_e2e_weight_component_sha256=$raw_e2e_weight_component_sha256" \
         "canned_page_enabled=$canned_page_enabled" \
         "canned_page_ip_repo=$canned_page_repo" \
         "canned_page_component_sha256=$canned_page_component_sha256" \
@@ -520,6 +550,7 @@ if {$raw_full_enabled} {
 if {$canned_page_enabled} {
     lappend optional_ip_repos $canned_page_repo
 }
+if {$raw_e2e_enabled} { lappend optional_ip_repos $raw_e2e_repo }
 if {[llength $optional_ip_repos] > 0} {
     set_property ip_repo_paths $optional_ip_repos [current_project]
     update_ip_catalog -rebuild
@@ -548,6 +579,15 @@ if {$canned_page_enabled} {
         shepherdscientific.com:user:axi_kvq_canned_page_diag:1.0]
     if {[llength $canned_page_defs] != 1} {
         error "expected one packaged axi_kvq_canned_page_diag:1.0 definition; got: $canned_page_defs"
+    }
+}
+if {$raw_e2e_enabled} {
+    foreach vlnv {
+        shepherdscientific.com:user:axi_gemm_stream:1.0
+        shepherdscientific.com:user:weight_bram128:1.0
+    } {
+        set defs [get_ipdefs -quiet $vlnv]
+        if {[llength $defs] != 1} { error "expected one RAW-E2E IP '$vlnv'; got: $defs" }
     }
 }
 
@@ -605,8 +645,9 @@ if {!$native_fclk} {
 # GP0 control fabric: one BRAM loopback window plus CDMA control registers.
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 ctrl_sc
 set_property -dict [list CONFIG.NUM_SI {1} \
-    CONFIG.NUM_MI [expr {($raw_full_enabled || $canned_page_enabled) ? 3 : \
-        ($av_diag_enabled ? 4 : ($kv_smoke_enabled ? 3 : 2))}]] \
+    CONFIG.NUM_MI [expr {$raw_e2e_enabled ? 5 : \
+        (($raw_full_enabled || $canned_page_enabled) ? 3 : \
+        ($av_diag_enabled ? 4 : ($kv_smoke_enabled ? 3 : 2)))}]] \
     [get_bd_cells ctrl_sc]
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_0
@@ -671,6 +712,15 @@ if {$canned_page_enabled} {
         CONFIG.AV_MULT_STYLE          $canned_page_av_mult_style \
     ] [get_bd_cells axi_kvq_canned_page_diag_0]
 }
+if {$raw_e2e_enabled} {
+    create_bd_cell -type ip -vlnv shepherdscientific.com:user:axi_gemm_stream:1.0 axi_gemm_stream_0
+    set_property -dict [list CONFIG.DEPTH_MAX {1024} CONFIG.COLS {64} \
+        CONFIG.ACC_WIDTH {32} CONFIG.WADDR_W {14} CONFIG.ENABLE_INT8 {0}] \
+        [get_bd_cells axi_gemm_stream_0]
+    create_bd_cell -type ip -vlnv shepherdscientific.com:user:weight_bram128:1.0 weight_bram128_0
+    set_property -dict [list CONFIG.ADDR_WIDTH {18} CONFIG.ID_WIDTH {4} CONFIG.DATA_WIDTH {32}] \
+        [get_bd_cells weight_bram128_0]
+}
 
 connect_bd_intf_net [get_bd_intf_pins ps7_0/M_AXI_GP0] \
     [get_bd_intf_pins ctrl_sc/S00_AXI]
@@ -691,6 +741,12 @@ if {$raw_full_enabled} {
 if {$canned_page_enabled} {
     connect_bd_intf_net [get_bd_intf_pins ctrl_sc/M02_AXI] \
         [get_bd_intf_pins axi_kvq_canned_page_diag_0/s_axi]
+}
+if {$raw_e2e_enabled} {
+    connect_bd_intf_net [get_bd_intf_pins ctrl_sc/M03_AXI] [get_bd_intf_pins axi_gemm_stream_0/s_axi]
+    connect_bd_intf_net [get_bd_intf_pins ctrl_sc/M04_AXI] [get_bd_intf_pins weight_bram128_0/s_axi]
+    connect_bd_net [get_bd_pins axi_gemm_stream_0/w_word_addr] [get_bd_pins weight_bram128_0/w_word_addr]
+    connect_bd_net [get_bd_pins weight_bram128_0/w_word] [get_bd_pins axi_gemm_stream_0/w_word]
 }
 connect_bd_intf_net [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA] [get_bd_intf_pins bram_0/BRAM_PORTA]
 
@@ -749,6 +805,10 @@ if {$canned_page_enabled} {
         [get_bd_pins ctrl_sc/M02_ACLK] \
         [get_bd_pins axi_kvq_canned_page_diag_0/clk]
 }
+if {$raw_e2e_enabled} {
+    connect_bd_net $PL_CLK [get_bd_pins ctrl_sc/M03_ACLK] [get_bd_pins ctrl_sc/M04_ACLK] \
+        [get_bd_pins axi_gemm_stream_0/clk] [get_bd_pins weight_bram128_0/clk]
+}
 connect_bd_net $AXI_RST_N \
     [get_bd_pins ctrl_sc/ARESETN] \
     [get_bd_pins ctrl_sc/S00_ARESETN] \
@@ -767,6 +827,9 @@ if {$raw_full_enabled} {
 if {$canned_page_enabled} {
     connect_bd_net $AXI_RST_N [get_bd_pins ctrl_sc/M02_ARESETN]
 }
+if {$raw_e2e_enabled} {
+    connect_bd_net $AXI_RST_N [get_bd_pins ctrl_sc/M03_ARESETN] [get_bd_pins ctrl_sc/M04_ARESETN]
+}
 connect_bd_net $PL_RST_N \
     [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
     [get_bd_pins axi_cdma_0/s_axi_lite_aresetn]
@@ -782,6 +845,9 @@ if {$raw_full_enabled} {
 if {$canned_page_enabled} {
     connect_bd_net $PL_RST_N \
         [get_bd_pins axi_kvq_canned_page_diag_0/rst_n]
+}
+if {$raw_e2e_enabled} {
+    connect_bd_net $PL_RST_N [get_bd_pins axi_gemm_stream_0/rst_n] [get_bd_pins weight_bram128_0/rst_n]
 }
 set cdma_m_axi_reset_pins [get_bd_pins -quiet axi_cdma_0/m_axi_aresetn]
 if {[llength $cdma_m_axi_reset_pins] > 1} {
@@ -832,6 +898,16 @@ if {$canned_page_enabled} {
         [get_bd_addr_segs ps7_0/Data/SEG_axi_kvq_canned_page_diag_0_reg0]
     set_property offset 0x43C20000 $canned_page_ctrl_segment
     set_property range  64K        $canned_page_ctrl_segment
+}
+if {$raw_e2e_enabled} {
+    assign_bd_address -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs axi_gemm_stream_0/s_axi/reg0]
+    set projection_ctrl_segment [get_bd_addr_segs ps7_0/Data/SEG_axi_gemm_stream_0_reg0]
+    set_property offset 0x43C30000 $projection_ctrl_segment
+    set_property range 64K $projection_ctrl_segment
+    assign_bd_address -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs weight_bram128_0/s_axi/reg0]
+    set projection_weight_segment [get_bd_addr_segs ps7_0/Data/SEG_weight_bram128_0_reg0]
+    set_property offset 0x44000000 $projection_weight_segment
+    set_property range 256K $projection_weight_segment
 }
 
 # Explicitly include the PS DDR aperture in the CDMA master address space.

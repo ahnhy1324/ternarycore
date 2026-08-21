@@ -3,9 +3,13 @@
 // results and cycle count against a golden model. House rule: this must
 // pass in iverilog before Vivado sees the RTL.
 `timescale 1ns / 1ps
+`ifndef ENABLE_INT8_VAL
+`define ENABLE_INT8_VAL 1
+`endif
 module tb_axi_gemm_stream;
     localparam DEPTH = 1024;          // runtime depth for the test
     localparam COLS  = 64;
+    localparam ENABLE_INT8 = `ENABLE_INT8_VAL;
 
     reg clk = 0, rst_n = 0;
     always #5 clk = ~clk;
@@ -42,7 +46,7 @@ module tb_axi_gemm_stream;
         .s_axi_rresp(), .s_axi_rlast(), .s_axi_rvalid(), .s_axi_rready(1'b1),
         .w_word_addr(ww_addr), .w_word(ww_data));
 
-    axi_gemm_stream u_dut (
+    axi_gemm_stream #(.ENABLE_INT8(ENABLE_INT8)) u_dut (
         .clk(clk), .rst_n(rst_n),
         .s_axi_awaddr(g_awaddr), .s_axi_awprot(3'b0), .s_axi_awvalid(g_awvalid),
         .s_axi_awready(g_awready), .s_axi_wdata(g_wdata), .s_axi_wstrb(4'hF),
@@ -133,7 +137,8 @@ module tb_axi_gemm_stream;
 
         for (t = 0; t < 2; t = t + 1) begin
             gwr(8'h0C, t);                    // CT
-            gwr(8'h00, 32'h1);                // START
+            // Exercise CTRL[3] in projection-only mode; it must be inert.
+            gwr(8'h00, ENABLE_INT8 ? 32'h1 : 32'h9); // START
             rd = 0;
             while (!(rd & 32'h2)) grd(8'h04, rd);   // wait done
             grd(8'h20, cyc);
@@ -182,8 +187,12 @@ module tb_axi_gemm_stream;
             gwr(8'h00, 32'h2);                // CLEAR
         end
 
-        if (errors == 0 && walk_err == 0)
-            $display("TB PASS: 128 columns exact, indexed and self-walking, index wraps at 64");
+        if (errors == 0 && walk_err == 0) begin
+            if (ENABLE_INT8 == 0)
+                $display("TIER2_COLS64_PROJECTION_ONLY_PASS outputs=128 depth=1024 legacy_int8_disabled=1");
+            else
+                $display("TB PASS: 128 columns exact, indexed and self-walking, index wraps at 64");
+        end
         else
             $display("TB FAIL: %0d indexed, %0d walking", errors, walk_err);
         $finish;
