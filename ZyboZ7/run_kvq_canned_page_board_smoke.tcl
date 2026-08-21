@@ -747,19 +747,28 @@ proc make_accepted_page_case {oracle raw_mode} {
     set context [dict get $oracle context]
     set k_scale [pack_lsb_codes [dict get $oracle k_scales] 12]
     set v_scale [pack_lsb_codes [dict get $oracle v_scales] 12]
-    if {$raw_mode} {
-        set k_payload [pack_lsb_codes [dict get $oracle k_codes] 4]
-        set v_payload [pack_lsb_codes [dict get $oracle v_codes] 5]
-    } else {
-        set k_payload [pack_prefix_codes [dict get $oracle k_codes] 0]
-        set v_payload [pack_prefix_codes [dict get $oracle v_codes] 1]
-    }
+    set k_raw_payload [pack_lsb_codes [dict get $oracle k_codes] 4]
+    set v_raw_payload [pack_lsb_codes [dict get $oracle v_codes] 5]
+    set k_compressed_payload [pack_prefix_codes [dict get $oracle k_codes] 0]
+    set v_compressed_payload [pack_prefix_codes [dict get $oracle v_codes] 1]
+    # PACKED5 requires per-stream RAW fallback whenever prefix coding is not
+    # smaller than the corresponding fixed-width image.  The accepted
+    # context-7 V vector is intentionally broad and expands under its prefix
+    # codebook, while K still compresses.  Preserve the fixed input and use a
+    # mixed K-compressed/V-RAW page pair instead of emitting an invalid V
+    # compressed header whose payload is larger than RAW.
+    set k_raw [expr {$raw_mode ||
+        [llength $k_compressed_payload] >= [llength $k_raw_payload]}]
+    set v_raw [expr {$raw_mode ||
+        [llength $v_compressed_payload] >= [llength $v_raw_payload]}]
+    set k_payload [expr {$k_raw ? $k_raw_payload : $k_compressed_payload}]
+    set v_payload [expr {$v_raw ? $v_raw_payload : $v_compressed_payload}]
     set k_bytes [llength $k_payload]
     set v_bytes [llength $v_payload]
-    set k_header [list 3 0xc3 [expr {$raw_mode ? 1 : 0}] \
+    set k_header [list 3 0xc3 [expr {$k_raw ? 1 : 0}] \
         [expr {$context - 1}] [expr {$k_bytes & 0xff}] \
         [expr {($k_bytes >> 8) & 0xff}] 1 1 0 0 0 0]
-    set v_header [list 3 0xc3 [expr {$raw_mode ? 3 : 2}] \
+    set v_header [list 3 0xc3 [expr {$v_raw ? 3 : 2}] \
         [expr {$context - 1}] [expr {$v_bytes & 0xff}] \
         [expr {($v_bytes >> 8) & 0xff}] 2 1 0 0 0 0]
     lassign [stamp_crc [concat $k_header $k_payload] $k_bytes $k_scale] k k_crc
@@ -770,10 +779,27 @@ proc make_accepted_page_case {oracle raw_mode} {
     set v [concat $v [zero_bytes [expr {$v_window - [llength $v]}]]]
     set q_bytes {}
     foreach value [dict get $oracle q_values] { lappend q_bytes [expr {$value & 0xff}] }
-    return [dict create raw $raw_mode context $context k $k v $v \
+    set page_modes [expr {$k_raw | ($v_raw << 1)}]
+    set raw_pages [expr {$k_raw + $v_raw}]
+    return [dict create raw $raw_mode page_modes $page_modes \
+        raw_pages $raw_pages context $context k $k v $v \
         k_scale $k_scale v_scale $v_scale k_window $k_window \
         v_window $v_window k_crc $k_crc v_crc $v_crc \
         q_words [bytes_to_words $q_bytes] oracle $oracle]
+}
+
+proc case_page_modes {case_data} {
+    if {[dict exists $case_data page_modes]} {
+        return [dict get $case_data page_modes]
+    }
+    return [expr {[dict get $case_data raw] ? 3 : 0}]
+}
+
+proc case_raw_pages {case_data} {
+    if {[dict exists $case_data raw_pages]} {
+        return [dict get $case_data raw_pages]
+    }
+    return [expr {[dict get $case_data raw] ? 2 : 0}]
 }
 
 proc self_test_case {scale_width} {
@@ -929,8 +955,8 @@ proc load_case {case_data} {
     global Q_BASE K_PAGE_BASE V_PAGE_BASE K_SCALE_BASE V_SCALE_BASE
     write32 [expr {$BASE + $REG_K_WINDOW}] [dict get $case_data k_window]
     write32 [expr {$BASE + $REG_V_WINDOW}] [dict get $case_data v_window]
-    write32 [expr {$BASE + $REG_PAGE_MODES}] \
-        [expr {[dict get $case_data raw] ? 3 : 0}]
+    set page_modes [case_page_modes $case_data]
+    write32 [expr {$BASE + $REG_PAGE_MODES}] $page_modes
     if {[dict exists $case_data q_words]} {
         set q_words [dict get $case_data q_words]
     } else {
@@ -948,7 +974,7 @@ proc load_case {case_data} {
     foreach {register expected label} [list \
         $REG_K_WINDOW [dict get $case_data k_window] K_window \
         $REG_V_WINDOW [dict get $case_data v_window] V_window \
-        $REG_PAGE_MODES [expr {[dict get $case_data raw] ? 3 : 0}] page_modes] {
+        $REG_PAGE_MODES $page_modes page_modes] {
         require_equal $label [read32 [expr {$BASE + $register}]] $expected
     }
 }
@@ -1159,7 +1185,7 @@ proc write_machine_evidence {evidence_root projection raw compressed} {
     puts "COMPRESSED_E2E_MACHINE_EVIDENCE_PASS vectors=$vector_path counters=$counter_path"
 }
 
-proc check_counters {raw_mode label {context 128}} {
+proc check_counters {expected_raw label {context 128}} {
     global BASE REG_K_VALID_DATA_REQ REG_V_VALID_DATA_REQ
     global REG_K_COPY_DATA_REQ REG_V_COPY_DATA_REQ REG_K_P16_REQ REG_V_P16_REQ
     global REG_K_SCALE_REQ REG_V_SCALE_REQ REG_K_STARVE REG_V_STARVE
@@ -1189,7 +1215,6 @@ proc check_counters {raw_mode label {context 128}} {
             fail "$label counter $name=[dict get $counters $name] expected=$expected"
         }
     }
-    set expected_raw [expr {$raw_mode ? 2 : 0}]
     if {[dict get $counters raw_pages] != $expected_raw} {
         fail "$label raw_pages=[dict get $counters raw_pages] expected=$expected_raw"
     }
@@ -1206,7 +1231,7 @@ proc run_success {case_data label {reference ""}} {
     set context [expr {[dict exists $case_data context] ?
         [dict get $case_data context] : 128}]
     dict set snapshot counters \
-        [check_counters [dict get $case_data raw] $label $context]
+        [check_counters [case_raw_pages $case_data] $label $context]
     if {$reference ne ""} {
         compare_results $snapshot $reference $label
     }
