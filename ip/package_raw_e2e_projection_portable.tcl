@@ -143,7 +143,7 @@ set weight_component [e2e_package weight_bram128 \
     [file join $output_root work weight_bram128_pkg] \
     [file join $output_root ip weight_bram128] $part \
     [list [dict get $snapshots rtl/weight_bram128.v]] \
-    [list ADDR_WIDTH 18 ID_WIDTH 4 DATA_WIDTH 32] $clock_hz]
+    [list ADDR_WIDTH 18 ID_WIDTH 12 DATA_WIDTH 32] $clock_hz]
 
 create_project -in_memory -part $part
 set_property ip_repo_paths [list [file join $output_root ip]] [current_project]

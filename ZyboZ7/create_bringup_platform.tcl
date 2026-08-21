@@ -718,7 +718,7 @@ if {$raw_e2e_enabled} {
         CONFIG.ACC_WIDTH {32} CONFIG.WADDR_W {14} CONFIG.ENABLE_INT8 {0}] \
         [get_bd_cells axi_gemm_stream_0]
     create_bd_cell -type ip -vlnv shepherdscientific.com:user:weight_bram128:1.0 weight_bram128_0
-    set_property -dict [list CONFIG.ADDR_WIDTH {18} CONFIG.ID_WIDTH {4} CONFIG.DATA_WIDTH {32}] \
+    set_property -dict [list CONFIG.ADDR_WIDTH {18} CONFIG.ID_WIDTH {12} CONFIG.DATA_WIDTH {32}] \
         [get_bd_cells weight_bram128_0]
 }
 

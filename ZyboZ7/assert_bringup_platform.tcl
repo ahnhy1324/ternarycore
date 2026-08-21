@@ -570,7 +570,7 @@ proc assert_bringup_platform {expected_clock_mhz {expected_kv_data_width 64} \
         foreach {property expected label} {
             VLNV shepherdscientific.com:user:weight_bram128:1.0 "weight VLNV"
             CONFIG.ADDR_WIDTH 18 "weight address width"
-            CONFIG.ID_WIDTH 4 "weight AXI ID width"
+            CONFIG.ID_WIDTH 12 "weight AXI ID width"
             CONFIG.DATA_WIDTH 32 "weight GP0 width"
         } { ::zybo_bringup::require_equal [get_property $property $weight] $expected $label }
         ::zybo_bringup::require_pins_share_net {axi_gemm_stream_0/w_word_addr weight_bram128_0/w_word_addr} "projection weight address"
